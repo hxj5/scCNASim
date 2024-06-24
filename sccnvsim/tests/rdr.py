@@ -5,8 +5,8 @@ from logging import info
 import numpy as np
 import os
 
-from ..simulation.io import save_10x_data
-from ..simulation.marginal import simu_RD_wrapper
+from ..counts.io import save_10x_data
+from ..counts.marginal import simu_RD_wrapper
 from ..utils.grange import str2tuple
 
 

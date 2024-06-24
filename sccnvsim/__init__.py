@@ -1,4 +1,5 @@
-from . import simulation as simu
+from . import alignments as aln
+from . import counts
 from . import tests
 from . import utils
 from .config import VERSION
