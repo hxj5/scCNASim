@@ -11,18 +11,18 @@ import time
 from logging import debug, error, info
 from logging import warning as warn
 
-from .fc.config import Config
-from .fc.core import fc_features
-from .fc.thread import ThreadData
-from .fc.utils import load_region_from_txt, load_snp_from_vcf, \
+from .config import Config
+from .core import fc_features
+from .thread import ThreadData
+from .utils import load_region_from_txt, load_snp_from_vcf, \
     load_snp_from_tsv, merge_mtx, merge_tsv
 
-from ..config import APP, VERSION
-from ..utils.xlog import init_logging
-from ..utils.zfile import zopen, ZF_F_GZIP, ZF_F_PLAIN
+from ...config import APP, VERSION
+from ...utils.xlog import init_logging
+from ...utils.zfile import zopen, ZF_F_GZIP, ZF_F_PLAIN
 
 
-COMMAND = "allelefc"
+COMMAND = "afc"
 
 
 def usage(fp = sys.stdout, conf = None):
@@ -48,17 +48,16 @@ def usage(fp = sys.stdout, conf = None):
     s += "      --UMItag STR       Tag for UMI, set to None when reads only [%s]\n" % conf.UMI_TAG
     s += "      --minCOUNT INT     Mininum aggragated count for SNP [%d]\n" % conf.MIN_COUNT
     s += "      --minMAF FLOAT     Mininum minor allele fraction for SNP [%f]\n" % conf.MIN_MAF
-    s += "      --outputAllReg     If set, output all inputted regions.\n"
     s += "      --countDupHap      If set, UMIs aligned to both haplotypes will be counted.\n"
     s += "  -D, --debug INT        Used by developer for debugging [%d]\n" % conf.DEBUG
     s += "\n"
     s += "Read filtering:\n"
-    s += "  --inclFLAG INT    Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
-    s += "  --exclFLAG INT    Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
+    s += "      --inclFLAG INT    Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
+    s += "      --exclFLAG INT    Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
     s += "                    (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
-    s += "  --minLEN INT      Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
-    s += "  --minMAPQ INT     Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
-    s += "  --countORPHAN     If use, do not skip anomalous read pairs.\n"
+    s += "      --minLEN INT      Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
+    s += "      --minMAPQ INT     Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
+    s += "      --countORPHAN     If use, do not skip anomalous read pairs.\n"
     s += "\n"
 
     fp.write(s)
@@ -101,7 +100,7 @@ def afc_main(argv, conf = None):
 
             "nproc=", 
             "cellTAG=", "UMItag=", 
-            "minCOUNT=", "minMAF=", "outputAllReg", "countDupHap",
+            "minCOUNT=", "minMAF=", "countDupHap",
             "debug=",
 
             "inclFLAG=", "exclFLAG=", "minLEN=", "minMAPQ=", "countORPHAN"
@@ -125,7 +124,6 @@ def afc_main(argv, conf = None):
         elif op in (      "--umitag"): conf.umi_tag = val
         elif op in (      "--mincount"): conf.min_count = int(val)
         elif op in (      "--minmaf"): conf.min_maf = float(val)
-        elif op in (      "--outputallreg"): conf.output_all_reg = True
         elif op in (      "--countduphap"): conf.no_dup_hap = False
         elif op in ("-D", "--debug"): conf.debug = int(val)
 
@@ -153,12 +151,13 @@ def afc_wrapper(
     ncores = 1,
     cell_tag = "CB", umi_tag = "UB",
     min_count = 1, min_maf = 0,
-    output_all_reg = False, no_dup_hap = True,
+    no_dup_hap = True,
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = None,
     no_orphan = True
 ):
     conf = Config()
+    init_logging(stream = sys.stderr)
 
     conf.sam_fn = sam_fn
     conf.sam_list_fn = sam_list_fn
@@ -175,7 +174,6 @@ def afc_wrapper(
     conf.nproc = ncores
     conf.min_count = min_count
     conf.min_maf = min_maf
-    conf.output_all_reg = output_all_reg
     conf.no_dup_hap = no_dup_hap
 
     conf.min_mapq = min_mapq
@@ -197,19 +195,17 @@ def afc_core(conf):
     # extract SNPs for each region
     if conf.debug > 0:
         debug("extract SNPs for each region.")
-    reg_list = []
+    n_reg_with_snp = 0
     for reg in conf.reg_list:
         snp_list = conf.snp_set.fetch(reg.chrom, reg.start, reg.end)
         if snp_list and len(snp_list) > 0:
             reg.snp_list = snp_list
-            reg_list.append(reg)
+            n_reg_with_snp += 1
         else:
+            reg.snp_list = []
             if conf.debug > 0:
                 debug("no SNP fetched for region '%s'." % reg.name)
-    info("%d regions extracted with SNPs." % len(reg_list))
-
-    if not conf.output_all_reg:
-        conf.reg_list = reg_list
+    info("%d regions extracted with SNPs." % n_reg_with_snp)
 
     # split region list and save to file
     m_reg = len(conf.reg_list)

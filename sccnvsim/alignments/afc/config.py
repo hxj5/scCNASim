@@ -23,7 +23,6 @@ class Config:
         self.nproc = self.defaults.NPROC
         self.min_count = self.defaults.MIN_COUNT
         self.min_maf = self.defaults.MIN_MAF
-        self.output_all_reg = self.defaults.OUTPUT_ALL_REG
         self.no_dup_hap = self.defaults.NO_DUP_HAP
 
         self.min_mapq = self.defaults.MIN_MAPQ
@@ -68,7 +67,6 @@ class Config:
         s += "%snumber_of_processes = %d\n" % (prefix, self.nproc)
         s += "%smin_count = %d\n" % (prefix, self.min_count)
         s += "%smin_maf = %f\n" % (prefix, self.min_maf)
-        s += "%soutput_all_reg = %s\n" % (prefix, self.output_all_reg)
         s += "%sno_dup_hap = %s\n" % (prefix, self.no_dup_hap)
         s += "%s\n" % prefix
 
@@ -116,7 +114,6 @@ class DefaultConfig:
         self.NPROC = 1
         self.MIN_COUNT = 1 
         self.MIN_MAF = 0
-        self.OUTPUT_ALL_REG = False
         self.NO_DUP_HAP = True
 
         self.MIN_MAPQ = 20

@@ -1,12 +1,9 @@
-# mcount.py - counting machine for SNPs.
-
-from ...utils.sam import get_query_bases
+# fcount.py - counting machine for features.
 
 
+# TODO: UMI/read collapsing.
 class UCount:
     """Counting Unit.
-
-    TODO: UMI/read collapsing.
 
     Attributes
     ----------
@@ -14,44 +11,54 @@ class UCount:
         A SCount object that the UCount object belongs to.
     conf : config::Config object
         Configuration.
-    allele : str
-        The allele for the query SNP in this UMI.
     allele_idx : int
-        The index of phased allele. 
-        0 (ref), 1 (alt), -1 (oth).
+        The index of region allele.
+        0 (ref), 1 (alt), 2 (both), -1 (oth), -2 (unknown).
+    allele_cnt : dict
+        The key is the allele index in SNP level, i.e., 0 (ref), 1 (alt),
+        -1 (oth), -2 (allele is None), the value is the number of SNPs.
     """
     def __init__(self, scnt, conf):
         self.scnt = scnt
         self.conf = conf
-        self.allele = None
-        self.allele_idx = -2
+        self.allele_idx = None
+        self.allele_cnt = {0:0, 1:0, -1:0, -2:0}
 
-    def push_read(self, read):
-        """Push one read into this count machine.
+    def push_snp(self, snp_ucnt):
+        """Push one SNP into this count machine.
         
         Parameters
         ----------
-        read : pysam::AlignedSegment object
-            A BAM read to be counted.
+        snp_ucnt : mcount::UCount object.
+            The object storing the info of specific UMI/read.
 
         Returns
         -------
         int
             0 if success, -1 otherwise.
         """
-        snp = self.scnt.mcnt.snp
-        try:
-            idx = read.positions.index(snp.pos - 1)
-        except:
-            self.allele = None
-            self.allele_idx = -2
+        ale_idx = snp_ucnt.allele_idx
+        if ale_idx == 0:        # ref allele
+            self.allele_cnt[0] += 1
+        elif ale_idx == 1:      # alt allele
+            self.allele_cnt[1] += 1
+        elif ale_idx == -1:
+            self.allele_cnt[-1] += 1
         else:
-            bases = get_query_bases(read, full_length = False)
-            self.allele = bases[idx].upper()
-            self.allele_idx = snp.get_region_allele_index(self.allele)
+            self.allele_cnt[-2] += 1
         return(0)
 
     def stat(self):
+        if self.allele_cnt[0] > 0 and self.allele_cnt[1] > 0:
+            self.allele_idx = 2
+        elif self.allele_cnt[0] > 0:
+            self.allele_idx = 0
+        elif self.allele_cnt[1] > 0:
+            self.allele_idx = 1
+        elif self.allele_cnt[-1] > 0:
+            self.allele_idx = -1
+        else:
+            self.allele_idx = -2
         return(0)
 
 
@@ -64,9 +71,9 @@ class SCount:
         A MCount object that the SCount object belongs to.
     conf : config::Config object
         Configuration.
-    tcount : list
-        Total read / UMI counts for A/C/G/T/N bases, only for this 
-        sample [list of int; 5 elements].
+    allele_cnt : dict
+        The key is the allele index in UMI level, i.e., 0 (ref), 1 (alt),
+        2 (both), -1 (oth), -2 (unknown), the value is the number of UMIs.
     umi_cnt : dict
         HashMap of <str:UCount> for umi:UCount pair, mainly for 10x data.
     is_reset : bool
@@ -75,8 +82,7 @@ class SCount:
     def __init__(self, mcnt, conf):
         self.mcnt = mcnt
         self.conf = conf
-
-        self.tcount = [0] * 5
+        self.allele_cnt = {0:0, 1:0, 2:0, -1:0, -2:0}
         self.umi_cnt = {}
         self.is_reset = False
 
@@ -86,30 +92,20 @@ class SCount:
     def mark_reset_true(self):
         self.is_reset = True
 
-    def push_read(self, read):
+    def push_snp(self, snp_scnt):
         conf = self.conf
-        umi = None
-        if conf.use_umi():
-            umi = read.get_tag(conf.umi_tag)
-        else:
-            umi = read.query_name
-        if not umi:
-            return(0)
-        if umi in self.umi_cnt:
-            return(0)
-        else:
-            ucnt = UCount(self, conf)
-            self.umi_cnt[umi] = ucnt
-            ret = ucnt.push_read(read)
-            if ret < 0:
+        for umi, snp_ucnt in snp_scnt.umi_cnt.items():
+            if umi not in self.umi_cnt:
+                self.umi_cnt[umi] = UCount(self, conf)
+            ucnt = self.umi_cnt[umi]
+            if ucnt.push_snp(snp_ucnt) < 0:
                 return(-1)
-            return(0)
+        return(0)
 
     def reset(self):
         if self.is_reset:
             return
-        for i in range(len(self.tcount)):
-            self.tcount[i] = 0
+        self.allele_cnt = {0:0, 1:0, 2:0, -1:0, -2:0}
         self.umi_cnt.clear()
         self.mark_reset_true()
 
@@ -117,12 +113,9 @@ class SCount:
         for ucnt in self.umi_cnt.values():
             if ucnt.stat() < 0:
                 return(-1)
-            allele = ucnt.allele
-            if allele:
-                idx = self.mcnt.base_idx["N"] 
-                if allele in self.mcnt.base_idx:
-                    idx = self.mcnt.base_idx[allele]
-                self.tcount[idx] += 1
+            ale_idx = ucnt.allele_idx
+            assert ale_idx in self.allele_cnt
+            self.allele_cnt[ale_idx] += 1
         return(0)
 
 
@@ -135,13 +128,8 @@ class MCount:
         A list of cell barcodes or sample IDs [list of str].
     conf : config::Config object
         Configuration
-    snp : region::SNP object
-        The SNP being pileuped.
-    tcount : list
-        Total read / UMI counts for A/C/G/T/N bases, aggregated for all 
-        samples [list of int; 5 elements].
-    base_idx : dict
-        The mapping from base (str) to index (int) for `tcount`.
+    reg : gfeature::BlockRegion object
+        The region in which feature counting is done.
     cell_cnt : dict
         HashMap of <str, SCount> for sample:SCount pair.
     is_reset : bool
@@ -151,9 +139,7 @@ class MCount:
         self.samples = samples
         self.conf = conf
 
-        self.snp = None
-        self.tcount = [0] * 5
-        self.base_idx = {"A":0, "C":1, "G":2, "T":3, "N":4}
+        self.reg = None
         self.cell_cnt = {}
         for smp in self.samples:
             if smp in self.cell_cnt:    # duplicate samples
@@ -161,9 +147,9 @@ class MCount:
             self.cell_cnt[smp] = SCount(self, self.conf)
         self.is_reset = False
 
-    def add_snp(self, snp):
+    def add_region(self, reg):
         self.reset()
-        self.snp = snp
+        self.reg = reg
         self.mark_reset_false()
         return(0)
     
@@ -179,13 +165,14 @@ class MCount:
             for scnt in self.cell_cnt.values():
                 scnt.mark_reset_true()
 
-    def push_read(self, read, sid = None):
-        """Push one read into this counting machine.
+    def push_snp(self, snp_mcnt):
+        """Push one snp into this counting machine.
 
         Parameters
         ----------
-        read : pysam::AlignedSegment object
-            A BAM read to be counted.
+        snp_mcnt : mcount::MCount object.
+            The object storing the counting results of each single cell
+            for specific SNP.
         sid : str
             The ID of the sample that the read belongs to. 
             Set to `None` if cell barcodes are used.
@@ -193,31 +180,20 @@ class MCount:
         Returns
         -------
         int
-            0 if success, -1 error, -2 read filtered.
+            0 if success, -1 error.
         """
-        conf = self.conf
-        if conf.use_barcodes():
-            smp = read.get_tag(conf.cell_tag)
-        else:
-            smp = sid
-        scnt = None
-        if smp in self.cell_cnt:
+        for smp, snp_scnt in snp_mcnt.cell_cnt.items():
+            if smp not in self.cell_cnt:
+                return(-1)
             scnt = self.cell_cnt[smp]
-        else:
-            return(-2)
-
-        ret = scnt.push_read(read)
-        if ret < 0: 
-            return(-1)
+            if scnt.push_snp(snp_scnt) < 0:
+                return(-1)
         return(0)
 
     def reset(self):
         if self.is_reset:
             return
-        self.snp = None
-        if self.tcount:
-            for i in range(len(self.tcount)):
-                self.tcount[i] = 0
+        self.reg = None
         if self.cell_cnt:
             for scnt in self.cell_cnt.values():
                 scnt.reset()
@@ -228,6 +204,4 @@ class MCount:
             scnt = self.cell_cnt[smp]
             if scnt.stat() < 0:
                 return(-1)
-            for j in range(len(self.tcount)):
-                self.tcount[j] += scnt.tcount[j]
         return(0)
