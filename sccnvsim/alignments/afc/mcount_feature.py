@@ -1,4 +1,4 @@
-# fcount.py - counting machine for features.
+# mcount_feature.py - counting machine for features.
 
 
 # TODO: UMI/read collapsing.
@@ -12,7 +12,7 @@ class UCount:
     conf : config::Config object
         Configuration.
     allele_idx : int
-        The index of region allele.
+        The index of feature allele.
         0 (ref), 1 (alt), 2 (both), -1 (oth), -2 (unknown).
     allele_cnt : dict
         The key is the allele index in SNP level, i.e., 0 (ref), 1 (alt),
@@ -147,7 +147,7 @@ class MCount:
             self.cell_cnt[smp] = SCount(self, self.conf)
         self.is_reset = False
 
-    def add_region(self, reg):
+    def add_feature(self, reg):
         self.reset()
         self.reg = reg
         self.mark_reset_false()

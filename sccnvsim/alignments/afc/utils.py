@@ -7,13 +7,13 @@ from .gfeature import SNP, SNPSet, BlockRegion
 from ...utils.zfile import zopen, ZF_F_GZIP, ZF_F_PLAIN
 
 
-def load_region_from_txt(fn, sep = "\t", verbose = False):
-    """Load regions from plain file.
+def load_feature_from_txt(fn, sep = "\t", verbose = False):
+    """Load features from plain file.
 
     Parameters
     ----------
     fn : str
-        Path to header-free plain file listing regions, each per line.
+        Path to header-free plain file listing features, each per line.
         The first 4 columns should be
         <chrom>, <start>, <end> (both 1-based, inclusive), <name>.
     verbose : bool
@@ -24,12 +24,12 @@ def load_region_from_txt(fn, sep = "\t", verbose = False):
     list
         A list of `BlockRegion` objects if success, `None` otherwise.    
     """
-    func = "load_region_from_txt"
+    func = "load_feature_from_txt"
     fp = zopen(fn, "rt")
     reg_list = []
     nl = 0
     if verbose:
-        sys.stderr.write("[I::%s] start to load regions from file '%s' ...\n" % (func, fn))
+        sys.stderr.write("[I::%s] start to load features from file '%s' ...\n" % (func, fn))
     for line in fp:
         nl += 1
         parts = line.rstrip().split(sep)

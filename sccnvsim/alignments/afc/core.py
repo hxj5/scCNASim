@@ -7,8 +7,8 @@ import pysam
 
 from logging import debug, error, info
 
-from .fcount import MCount as FeatureMCount
-from .mcount import MCount as SNPMCount
+from .mcount_feature import MCount as FeatureMCount
+from .mcount_snp import MCount as SNPMCount
 from ...utils.sam import sam_fetch, \
     BAM_FPAIRED, BAM_FPROPER_PAIR
 from ...utils.zfile import zopen, ZF_F_GZIP
@@ -47,17 +47,15 @@ def fc_features(thdata):
         sam_list.append(sam)
 
     reg_list = None
-    if thdata.is_reg_pickle:
-        with open(thdata.reg_obj, "rb") as fp:
-            reg_list = pickle.load(fp)
-        os.remove(thdata.reg_obj)
-    else:
-        reg_list = thdata.reg_obj
+    with open(thdata.reg_obj_fn, "rb") as fp:
+        reg_list = pickle.load(fp)
+    os.remove(thdata.reg_obj_fn)
 
-    fp_reg = zopen(thdata.out_region_fn, "wt", ZF_F_GZIP, is_bytes = False)
-    fp_ad = zopen(thdata.out_ad_fn, "wt", ZF_F_GZIP, is_bytes = False)
-    fp_dp = zopen(thdata.out_dp_fn, "wt", ZF_F_GZIP, is_bytes = False)
-    fp_oth = zopen(thdata.out_oth_fn, "wt", ZF_F_GZIP, is_bytes = False)
+    fp_reg = zopen(thdata.out_feature_fn, "wt", ZF_F_GZIP, is_bytes = False)
+    fp_a = zopen(thdata.out_ale_a_fn, "wt", ZF_F_GZIP, is_bytes = False)
+    fp_b = zopen(thdata.out_ale_b_fn, "wt", ZF_F_GZIP, is_bytes = False)
+    fp_o = zopen(thdata.out_ale_o_fn, "wt", ZF_F_GZIP, is_bytes = False)
+    fp_u = zopen(thdata.out_ale_u_fn, "wt", ZF_F_GZIP, is_bytes = False)
 
     snp_mcnt = SNPMCount(conf.samples, conf)
     mcnt = FeatureMCount(conf.samples, conf)
@@ -66,42 +64,46 @@ def fc_features(thdata):
     l_reg = 0         # fraction of processed genes, used for verbose.
     for reg_idx, reg in enumerate(reg_list):
         if conf.debug > 0:
-            debug("[Thread-%d] processing region '%s' ..." % \
+            debug("[Thread-%d] processing feature '%s' ..." % \
                 (thdata.idx, reg.name))
             
-        mcnt.add_region(reg)
+        mcnt.add_feature(reg)
 
         str_reg = "%s\t%d\t%d\t%s\n" % \
             (reg.chrom, reg.start, reg.end - 1, reg.name)
         fp_reg.write(str_reg)
 
         if reg.snp_list:
-            ret, reg_alt_cnt, reg_dp_cnt, reg_oth_cnt = \
+            ret, reg_a_cnt, reg_b_cnt, reg_o_cnt, reg_u_cnt = \
                 fc_fet1(reg, sam_list, snp_mcnt, mcnt, conf)
             if ret < 0:
                 raise RuntimeError("errcode -9")
 
-            str_ad, str_dp, str_oth = "", "", ""
+            str_a, str_b, str_o, str_u = "", "", "", ""
             for i, smp in enumerate(conf.samples):
-                nu_ad, nu_dp = reg_alt_cnt[smp], reg_dp_cnt[smp]
-                nu_oth = reg_oth_cnt[smp]
+                nu_a, nu_b = reg_a_cnt[smp], reg_b_cnt[smp]
+                nu_o, nu_u = reg_o_cnt[smp], reg_u_cnt[smp]
 
-                if nu_dp + nu_oth <= 0:
+                if nu_a + nu_b + nu_o + nu_u <= 0:
                     continue
-                if nu_ad > 0:
-                    str_ad += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_ad)
-                    thdata.nr_ad += 1
-                if nu_dp > 0:
-                    str_dp += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_dp)
-                    thdata.nr_dp += 1
-                if nu_oth > 0:
-                    str_oth += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_oth)
-                    thdata.nr_oth += 1
+                if nu_a > 0:
+                    str_a += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_a)
+                    thdata.nr_a += 1
+                if nu_b > 0:
+                    str_b += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_b)
+                    thdata.nr_b += 1
+                if nu_o > 0:
+                    str_o += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_o)
+                    thdata.nr_o += 1
+                if nu_u > 0:
+                    str_u += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_u)
+                    thdata.nr_u += 1
 
-            if str_dp or str_oth:
-                fp_ad.write(str_ad)
-                fp_dp.write(str_dp)
-                fp_oth.write(str_oth)
+            if str_a or str_b or str_o or str_u:
+                fp_a.write(str_a)
+                fp_b.write(str_b)
+                fp_o.write(str_o)
+                fp_u.write(str_u)
 
         n_reg = reg_idx + 1
         frac_reg = n_reg / m_reg
@@ -113,9 +115,10 @@ def fc_features(thdata):
     thdata.nr_reg = len(reg_list)
 
     fp_reg.close()
-    fp_ad.close()
-    fp_dp.close()
-    fp_oth.close()
+    fp_a.close()
+    fp_b.close()
+    fp_o.close()
+    fp_u.close()
     for sam in sam_list:
         sam.close()
     sam_list.clear()
@@ -145,19 +148,21 @@ def fc_fet1(reg, sam_list, snp_mcnt, mcnt, conf):
     if mcnt.stat() < 0:
         return((-7, None, None, None))
 
-    reg_alt_cnt = {smp:0 for smp in conf.samples}
-    reg_dp_cnt =  {smp:0 for smp in conf.samples}
-    reg_oth_cnt = {smp:0 for smp in conf.samples}
+    reg_a_cnt = {smp:0 for smp in conf.samples}
+    reg_b_cnt =  {smp:0 for smp in conf.samples}
+    reg_o_cnt = {smp:0 for smp in conf.samples}
+    reg_u_cnt = {smp:0 for smp in conf.samples}
 
     for smp, scnt in mcnt.cell_cnt.items():
-        reg_alt_cnt[smp] = scnt.allele_cnt[1]
-        reg_dp_cnt[smp] = scnt.allele_cnt[0] + scnt.allele_cnt[1]
-        reg_oth_cnt[smp] = scnt.allele_cnt[-1]
+        reg_a_cnt[smp] = scnt.allele_cnt[0]
+        reg_b_cnt[smp] = scnt.allele_cnt[1]
+        reg_o_cnt[smp] = scnt.allele_cnt[-1]
+        reg_u_cnt[smp] = scnt.allele_cnt[-2]
         if not conf.no_dup_hap:
-            reg_alt_cnt[smp] += scnt.allele_cnt[2]
-            reg_dp_cnt[smp] += scnt.allele_cnt[2] * 2
+            reg_a_cnt[smp] += scnt.allele_cnt[2]
+            reg_b_cnt[smp] += scnt.allele_cnt[2]
 
-    return((0, reg_alt_cnt, reg_dp_cnt, reg_oth_cnt))
+    return((0, reg_a_cnt, reg_b_cnt, reg_o_cnt, reg_u_cnt))
 
 
 def plp_snp(snp, sam_list, mcnt, conf):

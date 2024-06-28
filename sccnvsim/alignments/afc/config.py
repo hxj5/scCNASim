@@ -13,7 +13,7 @@ class Config:
         self.barcode_fn = None
         self.sample_id_str = None
         self.sample_id_fn = None
-        self.region_fn = None
+        self.feature_fn = None
         self.snp_fn = None
         self.out_dir = None
         self.debug = self.defaults.DEBUG
@@ -39,12 +39,18 @@ class Config:
         self.sam_fn_list = None
         self.samples = None
 
-        self.out_prefix = APP + "."
-        self.out_region_fn = None
+        self.feature_dir = None
+        self.count_dir = None
+
+        self.out_prefix = COMMAND + "."
+        self.out_feature_fn = None
         self.out_sample_fn = None
-        self.out_ad_fn = None
-        self.out_dp_fn = None
-        self.out_oth_fn = None   
+        self.out_ale_a_fn = None
+        self.out_ale_b_fn = None
+        self.out_ale_o_fn = None
+        self.out_ale_u_fn = None
+
+        self.out_feature_meta_fn = None
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -56,7 +62,7 @@ class Config:
         s += "%sbarcode_file = %s\n" % (prefix, self.barcode_fn)
         s += "%ssample_id_str = %s\n" % (prefix, self.sample_id_str)
         s += "%ssample_id_file = %s\n" % (prefix, self.sample_id_fn)
-        s += "%sregion_file = %s\n" % (prefix, self.region_fn)
+        s += "%sfeature_file = %s\n" % (prefix, self.feature_fn)
         s += "%ssnp_file = %s\n" % (prefix, self.snp_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
         s += "%sdebug_level = %d\n" % (prefix, self.debug)
@@ -83,17 +89,23 @@ class Config:
                 self.barcodes is not None else -1)
         s += "%snumber_of_sample_IDs = %d\n" % (prefix, len(self.sample_ids) \
                 if self.sample_ids is not None else -1)
-        s += "%snumber_of_regions = %d\n" % (prefix, len(self.reg_list) if \
+        s += "%snumber_of_features = %d\n" % (prefix, len(self.reg_list) if \
                 self.reg_list is not None else -1)
         s += "%snumber_of_snps = %d\n" % (prefix, self.snp_set.get_n() if \
                 self.snp_set is not None else -1)
         s += "%s\n" % prefix
 
-        s += "%soutput_region_file = %s\n" % (prefix, self.out_region_fn)
+        s += "%sfeature_dir = %s\n" % (prefix, self.feature_dir)
+        s += "%scount_dir = %s\n" % (prefix, self.count_dir)
+
+        s += "%soutput_feature_file = %s\n" % (prefix, self.out_feature_fn)
         s += "%soutput_sample_file = %s\n" % (prefix, self.out_sample_fn)
-        s += "%soutput_ad_file = %s\n" % (prefix, self.out_ad_fn)
-        s += "%soutput_dp_file = %s\n" % (prefix, self.out_dp_fn)
-        s += "%soutput_oth_file = %s\n" % (prefix, self.out_oth_fn)
+        s += "%soutput_ale_a_file = %s\n" % (prefix, self.out_ale_a_fn)
+        s += "%soutput_ale_b_file = %s\n" % (prefix, self.out_ale_b_fn)
+        s += "%soutput_ale_o_file = %s\n" % (prefix, self.out_ale_o_fn)
+        s += "%soutput_ale_u_file = %s\n" % (prefix, self.out_ale_u_fn)
+
+        s += "%sout_feature_meta_fn = %s\n" % (prefix, self.out_feature_meta_fn)
         s += "%s\n" % prefix
 
         fp.write(s)
@@ -122,6 +134,9 @@ class DefaultConfig:
         self.EXCL_FLAG_UMI = 772
         self.EXCL_FLAG_XUMI = 1796
         self.NO_ORPHAN = True
+
+
+COMMAND = "afc"
 
 
 if __name__ == "__main__":

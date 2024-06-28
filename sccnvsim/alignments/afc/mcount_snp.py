@@ -1,4 +1,4 @@
-# mcount.py - counting machine for SNPs.
+# mcount_snp.py - counting machine for SNPs.
 
 from ...utils.sam import get_query_bases
 
@@ -48,7 +48,7 @@ class UCount:
         else:
             bases = get_query_bases(read, full_length = False)
             self.allele = bases[idx].upper()
-            self.allele_idx = snp.get_region_allele_index(self.allele)
+            self.allele_idx = snp.get_feature_allele_index(self.allele)
         return(0)
 
     def stat(self):
@@ -135,7 +135,7 @@ class MCount:
         A list of cell barcodes or sample IDs [list of str].
     conf : config::Config object
         Configuration
-    snp : region::SNP object
+    snp : gfeature::SNP object
         The SNP being pileuped.
     tcount : list
         Total read / UMI counts for A/C/G/T/N bases, aggregated for all 

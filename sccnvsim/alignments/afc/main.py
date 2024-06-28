@@ -11,18 +11,15 @@ import time
 from logging import debug, error, info
 from logging import warning as warn
 
-from .config import Config
+from .config import Config, COMMAND
 from .core import fc_features
 from .thread import ThreadData
-from .utils import load_region_from_txt, load_snp_from_vcf, \
+from .utils import load_feature_from_txt, load_snp_from_vcf, \
     load_snp_from_tsv, merge_mtx, merge_tsv
 
 from ...config import APP, VERSION
 from ...utils.xlog import init_logging
 from ...utils.zfile import zopen, ZF_F_GZIP, ZF_F_PLAIN
-
-
-COMMAND = "afc"
 
 
 def usage(fp = sys.stdout, conf = None):
@@ -34,7 +31,7 @@ def usage(fp = sys.stdout, conf = None):
     s += "  -s, --sam FILE         Comma separated indexed sam/bam/cram file.\n"
     s += "  -S, --samList FILE     A list file containing bam files, each per line.\n"
     s += "  -b, --barcode FILE     A plain file listing all effective cell barcode.\n"
-    s += "  -R, --region FILE      A TSV file listing target regions. The first 4 columns shoud be:\n"
+    s += "  -R, --region FILE      A TSV file listing target features. The first 4 columns shoud be:\n"
     s += "                         chrom, start, end (both 1-based and inclusive), name.\n"
     s += "  -P, --phasedSNP FILE   A TSV or VCF file listing phased SNPs (i.e., containing phased GT).\n"
     s += "  -i, --sampleList FILE  A list file containing sample IDs, each per line.\n"
@@ -112,7 +109,7 @@ def afc_main(argv, conf = None):
         if op in   ("-s", "--sam"): conf.sam_fn = val
         elif op in ("-S", "--samlist"): conf.sam_list_fn = val
         elif op in ("-b", "--barcode"): conf.barcode_fn = val
-        elif op in ("-R", "--region"): conf.region_fn = val
+        elif op in ("-R", "--region"): conf.feature_fn = val
         elif op in ("-P", "--phasedsnp"): conf.snp_fn = val
         elif op in ("-i", "--samplelist"): conf.sample_id_fn = val
         elif op in ("-I", "--sampleids"): conf.sample_id_str = val
@@ -143,7 +140,7 @@ def afc_main(argv, conf = None):
 
 def afc_wrapper(
     sam_fn, barcode_fn,
-    region_fn, phased_snp_fn, 
+    feature_fn, phased_snp_fn, 
     out_dir,
     sam_list_fn = None,
     sample_ids = None, sample_id_fn = None,
@@ -162,7 +159,7 @@ def afc_wrapper(
     conf.sam_fn = sam_fn
     conf.sam_list_fn = sam_list_fn
     conf.barcode_fn = barcode_fn
-    conf.region_fn = region_fn
+    conf.feature_fn = feature_fn
     conf.snp_fn = phased_snp_fn
     conf.sample_id_str = sample_ids
     conf.sample_id_fn = sample_id_fn
@@ -192,9 +189,9 @@ def afc_core(conf):
     info("program configuration:")
     conf.show(fp = sys.stderr, prefix = "\t")
 
-    # extract SNPs for each region
+    # extract SNPs for each feature
     if conf.debug > 0:
-        debug("extract SNPs for each region.")
+        debug("extract SNPs for each feature.")
     n_reg_with_snp = 0
     for reg in conf.reg_list:
         snp_list = conf.snp_set.fetch(reg.chrom, reg.start, reg.end)
@@ -204,10 +201,29 @@ def afc_core(conf):
         else:
             reg.snp_list = []
             if conf.debug > 0:
-                debug("no SNP fetched for region '%s'." % reg.name)
-    info("%d regions extracted with SNPs." % n_reg_with_snp)
+                debug("no SNP fetched for feature '%s'." % reg.name)
+    info("%d features extracted with SNPs." % n_reg_with_snp)
 
-    # split region list and save to file
+    # assign output result dir to each feature
+    batch_size = 1000         # number of features in each sub-dir.
+    batch_idx = -1
+    batch_dir = None
+    feature_idx = 0
+    feature_dir = None
+    for reg in conf.reg_list:
+        if feature_idx % batch_size == 0:
+            batch_idx += 1
+            batch_dir = os.path.join(conf.feature_dir, "batch%d" % batch_idx)
+            os.makedirs(batch_dir, exist_ok = True)
+        feature_dir = os.path.join(batch_dir, reg.name)
+        os.makedirs(feature_dir, exist_ok = True)
+        reg.res_dir = feature_dir
+        feature_idx += 1
+
+    # split feature list and save to file
+    with open(conf.out_feature_meta_fn, "wb") as fp:
+        pickle.dump(conf.reg_list, fp)
+
     m_reg = len(conf.reg_list)
     m_thread = conf.nproc if m_reg >= conf.nproc else m_reg
 
@@ -218,7 +234,7 @@ def afc_core(conf):
     i_thread = 0
     while k_reg <= m_reg - 1:
         t_reg = n_reg + 1 if i_thread < r_reg else n_reg
-        reg_fn = conf.out_prefix + "region.pickle." + str(i_thread)
+        reg_fn = conf.out_prefix + "feature.pickle." + str(i_thread)
         reg_fn = os.path.join(conf.out_dir, reg_fn)
         reg_fn_list.append(reg_fn)
         with open(reg_fn, "wb") as fp:
@@ -238,11 +254,12 @@ def afc_core(conf):
     for i in range(m_thread):
         thdata = ThreadData(
             idx = i, conf = conf,
-            reg_obj = reg_fn_list[i], is_reg_pickle = True,
-            out_region_fn = conf.out_region_fn + "." + str(i),
-            out_ad_fn = conf.out_ad_fn + "." + str(i),
-            out_dp_fn = conf.out_dp_fn + "." + str(i),
-            out_oth_fn = conf.out_oth_fn + "." + str(i),
+            reg_obj_fn = reg_fn_list[i],
+            out_feature_fn = conf.out_feature_fn + "." + str(i),
+            out_ale_a_fn = conf.out_ale_a_fn + "." + str(i),
+            out_ale_b_fn = conf.out_ale_b_fn + "." + str(i),
+            out_ale_o_fn = conf.out_ale_o_fn + "." + str(i),
+            out_ale_u_fn = conf.out_ale_u_fn + "." + str(i),
             out_fn = None
         )
         thdata_list.append(thdata)
@@ -272,8 +289,8 @@ def afc_core(conf):
 
     # merge results
     if merge_tsv(
-        [td.out_region_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_region_fn, "wb", ZF_F_PLAIN, 
+        [td.out_feature_fn for td in thdata_list], ZF_F_GZIP, 
+        conf.out_feature_fn, "wb", ZF_F_PLAIN, 
         remove = True
     ) < 0:
         raise ValueError("errcode -15")
@@ -281,31 +298,40 @@ def afc_core(conf):
     nr_reg_list = [td.nr_reg for td in thdata_list]
 
     if merge_mtx(
-        [td.out_ad_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_ad_fn, "w", ZF_F_PLAIN,
+        [td.out_ale_a_fn for td in thdata_list], ZF_F_GZIP, 
+        conf.out_ale_a_fn, "w", ZF_F_PLAIN,
         nr_reg_list, len(conf.samples),
-        sum([td.nr_ad for td in thdata_list]),
+        sum([td.nr_a for td in thdata_list]),
         remove = True
     ) < 0:
         raise ValueError("errcode -17")
 
     if merge_mtx(
-        [td.out_dp_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_dp_fn, "w", ZF_F_PLAIN,
+        [td.out_ale_b_fn for td in thdata_list], ZF_F_GZIP, 
+        conf.out_ale_b_fn, "w", ZF_F_PLAIN,
         nr_reg_list, len(conf.samples), 
-        sum([td.nr_dp for td in thdata_list]),
+        sum([td.nr_b for td in thdata_list]),
         remove = True
     ) < 0:
         raise ValueError("errcode -19")
 
     if merge_mtx(
-        [td.out_oth_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_oth_fn, "w", ZF_F_PLAIN,
+        [td.out_ale_o_fn for td in thdata_list], ZF_F_GZIP, 
+        conf.out_ale_o_fn, "w", ZF_F_PLAIN,
         nr_reg_list, len(conf.samples),
-        sum([td.nr_oth for td in thdata_list]),
+        sum([td.nr_o for td in thdata_list]),
         remove = True
     ) < 0:
         raise ValueError("errcode -21")
+    
+    if merge_mtx(
+        [td.out_ale_u_fn for td in thdata_list], ZF_F_GZIP, 
+        conf.out_ale_u_fn, "w", ZF_F_PLAIN,
+        nr_reg_list, len(conf.samples),
+        sum([td.nr_u for td in thdata_list]),
+        remove = True
+    ) < 0:
+        raise ValueError("errcode -23")
     
 
 def afc_run(conf):
@@ -414,30 +440,42 @@ def prepare_config(conf):
     if not conf.out_dir:
         error("out dir needed!")
         return(-1)
-    if not os.path.isdir(conf.out_dir):
-        os.mkdir(conf.out_dir)
-    conf.out_region_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "region.tsv")
-    conf.out_sample_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "samples.tsv")
-    conf.out_ad_fn = os.path.join(conf.out_dir, conf.out_prefix + "AD.mtx")
-    conf.out_dp_fn = os.path.join(conf.out_dir, conf.out_prefix + "DP.mtx")
-    conf.out_oth_fn = os.path.join(conf.out_dir, conf.out_prefix + "OTH.mtx")
+    os.makedirs(conf.out_dir, exist_ok = True)
+    conf.feature_dir = os.path.join(conf.out_dir, "features")
+    os.makedirs(conf.feature_dir, exist_ok = True)
+    conf.count_dir = os.path.join(conf.out_dir, "train_counts")
+    os.makedirs(conf.count_dir, exist_ok = True)
 
-    if conf.region_fn:
-        if os.path.isfile(conf.region_fn): 
-            conf.reg_list = load_region_from_txt(
-                conf.region_fn, verbose = True)
+    conf.out_feature_fn = os.path.join(
+        conf.count_dir, conf.out_prefix + "features.tsv")
+    conf.out_sample_fn = os.path.join(
+        conf.count_dir, conf.out_prefix + "samples.tsv")
+    conf.out_ale_a_fn = os.path.join(
+        conf.count_dir, conf.out_prefix + "A.mtx")
+    conf.out_ale_b_fn = os.path.join(
+        conf.count_dir, conf.out_prefix + "B.mtx")
+    conf.out_ale_o_fn = os.path.join(
+        conf.count_dir, conf.out_prefix + "O.mtx")
+    conf.out_ale_u_fn = os.path.join(
+        conf.count_dir, conf.out_prefix + "U.mtx")
+    
+    conf.out_feature_meta_fn = os.path.join(
+        conf.out_dir, conf.out_prefix + "features_meta.pickle")
+
+    if conf.feature_fn:
+        if os.path.isfile(conf.feature_fn): 
+            conf.reg_list = load_feature_from_txt(
+                conf.feature_fn, verbose = True)
             if not conf.reg_list:
-                error("failed to load region file.")
+                error("failed to load feature file.")
                 return(-1)
-            info("count %d regions in %d single cells." % (
+            info("count %d features in %d single cells." % (
                 len(conf.reg_list), len(conf.samples)))
         else:
-            error("region file '%s' does not exist." % conf.region_fn)
+            error("feature file '%s' does not exist." % conf.feature_fn)
             return(-1)
     else:
-        error("region file needed!")
+        error("feature file needed!")
         return(-1)
 
     if conf.snp_fn:

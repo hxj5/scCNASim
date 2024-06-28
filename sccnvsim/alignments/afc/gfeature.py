@@ -33,7 +33,7 @@ class SNP(Region):
     def get_id(self):
         return "%s_%d" % (self.chrom, self.pos)
 
-    def get_region_allele_index(self, base):
+    def get_feature_allele_index(self, base):
         return self.gt[base] if base in self.gt else -1
 
 
@@ -61,8 +61,11 @@ class BlockRegion(Region):
         Name of the block.
     snp_list : list
         A list of SNPs (`SNP` objects) located within the block.
+    res_dir : str
+        Path to the folder storing the results of this region.
     """
-    def __init__(self, chrom, start, end, name = None, snp_list = None):
+    def __init__(self, chrom, start, end, name = None, snp_list = None, res_dir = None):
         super().__init__(chrom, start, end)
         self.name = name
         self.snp_list = snp_list
+        self.res_dir = res_dir
