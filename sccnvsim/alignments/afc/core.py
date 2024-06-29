@@ -7,7 +7,8 @@ import pysam
 
 from logging import debug, error, info
 
-from .mcount_feature import MCount as FeatureMCount
+from .mcount_feature import MCount as PrevFeatureMCount
+from .mcount_feature_all import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
 from ...utils.sam import sam_fetch, \
     BAM_FPAIRED, BAM_FPROPER_PAIR
@@ -54,10 +55,12 @@ def fc_features(thdata):
     fp_reg = zopen(thdata.out_feature_fn, "wt", ZF_F_GZIP, is_bytes = False)
     fp_a = zopen(thdata.out_ale_a_fn, "wt", ZF_F_GZIP, is_bytes = False)
     fp_b = zopen(thdata.out_ale_b_fn, "wt", ZF_F_GZIP, is_bytes = False)
+    fp_d = zopen(thdata.out_ale_d_fn, "wt", ZF_F_GZIP, is_bytes = False)
     fp_o = zopen(thdata.out_ale_o_fn, "wt", ZF_F_GZIP, is_bytes = False)
     fp_u = zopen(thdata.out_ale_u_fn, "wt", ZF_F_GZIP, is_bytes = False)
 
     snp_mcnt = SNPMCount(conf.samples, conf)
+    prev_mcnt = PrevFeatureMCount(conf.samples, conf)
     mcnt = FeatureMCount(conf.samples, conf)
 
     m_reg = float(len(reg_list))
@@ -66,44 +69,46 @@ def fc_features(thdata):
         if conf.debug > 0:
             debug("[Thread-%d] processing feature '%s' ..." % \
                 (thdata.idx, reg.name))
-            
-        mcnt.add_feature(reg)
 
         str_reg = "%s\t%d\t%d\t%s\n" % \
             (reg.chrom, reg.start, reg.end - 1, reg.name)
         fp_reg.write(str_reg)
 
-        if reg.snp_list:
-            ret, reg_a_cnt, reg_b_cnt, reg_o_cnt, reg_u_cnt = \
-                fc_fet1(reg, sam_list, snp_mcnt, mcnt, conf)
-            if ret < 0:
-                raise RuntimeError("errcode -9")
+        ret, reg_a_cnt, reg_b_cnt, reg_d_cnt, reg_o_cnt, reg_u_cnt = \
+            fc_fet1(reg, sam_list, snp_mcnt, prev_mcnt, mcnt, conf)
+        if ret < 0:
+            raise RuntimeError("errcode -9")
 
-            str_a, str_b, str_o, str_u = "", "", "", ""
-            for i, smp in enumerate(conf.samples):
-                nu_a, nu_b = reg_a_cnt[smp], reg_b_cnt[smp]
-                nu_o, nu_u = reg_o_cnt[smp], reg_u_cnt[smp]
+        str_a, str_b, str_d, str_o, str_u = "", "", "", "", ""
+        for i, smp in enumerate(conf.samples):
+            nu_a, nu_b = reg_a_cnt[smp], reg_b_cnt[smp]
+            nu_d = reg_d_cnt[smp]
+            nu_o, nu_u = reg_o_cnt[smp], reg_u_cnt[smp]
 
-                if nu_a + nu_b + nu_o + nu_u <= 0:
-                    continue
-                if nu_a > 0:
-                    str_a += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_a)
-                    thdata.nr_a += 1
-                if nu_b > 0:
-                    str_b += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_b)
-                    thdata.nr_b += 1
-                if nu_o > 0:
-                    str_o += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_o)
-                    thdata.nr_o += 1
-                if nu_u > 0:
-                    str_u += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_u)
-                    thdata.nr_u += 1
+            if nu_a + nu_b + nu_d + nu_o + nu_u <= 0:
+                continue
+            if nu_a > 0:
+                str_a += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_a)
+                thdata.nr_a += 1
+            if nu_b > 0:
+                str_b += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_b)
+                thdata.nr_b += 1
+            if nu_d > 0:
+                str_d += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_d)
+                thdata.nr_d += 1
+            if nu_o > 0:
+                str_o += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_o)
+                thdata.nr_o += 1
+            if nu_u > 0:
+                str_u += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_u)
+                thdata.nr_u += 1
 
-            if str_a or str_b or str_o or str_u:
-                fp_a.write(str_a)
-                fp_b.write(str_b)
-                fp_o.write(str_o)
-                fp_u.write(str_u)
+        if str_u or str_a or str_b or str_d or str_o:
+            fp_a.write(str_a)
+            fp_b.write(str_b)
+            fp_d.write(str_d)
+            fp_o.write(str_o)
+            fp_u.write(str_u)
 
         n_reg = reg_idx + 1
         frac_reg = n_reg / m_reg
@@ -117,6 +122,7 @@ def fc_features(thdata):
     fp_reg.close()
     fp_a.close()
     fp_b.close()
+    fp_d.close()
     fp_o.close()
     fp_u.close()
     for sam in sam_list:
@@ -133,36 +139,66 @@ def fc_features(thdata):
     return((0, thdata))
 
 
-def fc_fet1(reg, sam_list, snp_mcnt, mcnt, conf):
-    for snp in reg.snp_list:
-        ret, snp_mcnt = plp_snp(snp, sam_list, snp_mcnt, conf)
-        if ret < 0:
-            error("SNP (%s:%d:%s:%s) pileup failed; errcode %d." % \
-                (snp.chrom, snp.pos, snp.ref, snp.alt, ret))
-            return((-3, None, None, None))
-        elif ret > 0:     # snp filtered.
-            continue
-        else:
-            if mcnt.push_snp(snp_mcnt) < 0:
-                return((-5, None, None, None))
-    if mcnt.stat() < 0:
-        return((-7, None, None, None))
+def fc_fet1(reg, sam_list, snp_mcnt, prev_mcnt, mcnt, conf):
+    if fc_prev(reg, sam_list, snp_mcnt, prev_mcnt, conf) < 0:
+        return(-3)
+    mcnt.add_feature(reg, prev_mcnt)
 
+    ret = smp = umi = ale_idx = None
+    for idx, sam in enumerate(sam_list):
+        itr = sam_fetch(sam, reg.chrom, reg.start, reg.end - 1)
+        if not itr:    
+            continue
+        for read in itr:
+            if check_read(read, conf) < 0:
+                continue
+            if conf.use_barcodes():
+                ret, smp, umi, ale_idx = mcnt.push_read(read)
+            else:
+                sample = conf.samples[idx]
+                ret, smp, umi, ale_idx = mcnt.push_read(read, sample)
+            if ret < 0:
+                return(-5)
+            elif ret > 0:    # read filtered.
+                continue
+            if (not smp) or (not umi) or ale_idx is None:
+                continue
+
+    if mcnt.stat() < 0:
+        return(-7)
+    
     reg_a_cnt = {smp:0 for smp in conf.samples}
     reg_b_cnt =  {smp:0 for smp in conf.samples}
+    reg_d_cnt =  {smp:0 for smp in conf.samples}
     reg_o_cnt = {smp:0 for smp in conf.samples}
     reg_u_cnt = {smp:0 for smp in conf.samples}
 
     for smp, scnt in mcnt.cell_cnt.items():
         reg_a_cnt[smp] = scnt.allele_cnt[0]
         reg_b_cnt[smp] = scnt.allele_cnt[1]
+        reg_d_cnt[smp] = scnt.allele_cnt[2]
         reg_o_cnt[smp] = scnt.allele_cnt[-1]
-        reg_u_cnt[smp] = scnt.allele_cnt[-2]
-        if not conf.no_dup_hap:
-            reg_a_cnt[smp] += scnt.allele_cnt[2]
-            reg_b_cnt[smp] += scnt.allele_cnt[2]
+        reg_u_cnt[smp] = scnt.allele_cnt[-2] + scnt.allele_cnt[-3]
 
-    return((0, reg_a_cnt, reg_b_cnt, reg_o_cnt, reg_u_cnt))
+    return((0, reg_a_cnt, reg_b_cnt, reg_d_cnt, reg_o_cnt, reg_u_cnt))
+
+
+def fc_prev(reg, sam_list, snp_mcnt, mcnt, conf):
+    mcnt.add_feature(reg)
+    for snp in reg.snp_list:
+        ret = plp_snp(snp, sam_list, snp_mcnt, conf)
+        if ret < 0:
+            error("SNP (%s:%d:%s:%s) pileup failed; errcode %d." % \
+                (snp.chrom, snp.pos, snp.ref, snp.alt, ret))
+            return(-3)
+        elif ret > 0:     # snp filtered.
+            continue
+        else:
+            if mcnt.push_snp(snp_mcnt) < 0:
+                return(-5)
+    if mcnt.stat() < 0:
+        return(-7)
+    return(0)
 
 
 def plp_snp(snp, sam_list, mcnt, conf):
@@ -186,7 +222,7 @@ def plp_snp(snp, sam_list, mcnt, conf):
     """
     ret = None
     if mcnt.add_snp(snp) < 0:   # mcnt reset() inside.
-        return((-3, mcnt))
+        return(-3)
     for idx, sam in enumerate(sam_list):
         itr = sam_fetch(sam, snp.chrom, snp.pos, snp.pos)
         if not itr:    
@@ -200,17 +236,17 @@ def plp_snp(snp, sam_list, mcnt, conf):
                 sample = conf.samples[idx]
                 ret = mcnt.push_read(read, sample)
             if ret < 0:
-                if ret == -1:
-                    return((-5, mcnt))
+                return(-5)
+            elif ret > 0:    # read filtered.
                 continue
     if mcnt.stat() < 0:
-        return((-7, mcnt))
+        return(-7)
     snp_cnt = sum(mcnt.tcount)
     if snp_cnt < conf.min_count:
-        return((3, mcnt))
+        return(3)
     snp_ref_cnt = mcnt.tcount[mcnt.base_idx[snp.ref]]
     snp_alt_cnt = mcnt.tcount[mcnt.base_idx[snp.alt]]
     snp_minor_cnt = min(snp_ref_cnt, snp_alt_cnt)
     if snp_minor_cnt < snp_cnt * conf.min_maf:
-        return((5, mcnt))
-    return((0, mcnt))
+        return(5)
+    return(0)

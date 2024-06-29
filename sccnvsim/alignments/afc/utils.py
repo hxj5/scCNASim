@@ -22,7 +22,7 @@ def load_feature_from_txt(fn, sep = "\t", verbose = False):
     Returns
     -------
     list
-        A list of `BlockRegion` objects if success, `None` otherwise.    
+        A list of `BlockRegion` objects if success, `None` otherwise.
     """
     func = "load_feature_from_txt"
     fp = zopen(fn, "rt")

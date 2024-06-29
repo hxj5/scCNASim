@@ -193,7 +193,7 @@ class MCount:
         Returns
         -------
         int
-            0 if success, -1 error, -2 read filtered.
+            0 if success, -1 error, 1 read filtered.
         """
         conf = self.conf
         if conf.use_barcodes():
@@ -204,7 +204,7 @@ class MCount:
         if smp in self.cell_cnt:
             scnt = self.cell_cnt[smp]
         else:
-            return(-2)
+            return(1)
 
         ret = scnt.push_read(read)
         if ret < 0: 

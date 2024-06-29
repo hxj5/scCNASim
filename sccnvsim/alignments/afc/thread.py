@@ -8,7 +8,8 @@ class ThreadData:
         idx, conf, 
         reg_obj_fn,
         out_feature_fn,
-        out_ale_a_fn, out_ale_b_fn, out_ale_o_fn, out_ale_u_fn,
+        out_ale_a_fn, out_ale_b_fn, out_ale_d_fn, 
+        out_ale_o_fn, out_ale_u_fn,
         out_fn = None
     ):
         self.idx = idx
@@ -19,6 +20,7 @@ class ThreadData:
         self.out_feature_fn = out_feature_fn
         self.out_ale_a_fn = out_ale_a_fn
         self.out_ale_b_fn = out_ale_b_fn
+        self.out_ale_d_fn = out_ale_d_fn
         self.out_ale_o_fn = out_ale_o_fn
         self.out_ale_u_fn = out_ale_u_fn
 
@@ -27,6 +29,7 @@ class ThreadData:
         self.nr_reg = 0
         self.nr_a = 0
         self.nr_b = 0
+        self.nr_d = 0
         self.nr_o = 0
         self.nr_u = 0
         
@@ -47,6 +50,7 @@ class ThreadData:
         s += "%sout_feature_fn = %s\n" % (prefix, self.out_feature_fn)
         s += "%sout_ale_a_fn = %s\n" % (prefix, self.out_ale_a_fn)
         s += "%sout_ale_b_fn = %s\n" % (prefix, self.out_ale_b_fn)
+        s += "%sout_ale_d_fn = %s\n" % (prefix, self.out_ale_d_fn)
         s += "%sout_ale_o_fn = %s\n" % (prefix, self.out_ale_o_fn)
         s += "%sout_ale_u_fn = %s\n" % (prefix, self.out_ale_u_fn)
 
@@ -55,6 +59,7 @@ class ThreadData:
         s += "%snum_record_feature = %d\n" % (prefix, self.nr_reg)
         s += "%snum_record_a = %d\n" % (prefix, self.nr_a)
         s += "%snum_record_b = %d\n" % (prefix, self.nr_b)
+        s += "%snum_record_d = %d\n" % (prefix, self.nr_d)
         s += "%snum_record_o = %d\n" % (prefix, self.nr_o)
         s += "%snum_record_u = %d\n" % (prefix, self.nr_u)
 

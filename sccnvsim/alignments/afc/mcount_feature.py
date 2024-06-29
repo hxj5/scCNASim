@@ -105,7 +105,8 @@ class SCount:
     def reset(self):
         if self.is_reset:
             return
-        self.allele_cnt = {0:0, 1:0, 2:0, -1:0, -2:0}
+        for ale_idx in self.allele_cnt.keys():
+            self.allele_cnt[ale_idx] = 0
         self.umi_cnt.clear()
         self.mark_reset_true()
 
@@ -173,9 +174,6 @@ class MCount:
         snp_mcnt : mcount::MCount object.
             The object storing the counting results of each single cell
             for specific SNP.
-        sid : str
-            The ID of the sample that the read belongs to. 
-            Set to `None` if cell barcodes are used.
 
         Returns
         -------

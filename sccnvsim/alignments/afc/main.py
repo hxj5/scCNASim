@@ -45,7 +45,6 @@ def usage(fp = sys.stdout, conf = None):
     s += "      --UMItag STR       Tag for UMI, set to None when reads only [%s]\n" % conf.UMI_TAG
     s += "      --minCOUNT INT     Mininum aggragated count for SNP [%d]\n" % conf.MIN_COUNT
     s += "      --minMAF FLOAT     Mininum minor allele fraction for SNP [%f]\n" % conf.MIN_MAF
-    s += "      --countDupHap      If set, UMIs aligned to both haplotypes will be counted.\n"
     s += "  -D, --debug INT        Used by developer for debugging [%d]\n" % conf.DEBUG
     s += "\n"
     s += "Read filtering:\n"
@@ -97,7 +96,7 @@ def afc_main(argv, conf = None):
 
             "nproc=", 
             "cellTAG=", "UMItag=", 
-            "minCOUNT=", "minMAF=", "countDupHap",
+            "minCOUNT=", "minMAF=",
             "debug=",
 
             "inclFLAG=", "exclFLAG=", "minLEN=", "minMAPQ=", "countORPHAN"
@@ -121,7 +120,6 @@ def afc_main(argv, conf = None):
         elif op in (      "--umitag"): conf.umi_tag = val
         elif op in (      "--mincount"): conf.min_count = int(val)
         elif op in (      "--minmaf"): conf.min_maf = float(val)
-        elif op in (      "--countduphap"): conf.no_dup_hap = False
         elif op in ("-D", "--debug"): conf.debug = int(val)
 
         elif op in ("--inclflag"): conf.incl_flag = int(val)
@@ -148,7 +146,6 @@ def afc_wrapper(
     ncores = 1,
     cell_tag = "CB", umi_tag = "UB",
     min_count = 1, min_maf = 0,
-    no_dup_hap = True,
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = None,
     no_orphan = True
@@ -171,7 +168,6 @@ def afc_wrapper(
     conf.nproc = ncores
     conf.min_count = min_count
     conf.min_maf = min_maf
-    conf.no_dup_hap = no_dup_hap
 
     conf.min_mapq = min_mapq
     conf.min_len = min_len
@@ -258,6 +254,7 @@ def afc_core(conf):
             out_feature_fn = conf.out_feature_fn + "." + str(i),
             out_ale_a_fn = conf.out_ale_a_fn + "." + str(i),
             out_ale_b_fn = conf.out_ale_b_fn + "." + str(i),
+            out_ale_d_fn = conf.out_ale_d_fn + "." + str(i),
             out_ale_o_fn = conf.out_ale_o_fn + "." + str(i),
             out_ale_u_fn = conf.out_ale_u_fn + "." + str(i),
             out_fn = None
@@ -314,6 +311,15 @@ def afc_core(conf):
         remove = True
     ) < 0:
         raise ValueError("errcode -19")
+    
+    if merge_mtx(
+        [td.out_ale_d_fn for td in thdata_list], ZF_F_GZIP, 
+        conf.out_ale_d_fn, "w", ZF_F_PLAIN,
+        nr_reg_list, len(conf.samples), 
+        sum([td.nr_d for td in thdata_list]),
+        remove = True
+    ) < 0:
+        raise ValueError("errcode -21")
 
     if merge_mtx(
         [td.out_ale_o_fn for td in thdata_list], ZF_F_GZIP, 
@@ -322,7 +328,7 @@ def afc_core(conf):
         sum([td.nr_o for td in thdata_list]),
         remove = True
     ) < 0:
-        raise ValueError("errcode -21")
+        raise ValueError("errcode -23")
     
     if merge_mtx(
         [td.out_ale_u_fn for td in thdata_list], ZF_F_GZIP, 
@@ -331,7 +337,7 @@ def afc_core(conf):
         sum([td.nr_u for td in thdata_list]),
         remove = True
     ) < 0:
-        raise ValueError("errcode -23")
+        raise ValueError("errcode -25")
     
 
 def afc_run(conf):
@@ -454,13 +460,15 @@ def prepare_config(conf):
         conf.count_dir, conf.out_prefix + "A.mtx")
     conf.out_ale_b_fn = os.path.join(
         conf.count_dir, conf.out_prefix + "B.mtx")
+    conf.out_ale_d_fn = os.path.join(
+        conf.count_dir, conf.out_prefix + "D.mtx")
     conf.out_ale_o_fn = os.path.join(
         conf.count_dir, conf.out_prefix + "O.mtx")
     conf.out_ale_u_fn = os.path.join(
         conf.count_dir, conf.out_prefix + "U.mtx")
     
     conf.out_feature_meta_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "features_meta.pickle")
+        conf.out_dir, conf.out_prefix + "features.meta.pickle")
 
     if conf.feature_fn:
         if os.path.isfile(conf.feature_fn): 
@@ -520,6 +528,9 @@ def prepare_config(conf):
 
     with open(conf.out_sample_fn, "w") as fp:
         fp.write("".join([smp + "\n" for smp in conf.samples]))
+    
+    # TODO: directly output features into `out_feature_fn` here,
+    # instead of splitting into each thread and then merging.
 
     if conf.excl_flag < 0:
         if conf.use_umi():

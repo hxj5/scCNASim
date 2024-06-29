@@ -23,7 +23,6 @@ class Config:
         self.nproc = self.defaults.NPROC
         self.min_count = self.defaults.MIN_COUNT
         self.min_maf = self.defaults.MIN_MAF
-        self.no_dup_hap = self.defaults.NO_DUP_HAP
 
         self.min_mapq = self.defaults.MIN_MAPQ
         self.min_len = self.defaults.MIN_LEN
@@ -47,6 +46,7 @@ class Config:
         self.out_sample_fn = None
         self.out_ale_a_fn = None
         self.out_ale_b_fn = None
+        self.out_ale_d_fn = None
         self.out_ale_o_fn = None
         self.out_ale_u_fn = None
 
@@ -73,7 +73,6 @@ class Config:
         s += "%snumber_of_processes = %d\n" % (prefix, self.nproc)
         s += "%smin_count = %d\n" % (prefix, self.min_count)
         s += "%smin_maf = %f\n" % (prefix, self.min_maf)
-        s += "%sno_dup_hap = %s\n" % (prefix, self.no_dup_hap)
         s += "%s\n" % prefix
 
         s += "%smin_mapq = %d\n" % (prefix, self.min_mapq)
@@ -102,6 +101,7 @@ class Config:
         s += "%soutput_sample_file = %s\n" % (prefix, self.out_sample_fn)
         s += "%soutput_ale_a_file = %s\n" % (prefix, self.out_ale_a_fn)
         s += "%soutput_ale_b_file = %s\n" % (prefix, self.out_ale_b_fn)
+        s += "%soutput_ale_d_file = %s\n" % (prefix, self.out_ale_d_fn)
         s += "%soutput_ale_o_file = %s\n" % (prefix, self.out_ale_o_fn)
         s += "%soutput_ale_u_file = %s\n" % (prefix, self.out_ale_u_fn)
 
@@ -126,7 +126,6 @@ class DefaultConfig:
         self.NPROC = 1
         self.MIN_COUNT = 1 
         self.MIN_MAF = 0
-        self.NO_DUP_HAP = True
 
         self.MIN_MAPQ = 20
         self.MIN_LEN = 30
