@@ -46,10 +46,12 @@ class Config:
         self.out_sample_fn = None
         self.out_ale_fns = {ale:None for ale in ("A", "B", "D", "O", "U")}
 
-        # A python pickle file storing the `self.reg_list`.
+        # `out_feature_meta_fn`: a python pickle file storing the 
+        # `self.reg_list`.
         # It will be saved after extracting reads from input BAM(s),
         # and be re-loaded for read sampling.
-        self.out_feature_meta_fn = None    
+        self.out_feature_meta_fn = None
+        self.out_adata_fn = None
 
         # Unique UMI tag (typically for cell barcode+UMI).
         self.uumi_tag = "UU"
@@ -107,6 +109,7 @@ class Config:
         s += "%s\n" % prefix
 
         s += "%sout_feature_meta_fn = %s\n" % (prefix, self.out_feature_meta_fn)
+        s += "%sout_adata_fn = %s\n" % (prefix, self.out_adata_fn)
         s += "%s\n" % prefix
 
         s += "%suumi_tag = %s\n" % (prefix, self.uumi_tag)

@@ -18,6 +18,7 @@ from .utils import load_feature_from_txt, load_snp_from_vcf, \
     load_snp_from_tsv, merge_mtx, merge_tsv
 
 from ...config import APP, VERSION
+from ...counts.io import load_xdata
 from ...utils.xlog import init_logging
 from ...utils.zfile import zopen, ZF_F_GZIP, ZF_F_PLAIN
 
@@ -295,6 +296,25 @@ def afc_core(conf):
             remove = True
         ) < 0:
             raise ValueError("errcode -17")
+        
+    # construct adata and save into h5ad file
+    adata = None
+    for idx, ale in enumerate(conf.out_ale_fns.keys()):
+        dat = load_xdata(
+            mtx_fn = conf.out_ale_fns[ale],
+            cell_fn = conf.out_sample_fn,
+            feature_fn = conf.out_feature_fn,
+            cell_columns = ["cell"],
+            feature_columns = ["chrom", "start", "end", "feature"],
+            row_is_cell = False
+        )
+        if idx == 0:
+            adata = dat
+            adata.layers[ale] = dat.X
+            adata.X = None
+        else:
+            adata.layers[ale] = dat.X
+    adata.transpose().write_h5ad(conf.out_adata_fn)
 
 
 def afc_run(conf):
@@ -419,6 +439,8 @@ def prepare_config(conf):
     
     conf.out_feature_meta_fn = os.path.join(
         conf.out_dir, conf.out_prefix + "features.meta.pickle")
+    conf.out_adata_fn = os.path.join(
+        conf.out_dir, conf.out_prefix + "counts.h5ad")
 
     if conf.feature_fn:
         if os.path.isfile(conf.feature_fn): 
