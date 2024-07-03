@@ -4,6 +4,8 @@ import math
 import os
 import pickle
 import pysam
+import subprocess
+import sys
 
 from logging import debug, error, info
 
@@ -145,6 +147,8 @@ def fc_fet1(reg, sam_list, snp_mcnt, prev_mcnt, mcnt, conf):
     mcnt.add_feature(reg, prev_mcnt)
 
     ret = smp = umi = ale_idx = None
+    bam_fps = {ale:pysam.AlignmentFile(fn, "wb", template = sam_list[0]) \
+                for ale, fn in reg.bams.items()}
     for idx, sam in enumerate(sam_list):
         itr = sam_fetch(sam, reg.chrom, reg.start, reg.end - 1)
         if not itr:    
@@ -163,6 +167,26 @@ def fc_fet1(reg, sam_list, snp_mcnt, prev_mcnt, mcnt, conf):
                 continue
             if (not smp) or (not umi) or ale_idx is None:
                 continue
+            uumi = smp + ">" + umi
+            read.set_tag(conf.uumi_tag, uumi)
+            if ale_idx == 0:
+                bam_fps["A"].write(read)
+            elif ale_idx == 1:
+                bam_fps["B"].write(read)
+            elif ale_idx in (-2, -3):
+                bam_fps["U"].write(read)
+
+    for fp in bam_fps.values():
+        fp.close()
+
+    for ale, fn in reg.bams.items():
+        if sort_bam_by_tag(
+            in_bam = fn, 
+            tag = conf.uumi_tag, 
+            out_bam = reg.bams_sort[ale],
+        ) < 0:
+            return(-6)
+        os.remove(fn)
 
     if mcnt.stat() < 0:
         return(-7)
@@ -249,4 +273,30 @@ def plp_snp(snp, sam_list, mcnt, conf):
     snp_minor_cnt = min(snp_ref_cnt, snp_alt_cnt)
     if snp_minor_cnt < snp_cnt * conf.min_maf:
         return(5)
+    return(0)
+
+
+def sort_bam_by_tag(in_bam, tag, out_bam = None, max_mem = "4G"):
+    inplace = False
+    if out_bam is None or out_bam == in_bam:
+        inplace = True
+        out_bam = in_bam + ".tmp.bam"
+    try:
+        proc = subprocess.Popen(
+            args = "samtools sort -m %s -t %s -o %s %s" % \
+                (max_mem, tag, out_bam, in_bam),
+            shell = True,
+            executable = "/bin/bash",
+            stdout = subprocess.PIPE,
+            stderr = subprocess.PIPE
+        )
+        outs, errs = proc.communicate()
+        ret = proc.returncode
+        if ret != 0:
+            raise RuntimeError(str(errs.decode()))
+    except:
+        error("Error: samtools sort failed (retcode '%s')." % str(ret))
+        return(-1)
+    if inplace:
+        os.replace(out_bam, in_bam)
     return(0)

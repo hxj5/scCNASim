@@ -50,7 +50,13 @@ class Config:
         self.out_ale_o_fn = None
         self.out_ale_u_fn = None
 
-        self.out_feature_meta_fn = None
+        # A python pickle file storing the `self.reg_list`.
+        # It will be saved after extracting reads from input BAM(s),
+        # and be re-loaded for read sampling.
+        self.out_feature_meta_fn = None    
+
+        # Unique UMI tag (typically for cell barcode+UMI).
+        self.uumi_tag = "UU"
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -96,6 +102,7 @@ class Config:
 
         s += "%sfeature_dir = %s\n" % (prefix, self.feature_dir)
         s += "%scount_dir = %s\n" % (prefix, self.count_dir)
+        s += "%s\n" % prefix
 
         s += "%soutput_feature_file = %s\n" % (prefix, self.out_feature_fn)
         s += "%soutput_sample_file = %s\n" % (prefix, self.out_sample_fn)
@@ -104,8 +111,12 @@ class Config:
         s += "%soutput_ale_d_file = %s\n" % (prefix, self.out_ale_d_fn)
         s += "%soutput_ale_o_file = %s\n" % (prefix, self.out_ale_o_fn)
         s += "%soutput_ale_u_file = %s\n" % (prefix, self.out_ale_u_fn)
+        s += "%s\n" % prefix
 
         s += "%sout_feature_meta_fn = %s\n" % (prefix, self.out_feature_meta_fn)
+        s += "%s\n" % prefix
+
+        s += "%suumi_tag = %s\n" % (prefix, self.uumi_tag)
         s += "%s\n" % prefix
 
         fp.write(s)

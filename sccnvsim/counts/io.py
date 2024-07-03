@@ -315,7 +315,7 @@ def load_xdata(mtx_fn, cell_fn, feature_fn,
     feature_sep : str
         The delimiter of the `feature_fn`.
     row_is_cell : bool
-        Whether the rows of `xdata` should be cells.
+        Whether the rows of `mtx_fn` are cells.
 
     Returns
     -------

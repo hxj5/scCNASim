@@ -214,6 +214,16 @@ def afc_core(conf):
         feature_dir = os.path.join(batch_dir, reg.name)
         os.makedirs(feature_dir, exist_ok = True)
         reg.res_dir = feature_dir
+        reg.bams = {
+            "A": os.path.join(reg.res_dir, "%s.A.bam" % reg.name),
+            "B": os.path.join(reg.res_dir, "%s.B.bam" % reg.name),
+            "U": os.path.join(reg.res_dir, "%s.U.bam" % reg.name)
+        }
+        reg.bams_sort = {
+            "A": os.path.join(reg.res_dir, "%s.A.uumi_sort.bam" % reg.name),
+            "B": os.path.join(reg.res_dir, "%s.B.uumi_sort.bam" % reg.name),
+            "U": os.path.join(reg.res_dir, "%s.U.uumi_sort.bam" % reg.name)
+        }
         feature_idx += 1
 
     # split feature list and save to file

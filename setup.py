@@ -17,6 +17,9 @@ with open(path.join(here, "README.md"), encoding='utf-8') as f:
 reqs = ["anndata", "intervaltree", "matplotlib", "numpy", "pandas", "pysam",
         "scipy", "seaborn", "statsmodels"]
 
+# Dependency:
+# - samtools: used for sort_bam_by_tag.
+
 setup(
     name = "sccnvsim",
 
