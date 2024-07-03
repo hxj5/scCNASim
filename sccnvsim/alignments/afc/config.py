@@ -1,7 +1,7 @@
 # config.py - configuration
 
 import sys
-from ...config import APP
+from ...config import APP      # do not delete this line, `APP` will be used by other submodules.
 
 class Config:
     def __init__(self):
@@ -44,11 +44,7 @@ class Config:
         self.out_prefix = COMMAND + "."
         self.out_feature_fn = None
         self.out_sample_fn = None
-        self.out_ale_a_fn = None
-        self.out_ale_b_fn = None
-        self.out_ale_d_fn = None
-        self.out_ale_o_fn = None
-        self.out_ale_u_fn = None
+        self.out_ale_fns = {ale:None for ale in ("A", "B", "D", "O", "U")}
 
         # A python pickle file storing the `self.reg_list`.
         # It will be saved after extracting reads from input BAM(s),
@@ -106,11 +102,8 @@ class Config:
 
         s += "%soutput_feature_file = %s\n" % (prefix, self.out_feature_fn)
         s += "%soutput_sample_file = %s\n" % (prefix, self.out_sample_fn)
-        s += "%soutput_ale_a_file = %s\n" % (prefix, self.out_ale_a_fn)
-        s += "%soutput_ale_b_file = %s\n" % (prefix, self.out_ale_b_fn)
-        s += "%soutput_ale_d_file = %s\n" % (prefix, self.out_ale_d_fn)
-        s += "%soutput_ale_o_file = %s\n" % (prefix, self.out_ale_o_fn)
-        s += "%soutput_ale_u_file = %s\n" % (prefix, self.out_ale_u_fn)
+        for ale, fn in self.out_ale_fns.items():
+            s += "%soutput_ale_%s_file = %s\n" % (prefix, ale, fn)
         s += "%s\n" % prefix
 
         s += "%sout_feature_meta_fn = %s\n" % (prefix, self.out_feature_meta_fn)

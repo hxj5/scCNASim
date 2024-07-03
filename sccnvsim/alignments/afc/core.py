@@ -1,11 +1,11 @@
 # core.py - core part of feature counting.
 
 import math
+import numpy as np
 import os
 import pickle
 import pysam
 import subprocess
-import sys
 
 from logging import debug, error, info
 
@@ -54,12 +54,9 @@ def fc_features(thdata):
         reg_list = pickle.load(fp)
     os.remove(thdata.reg_obj_fn)
 
-    fp_reg = zopen(thdata.out_feature_fn, "wt", ZF_F_GZIP, is_bytes = False)
-    fp_a = zopen(thdata.out_ale_a_fn, "wt", ZF_F_GZIP, is_bytes = False)
-    fp_b = zopen(thdata.out_ale_b_fn, "wt", ZF_F_GZIP, is_bytes = False)
-    fp_d = zopen(thdata.out_ale_d_fn, "wt", ZF_F_GZIP, is_bytes = False)
-    fp_o = zopen(thdata.out_ale_o_fn, "wt", ZF_F_GZIP, is_bytes = False)
-    fp_u = zopen(thdata.out_ale_u_fn, "wt", ZF_F_GZIP, is_bytes = False)
+    fp_ale = {ale: zopen(fn, "wt", ZF_F_GZIP, is_bytes = False) \
+                for ale, fn in thdata.out_ale_fns.items()}
+    alleles = thdata.out_ale_fns.keys()
 
     snp_mcnt = SNPMCount(conf.samples, conf)
     prev_mcnt = PrevFeatureMCount(conf.samples, conf)
@@ -72,45 +69,25 @@ def fc_features(thdata):
             debug("[Thread-%d] processing feature '%s' ..." % \
                 (thdata.idx, reg.name))
 
-        str_reg = "%s\t%d\t%d\t%s\n" % \
-            (reg.chrom, reg.start, reg.end - 1, reg.name)
-        fp_reg.write(str_reg)
-
-        ret, reg_a_cnt, reg_b_cnt, reg_d_cnt, reg_o_cnt, reg_u_cnt = \
-            fc_fet1(reg, sam_list, snp_mcnt, prev_mcnt, mcnt, conf)
-        if ret < 0:
+        ret, reg_ale_cnt = \
+            fc_fet1(reg, alleles, sam_list, snp_mcnt, prev_mcnt, mcnt, conf)
+        if ret < 0 or reg_ale_cnt is None:
             raise RuntimeError("errcode -9")
 
-        str_a, str_b, str_d, str_o, str_u = "", "", "", "", ""
+        str_ale = {ale:"" for ale in alleles}
         for i, smp in enumerate(conf.samples):
-            nu_a, nu_b = reg_a_cnt[smp], reg_b_cnt[smp]
-            nu_d = reg_d_cnt[smp]
-            nu_o, nu_u = reg_o_cnt[smp], reg_u_cnt[smp]
-
-            if nu_a + nu_b + nu_d + nu_o + nu_u <= 0:
+            nu_ale = {ale:reg_ale_cnt[ale][smp] for ale in alleles}
+            if np.sum([v for v in nu_ale.values()]) <= 0:
                 continue
-            if nu_a > 0:
-                str_a += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_a)
-                thdata.nr_a += 1
-            if nu_b > 0:
-                str_b += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_b)
-                thdata.nr_b += 1
-            if nu_d > 0:
-                str_d += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_d)
-                thdata.nr_d += 1
-            if nu_o > 0:
-                str_o += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_o)
-                thdata.nr_o += 1
-            if nu_u > 0:
-                str_u += "%d\t%d\t%d\n" % (reg_idx + 1, i + 1, nu_u)
-                thdata.nr_u += 1
+            for ale in alleles:
+                if nu_ale[ale] > 0:
+                    str_ale[ale] += "%d\t%d\t%d\n" % \
+                        (reg_idx + 1, i + 1, nu_ale[ale])
+                    thdata.nr_ale[ale] += 1
 
-        if str_u or str_a or str_b or str_d or str_o:
-            fp_a.write(str_a)
-            fp_b.write(str_b)
-            fp_d.write(str_d)
-            fp_o.write(str_o)
-            fp_u.write(str_u)
+        if np.any([len(s) > 0 for s in str_ale.values()]):
+            for ale in alleles:
+                fp_ale[ale].write(str_ale[ale])
 
         n_reg = reg_idx + 1
         frac_reg = n_reg / m_reg
@@ -121,29 +98,21 @@ def fc_features(thdata):
 
     thdata.nr_reg = len(reg_list)
 
-    fp_reg.close()
-    fp_a.close()
-    fp_b.close()
-    fp_d.close()
-    fp_o.close()
-    fp_u.close()
+    for ale in alleles:
+        fp_ale[ale].close()
     for sam in sam_list:
         sam.close()
     sam_list.clear()
 
     thdata.conf = None    # sam object cannot be pickled.
     thdata.ret = 0
-
-    if thdata.out_fn:
-        with open(thdata.out_fn, "wb") as fp_td:
-            pickle.dump(thdata, fp_td)
             
     return((0, thdata))
 
 
-def fc_fet1(reg, sam_list, snp_mcnt, prev_mcnt, mcnt, conf):
+def fc_fet1(reg, alleles, sam_list, snp_mcnt, prev_mcnt, mcnt, conf):
     if fc_prev(reg, sam_list, snp_mcnt, prev_mcnt, conf) < 0:
-        return(-3)
+        return((-3, None))
     mcnt.add_feature(reg, prev_mcnt)
 
     ret = smp = umi = ale_idx = None
@@ -162,7 +131,7 @@ def fc_fet1(reg, sam_list, snp_mcnt, prev_mcnt, mcnt, conf):
                 sample = conf.samples[idx]
                 ret, smp, umi, ale_idx = mcnt.push_read(read, sample)
             if ret < 0:
-                return(-5)
+                return((-5, None))
             elif ret > 0:    # read filtered.
                 continue
             if (not smp) or (not umi) or ale_idx is None:
@@ -180,31 +149,28 @@ def fc_fet1(reg, sam_list, snp_mcnt, prev_mcnt, mcnt, conf):
         fp.close()
 
     for ale, fn in reg.bams.items():
+        nthreads = 4 if ale == "U" else 1
         if sort_bam_by_tag(
             in_bam = fn, 
             tag = conf.uumi_tag, 
             out_bam = reg.bams_sort[ale],
+            nthreads = nthreads
         ) < 0:
-            return(-6)
+            return((-7, None))
         os.remove(fn)
 
     if mcnt.stat() < 0:
-        return(-7)
+        return((-9, None))
     
-    reg_a_cnt = {smp:0 for smp in conf.samples}
-    reg_b_cnt =  {smp:0 for smp in conf.samples}
-    reg_d_cnt =  {smp:0 for smp in conf.samples}
-    reg_o_cnt = {smp:0 for smp in conf.samples}
-    reg_u_cnt = {smp:0 for smp in conf.samples}
-
+    reg_ale_cnt = {ale:{smp:0 for smp in conf.samples} for ale in alleles}
     for smp, scnt in mcnt.cell_cnt.items():
-        reg_a_cnt[smp] = scnt.allele_cnt[0]
-        reg_b_cnt[smp] = scnt.allele_cnt[1]
-        reg_d_cnt[smp] = scnt.allele_cnt[2]
-        reg_o_cnt[smp] = scnt.allele_cnt[-1]
-        reg_u_cnt[smp] = scnt.allele_cnt[-2] + scnt.allele_cnt[-3]
+        reg_ale_cnt["A"][smp] = scnt.allele_cnt[0]
+        reg_ale_cnt["B"][smp] = scnt.allele_cnt[1]
+        reg_ale_cnt["D"][smp] = scnt.allele_cnt[2]
+        reg_ale_cnt["O"][smp] = scnt.allele_cnt[-1]
+        reg_ale_cnt["U"][smp] = scnt.allele_cnt[-2] + scnt.allele_cnt[-3]
 
-    return((0, reg_a_cnt, reg_b_cnt, reg_d_cnt, reg_o_cnt, reg_u_cnt))
+    return((0, reg_ale_cnt))
 
 
 def fc_prev(reg, sam_list, snp_mcnt, mcnt, conf):
@@ -276,15 +242,15 @@ def plp_snp(snp, sam_list, mcnt, conf):
     return(0)
 
 
-def sort_bam_by_tag(in_bam, tag, out_bam = None, max_mem = "4G"):
+def sort_bam_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
     inplace = False
     if out_bam is None or out_bam == in_bam:
         inplace = True
         out_bam = in_bam + ".tmp.bam"
     try:
         proc = subprocess.Popen(
-            args = "samtools sort -m %s -t %s -o %s %s" % \
-                (max_mem, tag, out_bam, in_bam),
+            args = "samtools sort -m %s -@ %d -t %s -o %s %s" % \
+                (max_mem, nthreads - 1, tag, out_bam, in_bam),
             shell = True,
             executable = "/bin/bash",
             stdout = subprocess.PIPE,

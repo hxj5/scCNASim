@@ -8,9 +8,7 @@ class ThreadData:
         idx, conf, 
         reg_obj_fn,
         out_feature_fn,
-        out_ale_a_fn, out_ale_b_fn, out_ale_d_fn, 
-        out_ale_o_fn, out_ale_u_fn,
-        out_fn = None
+        out_ale_fns
     ):
         self.idx = idx
         self.conf = conf
@@ -18,20 +16,10 @@ class ThreadData:
         self.reg_obj_fn = reg_obj_fn
 
         self.out_feature_fn = out_feature_fn
-        self.out_ale_a_fn = out_ale_a_fn
-        self.out_ale_b_fn = out_ale_b_fn
-        self.out_ale_d_fn = out_ale_d_fn
-        self.out_ale_o_fn = out_ale_o_fn
-        self.out_ale_u_fn = out_ale_u_fn
-
-        self.out_fn = out_fn
+        self.out_ale_fns = out_ale_fns
 
         self.nr_reg = 0
-        self.nr_a = 0
-        self.nr_b = 0
-        self.nr_d = 0
-        self.nr_o = 0
-        self.nr_u = 0
+        self.nr_ale = {ale:0 for ale in out_ale_fns.keys()}
         
         self.ret = -1
 
@@ -48,20 +36,12 @@ class ThreadData:
         s += "%sreg_obj filename = %s\n" % (prefix, self.reg_obj_fn)
 
         s += "%sout_feature_fn = %s\n" % (prefix, self.out_feature_fn)
-        s += "%sout_ale_a_fn = %s\n" % (prefix, self.out_ale_a_fn)
-        s += "%sout_ale_b_fn = %s\n" % (prefix, self.out_ale_b_fn)
-        s += "%sout_ale_d_fn = %s\n" % (prefix, self.out_ale_d_fn)
-        s += "%sout_ale_o_fn = %s\n" % (prefix, self.out_ale_o_fn)
-        s += "%sout_ale_u_fn = %s\n" % (prefix, self.out_ale_u_fn)
-
-        s += "%sout_fn = %s\n" % (prefix, self.out_fn)
+        for ale, fn in self.out_ale_fns.items():
+            s += "%sout_ale_%s_fn = %s\n" % (prefix, ale, fn)
         
         s += "%snum_record_feature = %d\n" % (prefix, self.nr_reg)
-        s += "%snum_record_a = %d\n" % (prefix, self.nr_a)
-        s += "%snum_record_b = %d\n" % (prefix, self.nr_b)
-        s += "%snum_record_d = %d\n" % (prefix, self.nr_d)
-        s += "%snum_record_o = %d\n" % (prefix, self.nr_o)
-        s += "%snum_record_u = %d\n" % (prefix, self.nr_u)
+        for ale, nr in self.nr_ale.items():
+            s += "%snum_record_%s = %d\n" % (prefix, ale, nr)
 
         s += "%sreturn code = %d\n" % (prefix, self.ret)
         s += "%s\n" % prefix

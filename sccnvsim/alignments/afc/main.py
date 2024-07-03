@@ -214,16 +214,10 @@ def afc_core(conf):
         feature_dir = os.path.join(batch_dir, reg.name)
         os.makedirs(feature_dir, exist_ok = True)
         reg.res_dir = feature_dir
-        reg.bams = {
-            "A": os.path.join(reg.res_dir, "%s.A.bam" % reg.name),
-            "B": os.path.join(reg.res_dir, "%s.B.bam" % reg.name),
-            "U": os.path.join(reg.res_dir, "%s.U.bam" % reg.name)
-        }
-        reg.bams_sort = {
-            "A": os.path.join(reg.res_dir, "%s.A.uumi_sort.bam" % reg.name),
-            "B": os.path.join(reg.res_dir, "%s.B.uumi_sort.bam" % reg.name),
-            "U": os.path.join(reg.res_dir, "%s.U.uumi_sort.bam" % reg.name)
-        }
+        reg.bams = {ale: os.path.join(reg.res_dir, "%s.%s.bam" % \
+                    (reg.name, ale)) for ale in ("A", "B", "U")}
+        reg.bams_sort = {ale: os.path.join(reg.res_dir, "%s.%s.uumi_sort.bam" \
+                            % (reg.name, ale)) for ale in ("A", "B", "U")}
         feature_idx += 1
 
     # split feature list and save to file
@@ -262,12 +256,8 @@ def afc_core(conf):
             idx = i, conf = conf,
             reg_obj_fn = reg_fn_list[i],
             out_feature_fn = conf.out_feature_fn + "." + str(i),
-            out_ale_a_fn = conf.out_ale_a_fn + "." + str(i),
-            out_ale_b_fn = conf.out_ale_b_fn + "." + str(i),
-            out_ale_d_fn = conf.out_ale_d_fn + "." + str(i),
-            out_ale_o_fn = conf.out_ale_o_fn + "." + str(i),
-            out_ale_u_fn = conf.out_ale_u_fn + "." + str(i),
-            out_fn = None
+            out_ale_fns = {ale: fn + "." + str(i) for ale, fn in \
+                           conf.out_ale_fns.items()}
         )
         thdata_list.append(thdata)
         if conf.debug > 0:
@@ -295,60 +285,17 @@ def afc_core(conf):
             raise ValueError("errcode -3")
 
     # merge results
-    if merge_tsv(
-        [td.out_feature_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_feature_fn, "wb", ZF_F_PLAIN, 
-        remove = True
-    ) < 0:
-        raise ValueError("errcode -15")
-
     nr_reg_list = [td.nr_reg for td in thdata_list]
+    for ale in conf.out_ale_fns.keys():
+        if merge_mtx(
+            [td.out_ale_fns[ale] for td in thdata_list], ZF_F_GZIP,
+            conf.out_ale_fns[ale], "w", ZF_F_PLAIN,
+            nr_reg_list, len(conf.samples),
+            sum([td.nr_ale[ale] for td in thdata_list]),
+            remove = True
+        ) < 0:
+            raise ValueError("errcode -17")
 
-    if merge_mtx(
-        [td.out_ale_a_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_ale_a_fn, "w", ZF_F_PLAIN,
-        nr_reg_list, len(conf.samples),
-        sum([td.nr_a for td in thdata_list]),
-        remove = True
-    ) < 0:
-        raise ValueError("errcode -17")
-
-    if merge_mtx(
-        [td.out_ale_b_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_ale_b_fn, "w", ZF_F_PLAIN,
-        nr_reg_list, len(conf.samples), 
-        sum([td.nr_b for td in thdata_list]),
-        remove = True
-    ) < 0:
-        raise ValueError("errcode -19")
-    
-    if merge_mtx(
-        [td.out_ale_d_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_ale_d_fn, "w", ZF_F_PLAIN,
-        nr_reg_list, len(conf.samples), 
-        sum([td.nr_d for td in thdata_list]),
-        remove = True
-    ) < 0:
-        raise ValueError("errcode -21")
-
-    if merge_mtx(
-        [td.out_ale_o_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_ale_o_fn, "w", ZF_F_PLAIN,
-        nr_reg_list, len(conf.samples),
-        sum([td.nr_o for td in thdata_list]),
-        remove = True
-    ) < 0:
-        raise ValueError("errcode -23")
-    
-    if merge_mtx(
-        [td.out_ale_u_fn for td in thdata_list], ZF_F_GZIP, 
-        conf.out_ale_u_fn, "w", ZF_F_PLAIN,
-        nr_reg_list, len(conf.samples),
-        sum([td.nr_u for td in thdata_list]),
-        remove = True
-    ) < 0:
-        raise ValueError("errcode -25")
-    
 
 def afc_run(conf):
     ret = -1
@@ -466,16 +413,9 @@ def prepare_config(conf):
         conf.count_dir, conf.out_prefix + "features.tsv")
     conf.out_sample_fn = os.path.join(
         conf.count_dir, conf.out_prefix + "samples.tsv")
-    conf.out_ale_a_fn = os.path.join(
-        conf.count_dir, conf.out_prefix + "A.mtx")
-    conf.out_ale_b_fn = os.path.join(
-        conf.count_dir, conf.out_prefix + "B.mtx")
-    conf.out_ale_d_fn = os.path.join(
-        conf.count_dir, conf.out_prefix + "D.mtx")
-    conf.out_ale_o_fn = os.path.join(
-        conf.count_dir, conf.out_prefix + "O.mtx")
-    conf.out_ale_u_fn = os.path.join(
-        conf.count_dir, conf.out_prefix + "U.mtx")
+    for ale in conf.out_ale_fns.keys():
+        conf.out_ale_fns[ale] = os.path.join(
+            conf.count_dir, conf.out_prefix + "%s.mtx" % ale)
     
     conf.out_feature_meta_fn = os.path.join(
         conf.out_dir, conf.out_prefix + "features.meta.pickle")
@@ -539,8 +479,10 @@ def prepare_config(conf):
     with open(conf.out_sample_fn, "w") as fp:
         fp.write("".join([smp + "\n" for smp in conf.samples]))
     
-    # TODO: directly output features into `out_feature_fn` here,
-    # instead of splitting into each thread and then merging.
+    with open(conf.out_feature_fn, "w") as fp:
+        for reg in conf.reg_list:
+            fp.write("%s\t%d\t%d\t%s\n" % \
+                    (reg.chrom, reg.start, reg.end - 1, reg.name))
 
     if conf.excl_flag < 0:
         if conf.use_umi():
