@@ -1,7 +1,7 @@
 # config.py - configuration
 
 import sys
-from ...config import APP      # do not delete this line, `APP` will be used by other submodules.
+#from ...app import APP, VERSION
 
 class Config:
     def __init__(self):

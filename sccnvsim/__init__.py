@@ -1,8 +1,13 @@
-from . import alignments as aln
+# CNV simulation in single cells
+
+from . import aln
+from . import app
+from . import config
 from . import counts
+from . import pp
 from . import tests
 from . import utils
-from .config import VERSION
+from .app import VERSION
 
 
 # what `__all__` does:

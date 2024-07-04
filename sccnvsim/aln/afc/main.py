@@ -17,7 +17,7 @@ from .thread import ThreadData
 from .utils import load_feature_from_txt, load_snp_from_vcf, \
     load_snp_from_tsv, merge_mtx, merge_tsv
 
-from ...config import APP, VERSION
+from ...app import APP, VERSION
 from ...counts.io import load_xdata
 from ...utils.xlog import init_logging
 from ...utils.zfile import zopen, ZF_F_GZIP, ZF_F_PLAIN
