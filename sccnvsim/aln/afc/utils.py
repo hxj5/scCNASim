@@ -1,10 +1,11 @@
 # utils.py - help functions.
 
 import os
-import sys
 
+from logging import info, error
+from logging import warning as warn
 from .gfeature import SNP, SNPSet, BlockRegion
-from ...utils.zfile import zopen, ZF_F_GZIP, ZF_F_PLAIN
+from ...utils.zfile import zopen
 
 
 def load_feature_from_txt(fn, sep = "\t", verbose = False):
@@ -24,18 +25,17 @@ def load_feature_from_txt(fn, sep = "\t", verbose = False):
     list
         A list of `BlockRegion` objects if success, `None` otherwise.
     """
-    func = "load_feature_from_txt"
     fp = zopen(fn, "rt")
     reg_list = []
     nl = 0
     if verbose:
-        sys.stderr.write("[I::%s] start to load features from file '%s' ...\n" % (func, fn))
+        info("start to load features from file '%s' ..." % fn)
     for line in fp:
         nl += 1
         parts = line.rstrip().split(sep)
         if len(parts) < 4:
             if verbose:
-                sys.stderr.write("[E::%s] too few columns of line %d.\n" % (func, nl))
+                error("too few columns of line %d." % nl)
             return None           
         chrom, start, end, name = parts[:4]
         start, end = int(start), int(end)
@@ -61,12 +61,11 @@ def load_snp_from_tsv(fn, verbose = False):
     SNPSet object
         A `SNPSet` object if success, `None` otherwise.
     """
-    func = "load_snp_from_tsv"
     fp = zopen(fn, "rt")
     snp_set = SNPSet()
     nl = 0
     if verbose:
-        sys.stderr.write("[I::%s] start to load SNPs from tsv '%s' ...\n" % (func, fn))
+        info("start to load SNPs from tsv '%s' ..." % fn)
     for line in fp:
         nl += 1
         if nl == 1:
@@ -74,16 +73,16 @@ def load_snp_from_tsv(fn, verbose = False):
         parts = line.rstrip().split("\t")
         if len(parts) < 6:
             if verbose:
-                sys.stderr.write("[W::%s] too few columns of line %d.\n" % (func, nl))
+                warn("too few columns of line %d." % nl)
             continue
         ref, alt = parts[2].upper(), parts[3].upper()
         if len(ref) != 1 or ref not in "ACGTN":
             if verbose:
-                sys.stderr.write("[W::%s] invalid REF base of line %d.\n" % (func, nl))
+                warn("invalid REF base of line %d." % nl)
             continue
         if len(alt) != 1 or alt not in "ACGTN":
             if verbose:
-                sys.stderr.write("[W::%s] invalid ALT base of line %d.\n" % (func, nl))
+                warn("invalid ALT base of line %d." % nl)
             continue
         a1, a2 = parts[4], parts[5]
         if (a1 == "0" and a2 == "1") or (a1 == "1" and a2 == "0"):
@@ -97,11 +96,11 @@ def load_snp_from_tsv(fn, verbose = False):
             )
             if snp_set.add(snp) < 0:
                 if verbose:
-                    sys.stderr.write("[E::%s] failed to add SNP of line %d.\n" % (func, nl))
+                    error("failed to add SNP of line %d." % nl)
                 return None
         else:
             if verbose:
-               sys.stderr.write("[W::%s] invalid GT of line %d.\n" % (func, nl))
+                warn("invalid GT of line %d." % nl)
             continue          
     fp.close()
     return snp_set
@@ -122,12 +121,11 @@ def load_snp_from_vcf(fn, verbose = False):
     SNPSet object
         A `SNPSet` object if success, `None` otherwise.
     """
-    func = "load_snp_from_vcf"
     fp = zopen(fn, "rt")
     snp_set = SNPSet()
     nl = 0
     if verbose:
-        sys.stderr.write("[I::%s] start to load SNPs from vcf '%s' ...\n" % (func, fn))
+        info("start to load SNPs from vcf '%s' ..." % fn)
     for line in fp:
         nl += 1
         if line[0] in ("#", "\n"):
@@ -135,27 +133,27 @@ def load_snp_from_vcf(fn, verbose = False):
         parts = line.rstrip().split("\t")
         if len(parts) < 10:
             if verbose:
-                sys.stderr.write("[W::%s] too few columns of line %d.\n" % (func, nl))
+                warn("too few columns of line %d." % nl)
             continue
         ref, alt = parts[3].upper(), parts[4].upper()
         if len(ref) != 1 or ref not in "ACGTN":
             if verbose:
-                sys.stderr.write("[W::%s] invalid REF base of line %d.\n" % (func, nl))
+                warn("invalid REF base of line %d." % nl)
             continue
         if len(alt) != 1 or alt not in "ACGTN":
             if verbose:
-                sys.stderr.write("[W::%s] invalid ALT base of line %d.\n" % (func, nl))
+                warn("invalid ALT base of line %d." % nl)
             continue          
         fields = parts[8].split(":")
         if "GT" not in fields:
             if verbose:
-                sys.stderr.write("[W::%s] GT not in line %d.\n" % (func, nl))
+                warn("GT not in line %d." % nl)
             continue
         idx = fields.index("GT")
         values = parts[9].split(":")
         if len(values) != len(fields):
             if verbose:
-               sys.stderr.write("[W::%s] len(fields) != len(values) in line %d.\n" % (func, nl))
+                warn("len(fields) != len(values) in line %d." % nl)
             continue
         gt = values[idx]
         sep = ""
@@ -165,7 +163,7 @@ def load_snp_from_vcf(fn, verbose = False):
             sep = "/"
         else:
             if verbose:
-               sys.stderr.write("[W::%s] invalid delimiter of line %d.\n" % (func, nl))
+                warn("invalid delimiter of line %d." % nl)
             continue
         a1, a2 = gt.split(sep)[:2]
         if (a1 == "0" and a2 == "1") or (a1 == "1" and a2 == "0"):
@@ -179,11 +177,11 @@ def load_snp_from_vcf(fn, verbose = False):
             )
             if snp_set.add(snp) < 0:
                 if verbose:
-                    sys.stderr.write("[E::%s] failed to add SNP of line %d.\n" % (func, nl))
+                    error("failed to add SNP of line %d." % nl)
                 return None
         else:
             if verbose:
-               sys.stderr.write("[W::%s] invalid GT of line %d.\n" % (func, nl))
+                warn("invalid GT of line %d." % nl)
             continue          
     fp.close()
     return snp_set

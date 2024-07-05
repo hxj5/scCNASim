@@ -1,7 +1,9 @@
 # config.py - configuration
 
 import sys
-#from ...app import APP, VERSION
+
+COMMAND = "afc"
+
 
 class Config:
     def __init__(self):
@@ -58,7 +60,7 @@ class Config:
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
-            fp = sys.stderr
+            fp = sys.stdout
 
         s =  "%s\n" % prefix
         s += "%ssam_file = %s\n" % (prefix, self.sam_fn)
@@ -140,9 +142,6 @@ class DefaultConfig:
         self.EXCL_FLAG_UMI = 772
         self.EXCL_FLAG_XUMI = 1796
         self.NO_ORPHAN = True
-
-
-COMMAND = "afc"
 
 
 if __name__ == "__main__":

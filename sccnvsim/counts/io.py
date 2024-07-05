@@ -1,4 +1,4 @@
-# io.py - input and output
+# io.py - RD matrix input and output.
 
 import anndata as ad
 import os

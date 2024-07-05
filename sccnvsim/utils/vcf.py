@@ -1,4 +1,4 @@
-# vcf.py - VCF file routine
+# vcf.py - VCF file routine.
 
 import gzip
 import numpy as np

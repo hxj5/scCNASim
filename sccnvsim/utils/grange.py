@@ -1,4 +1,4 @@
-# grange.py - genomic range/interval routine
+# grange.py - genomic range/interval routine.
 
 from functools import cmp_to_key
 from intervaltree import IntervalTree

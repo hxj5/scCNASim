@@ -1,4 +1,4 @@
-# CNV simulation in single cells
+# CNV simulation in single cells.
 
 from . import aln
 from . import app

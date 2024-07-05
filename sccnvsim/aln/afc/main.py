@@ -51,7 +51,7 @@ def usage(fp = sys.stdout, conf = None):
     s += "Read filtering:\n"
     s += "      --inclFLAG INT    Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
     s += "      --exclFLAG INT    Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
-    s += "                    (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
+    s += "                        (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
     s += "      --minLEN INT      Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
     s += "      --minMAPQ INT     Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
     s += "      --countORPHAN     If use, do not skip anomalous read pairs.\n"
@@ -83,7 +83,7 @@ def afc_main(argv, conf = None):
         sys.exit(0)
 
     conf.argv = argv.copy()
-    init_logging(stream = sys.stderr)
+    init_logging(stream = sys.stdout)
 
     opts, args = getopt.getopt(
         args = argv[2:], 
@@ -152,7 +152,7 @@ def afc_wrapper(
     no_orphan = True
 ):
     conf = Config()
-    init_logging(stream = sys.stderr)
+    #init_logging(stream = sys.stdout)
 
     conf.sam_fn = sam_fn
     conf.sam_list_fn = sam_list_fn
@@ -184,7 +184,7 @@ def afc_core(conf):
     if prepare_config(conf) < 0:
         raise ValueError("errcode -2")
     info("program configuration:")
-    conf.show(fp = sys.stderr, prefix = "\t")
+    conf.show(fp = sys.stdout, prefix = "\t")
 
     # extract SNPs for each feature
     if conf.debug > 0:
@@ -263,7 +263,7 @@ def afc_core(conf):
         thdata_list.append(thdata)
         if conf.debug > 0:
             debug("data of thread-%d before fc_features:" % i)
-            thdata.show(fp = sys.stderr, prefix = "\t")
+            thdata.show(fp = sys.stdout, prefix = "\t")
         mp_result.append(pool.apply_async(
             func = fc_features, 
             args = (thdata, ), 
@@ -281,7 +281,7 @@ def afc_core(conf):
     for thdata in thdata_list:         
         if conf.debug > 0:
             debug("data of thread-%d after fc_features:" %  thdata.idx)
-            thdata.show(fp = sys.stderr, prefix = "\t")
+            thdata.show(fp = sys.stdout, prefix = "\t")
         if thdata.ret < 0:
             raise ValueError("errcode -3")
 

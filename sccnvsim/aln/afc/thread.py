@@ -28,7 +28,7 @@ class ThreadData:
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
-            fp = sys.stderr
+            fp = sys.stdout
         
         s = "%s\n" % prefix
         s += "%sindex = %d\n" % (prefix, self.idx)

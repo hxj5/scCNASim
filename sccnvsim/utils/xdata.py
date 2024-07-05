@@ -4,11 +4,42 @@
 # - it is non-trival to modify the anndata inplace (see
 #   https://github.com/scverse/anndata/issues/170 for details).
 
-import logging
 import numpy as np
-import scipy as sp
 
+from logging import info, error
+from logging import warning as warn
 from .xmatrix import sparse2array
+
+
+def add_cell_type_anno(xdata, anno):
+    """Add cell type annotation into the xdata.
+
+    Parameters
+    ----------
+    xdata : `xdata` object
+        Its `.obs` should contain a column `cell`.
+    anno : DataFrame
+        It has at least two columns: `cell` and `cell_type`.
+
+    Returns
+    -------
+    int
+        Return code. 0 if success, negative if error.
+    xdata
+        The updated xdata with `cell_type` annotaion in its `.obs`.
+    """
+    if "cell_type" in xdata.obs.columns:
+        warn("cell_type already exist. Quit the function.")
+    assert "cell" in xdata.obs.columns
+    assert "cell" in anno.columns
+    assert "cell_type" in anno.columns
+    if not np.all(xdata.obs["cell"].isin(anno["cell"])):
+        error("not all cells in anno.")
+        return((-3, xdata))
+    xdata.obs = xdata.obs.merge(
+        anno[["cell", "cell_type"]], on = "cell", how = "left", 
+        left_index = True)
+    return((0, xdata))
 
 
 def check_sanity_layer(xdata, layer = None):
@@ -19,12 +50,12 @@ def check_sanity_layer(xdata, layer = None):
     # detect nan Value
     nan_count = np.isnan(mtx).sum()
     if nan_count > 0:
-        logging.warning("NaN values in layer '%s'!" % layer)
+        warn("NaN values in layer '%s'!" % layer)
         state |= (1<<0)
     
     # detect negative Value
     if np.any(mtx < 0):
-        logging.warning("negative values in layer '%s'!" % layer)
+        warn("negative values in layer '%s'!" % layer)
         state |= (1<<1)
     
     return(state)
@@ -41,7 +72,7 @@ def check_unanno_cells(
         valid_cells_idx = xdata.obs[cell_anno_key] == xdata.obs[cell_anno_key]
         xdata = xdata[valid_cells_idx, :].copy()
         if verbose:
-            logging.info("filter out %d (out of %d) cells." %
+            info("filter out %d (out of %d) cells." %
                 (n - valid_cells_idx.sum(), n))
     else:
         xdata = xdata.copy()
@@ -69,10 +100,10 @@ def set_ref_cell_types(xdata, ref_cell_types = None, inplace = False):
         
     if "cell_type" in xdata.obs.columns:
         if ref_cell_types is None:
-            logging.warning("ref_cell_types is None.")
+            warn("ref_cell_types is None.")
     else:
         if ref_cell_types is not None:
-            logging.warning("column 'cell_type' is missing.")
+            warn("column 'cell_type' is missing.")
     return(xdata)
     
 

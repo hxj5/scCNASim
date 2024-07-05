@@ -5,5 +5,8 @@ from scipy.sparse import issparse
 
 def sparse2array(X):
     if issparse(X):
-        X = X.A
+        try:
+            X = X.A
+        except:
+            X = X.toarray()
     return(X)
