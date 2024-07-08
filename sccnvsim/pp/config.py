@@ -2,8 +2,9 @@
 
 import sys
 
+
 class Config:
-    """Configuration of preprocessing
+    """Configuration of preprocessing.
 
     Attributes
     ----------
@@ -16,10 +17,18 @@ class Config:
         1-based and inclusive), and `feature_name`.
     snp_fn : str
         A TSV or VCF file listing phased SNPs (i.e., containing phased GT).
+    cnv_profile_fn : str
+        A TSV file listing clonal CNV profiles. It is header-free and its first
+        7 columns are "chrom" (str), "start" (int), "end" (int), 
+        "reg_id" (str), "clone_id" (str), "cn_ale0" (int), "cn_ale1" (int).
+        Note that both "start" and "end" are 1-based and inclusive.
+    clone_meta_fn : str
+        A TSV file listing clonal meta information. It is header-free and its
+        first 3 columns are "clone_id" (str), "ref_cell_type" (str),
+        "n_cells" (int). If "n_cells" is negative, then it will be set as
+        the number of cells in "ref_cell_type".
     out_dir : str
         The output folder.
-    verbose : bool
-        Whether show detailed logging information.
     """
     def __init__(self):
         self.cell_anno_fn = None
@@ -28,7 +37,9 @@ class Config:
         self.cnv_profile_fn = None
         self.clone_meta_fn = None
         self.out_dir = None
-        self.verbose = True
+
+        self.out_prefix_raw = "raw."
+        self.out_prefix_pp = "pp."
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -41,7 +52,10 @@ class Config:
         s += "%scnv_profile_fn = %s\n" % (prefix, self.cnv_profile_fn)
         s += "%sclone_meta_fn = %s\n" % (prefix, self.clone_meta_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
-        s += "%scell_tag = %s\n" % (prefix, self.cell_tag)
-        s += "%sumi_tag = %s\n" % (prefix, self.umi_tag)
-        s += "%snproc = %s\n" % (prefix, self.nproc)
-        s += "%sverbose = %s\n" % (prefix, self.verbose)
+        s += "%s\n" % prefix
+
+        s += "%sout_prefix_raw = %s\n" % (prefix, self.out_prefix_raw)
+        s += "%sout_prefix_pp = %s\n" % (prefix, self.out_prefix_pp)
+        s += "%s\n" % prefix
+
+        fp.write(s)

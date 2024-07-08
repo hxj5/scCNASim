@@ -3,6 +3,7 @@
 
 from scipy.sparse import issparse
 
+
 def sparse2array(X):
     if issparse(X):
         try:

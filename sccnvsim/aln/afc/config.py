@@ -40,7 +40,7 @@ class Config:
         self.sam_fn_list = None
         self.samples = None
 
-        self.feature_dir = None
+        self.aln_dir = None
         self.count_dir = None
 
         self.out_prefix = COMMAND + "."
@@ -100,7 +100,7 @@ class Config:
                 self.snp_set is not None else -1)
         s += "%s\n" % prefix
 
-        s += "%sfeature_dir = %s\n" % (prefix, self.feature_dir)
+        s += "%saln_dir = %s\n" % (prefix, self.aln_dir)
         s += "%scount_dir = %s\n" % (prefix, self.count_dir)
         s += "%s\n" % prefix
 

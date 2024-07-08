@@ -1,9 +1,11 @@
 # main.py - cmdline interface.
 
 
+import os
 import time
-
 from logging import info, error
+from .aln.afc.main import afc_wrapper
+from .pp.main import pp_wrapper
 
 
 def main():
@@ -13,13 +15,53 @@ def main():
 def main_core(conf):
     ret = -1
 
+    conf.show()
+    os.makedirs(conf.g.out_dir, exist_ok = True)
+
+    # Note:
+    # Use `xx_wrapper()`` function in each step instead of directly accessing
+    # or modifying the internal `config` object, to keep codes independent.
+
     # preprocessing
+    info("start preprocessing ...")
+    r, pp_res, pp_conf = pp_wrapper(
+        cell_anno_fn = conf.pp.cell_anno_fn,
+        feature_fn = conf.pp.feature_fn,
+        snp_fn = conf.pp.snp_fn,
+        cnv_profile_fn = conf.pp.cnv_profile_fn,
+        clone_meta_fn = conf.pp.clone_meta_fn,
+        out_dir = os.path.join(conf.g.out_dir, "pp")
+    )
+    if r < 0:
+        error("preprocessing failed (%d)." % r)
+        raise ValueError
 
 
     # allele-specific feature counting
-    conf.afc.out_dir = conf.g.out_dir
+    info("start allele-specific feature counting ...")
+    r, afc_conf = afc_wrapper(
+        sam_fn = conf.afc.sam_fn,
+        barcode_fn = pp_res["barcode_fn_new"],
+        feature_fn = pp_res["feature_fn_new"],
+        phased_snp_fn = pp_res["snp_fn_new"],
+        out_dir = conf.g.out_dir,
+        sam_list_fn = conf.afc.sam_list_fn,
+        sample_ids = conf.afc.sample_ids, 
+        sample_id_fn = conf.afc.sample_id_fn,
+        debug_level = 0,
+        ncores = conf.g.ncores,
+        cell_tag = conf.g.cell_tag,
+        umi_tag = conf.g.umi_tag,
+        min_count = conf.afc.min_count,
+        min_maf = conf.afc.min_maf,
+        min_mapq = conf.afc.min_mapq,
+        min_len = conf.afc.min_len,
+        incl_flag = conf.afc.incl_flag,
+        excl_flag = conf.afc.excl_flag,
+        no_orphan = conf.afc.no_orphan
+    )
 
-    
+    return(0)
 
 
 def main_run(conf):

@@ -1,5 +1,6 @@
 # grange.py - genomic range/interval routine.
 
+import numpy as np
 from functools import cmp_to_key
 from intervaltree import IntervalTree
 
@@ -13,6 +14,8 @@ class RegPos(int):
         if isinstance(x, str):
             if x.lower().startswith("inf"):
                 x = REG_MAX_POS
+        elif np.isinf(x):
+            x = REG_MAX_POS
         return super(RegPos, cls).__new__(cls, x)
 
     def __str__(self):

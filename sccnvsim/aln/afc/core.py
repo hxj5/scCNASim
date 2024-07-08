@@ -8,7 +8,6 @@ import pysam
 import subprocess
 
 from logging import debug, error, info
-
 from .mcount_feature import MCount as PrevFeatureMCount
 from .mcount_feature_all import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
@@ -72,7 +71,7 @@ def fc_features(thdata):
         ret, reg_ale_cnt = \
             fc_fet1(reg, alleles, sam_list, snp_mcnt, prev_mcnt, mcnt, conf)
         if ret < 0 or reg_ale_cnt is None:
-            raise RuntimeError("errcode -9")
+            raise RuntimeError("errcode -9 (%s)." % reg.name)
 
         str_ale = {ale:"" for ale in alleles}
         for i, smp in enumerate(conf.samples):

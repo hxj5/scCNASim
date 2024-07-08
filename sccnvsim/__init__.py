@@ -4,10 +4,13 @@ from . import aln
 from . import app
 from . import config
 from . import counts
+from . import io
 from . import pp
 from . import tests
 from . import utils
 from .app import VERSION
+from .config import Config
+from .main import main_run
 
 
 # what `__all__` does:

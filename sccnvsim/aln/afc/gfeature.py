@@ -70,7 +70,8 @@ class BlockRegion(Region):
         The BAM files containing allele-specific (A,B,U) UMIs sorted by UUMI.
         Keys are the alleles (A,B,U), values are the paths to the BAM files.
     """
-    def __init__(self, chrom, start, end, name = None, snp_list = None, res_dir = None):
+    def __init__(self, chrom, start, end, name = None, 
+                snp_list = None, res_dir = None):
         super().__init__(chrom, start, end)
         self.name = name
         self.snp_list = snp_list

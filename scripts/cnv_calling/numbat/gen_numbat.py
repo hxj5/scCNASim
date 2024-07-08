@@ -4,6 +4,7 @@
 import os
 import stat
 
+
 def assert_e(path):
     assert os.path.exists(path)
 

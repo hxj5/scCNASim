@@ -1,78 +1,9 @@
 # pp.py - preprocessing
 
 import functools
-import os
-import time
-
-from logging import info, error
-
-from ..utils.grange import format_chrom, format_start, format_end, reg2str
-from ..utils.zfile import zopen
-
-
-COMMAND 
-
-
-
-# conf: config::GlobalConfig
-def pp_core(conf):
-    os.makedirs(conf.out_dir, exist_ok = True)
-
-    merged_feature_fn = os.path.join(conf.out_dir, "features.tsv")
-    r = merge_features(
-        in_fn = conf.g.feature_fn,
-        out_fn = merged_feature_fn,
-        max_gap = 1,
-        new_name_how = "join"
-    )
-    if r < 0:
-        error("merge features failed (%d)." % r)
-        raise ValueError
-    
-    merged_feature_fn = os.path.join(conf.out_dir, "features.merged.tsv")
-    r = merge_features(
-        in_fn = conf.g.feature_fn,
-        out_fn = merged_feature_fn,
-        max_gap = 1,
-        new_name_how = "join"
-    )
-    if r < 0:
-        error("merge features failed (%d)." % r)
-        raise ValueError    
-    
-    res = {
-        "merged_feature_fn": merged_feature_fn
-    }
-    
-    return(res)
-
-
-def pp_run(conf):
-    ret = -1
-    res = None
-
-    start_time = time.time()
-    time_str = time.strftime(
-        "%Y-%m-%d %H:%M:%S", time.localtime(start_time))
-    info("start time: %s." % time_str)
-
-    try:
-        res = pp_core(conf)
-    except ValueError as e:
-        error(str(e))
-        error("Running program failed.")
-        error("Quiting ...")
-        ret = -1
-    else:
-        info("All Done!")
-        ret = 0
-    finally:
-        end_time = time.time()
-        time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
-        info("end time: %s" % time_str)
-        info("time spent: %.2fs" % (end_time - start_time, ))
-
-    return((ret, res))
+from logging import error
+from ..io.base import load_cnvs, load_features
+from ..utils.grange import reg2str
 
 
 def __cmp_two_intervals(x1, x2):
@@ -106,35 +37,37 @@ def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
     Returns
     -------
     int
-        0 if success, negative if error.
+        The return code. 0 if success, negative if error.
+    int
+        Number of records before merging.
+    int
+        Number of records after merging.
     """
     sep = "\t"
+    n_old, n_new = -1, -1
 
     # load data
-    fp = zopen(in_fn, "rt")
+    try:
+        df = load_cnvs(in_fn, sep = sep)
+    except Exception as e:
+        error("load CNV profile file failed '%s'." % str(e))
+        return((-3, n_old, n_new))
+    n_old = df.shape[0]
+
     dat = {}
-    nl = 0
-    for line in fp:
-        nl += 1
-        items = line.strip().split(sep)
-        if len(items) < 7:
-            error("too few columns of line %d." % nl)
-            return(-3)
-        chrom, start, end, region_id, clone_id, cn_ale0, cn_ale1 = items[:7]
-        chrom = format_chrom(chrom)
-        start, end = format_start(start), format_end(end)
-        cn_ale0, cn_ale1 = int(cn_ale0), int(cn_ale1)
-        region_id = region_id.strip('"')
-        clone_id = clone_id.strip('"')
+    for i in range(df.shape[0]):
+        rec = df.loc[i, ]
+        chrom = rec["chrom"]
+        clone_id = rec["clone"]
         if clone_id not in dat:
             dat[clone_id] = {}
         if chrom not in dat[clone_id]:
             dat[clone_id][chrom] = {}
-        ale_key = "%d_%d" % (cn_ale0, cn_ale1)
+        ale_key = "%d_%d" % (rec["cn_ale0"], rec["cn_ale1"])
         if ale_key not in dat[clone_id][chrom]:
             dat[clone_id][chrom][ale_key] = []
-        dat[clone_id][chrom][ale_key].append((start, end))
-    fp.close()
+        dat[clone_id][chrom][ale_key].append((rec["start"], rec["end"]))
+
 
     # merge (clone-specific) adjacent CNVs.
     for clone_id, cl_dat in dat.items():
@@ -155,6 +88,7 @@ def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
                 new_list.append((s1, e1))
                 ch_dat[ale_key] = new_list
 
+
     # check whether there are (strictly) overlapping regions with 
     # distinct profiles.
     for clone_id, cl_dat in dat.items():
@@ -174,10 +108,12 @@ def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
                 if s2 <= e1:    # overlap adjacent region
                     error("distinct CNV profiles '%s', (%d, %d) and (%d, %d)." % 
                         (chrom, s1, e1, s2, e2))
-                    return(-5)
+                    return((-5, n_old, n_new))
             cl_dat[chrom] = iv_list
 
+
     # save profile
+    n_new = 0
     fp = open(out_fn, "w")
     for clone_id in sorted(dat.keys()):
         cl_dat = dat[clone_id]
@@ -187,7 +123,9 @@ def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
                 region_id = reg2str(chrom, s, e)
                 fp.write("\t".join([chrom, str(s), str(e), region_id, \
                     clone_id, str(cn_ale0), str(cn_ale1)]) + "\n")
+                n_new += 1
     fp.close()
+    return((0, n_old, n_new))
 
 
 def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
@@ -204,33 +142,30 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
         `1` for strict adjacence.
     new_name_how : str
         How to name the merged features. `join`: join the names of the two 
-        features with char '>'.
+        features with string "__".
     
     Returns
     -------
     int
-        0 if success, negative if error.
+        The return code. 0 if success, negative if error.
+    int
+        Number of records before merging.
+    int
+        Number of records after merging.
     """
     sep = "\t"
+    n_old, n_new = -1, -1
 
     # load data
-    fp = zopen(in_fn, "rt")
     dat = {}
-    nl = 0
-    for line in fp:
-        nl += 1
-        items = line.strip().split(sep)
-        if len(items) < 4:
-            error("too few columns of line %d." % nl)
-            return(-3)
-        chrom, start, end, feature = items[:4]
-        chrom = format_chrom(chrom)
-        start, end = format_start(start), format_end(end)
-        feature = feature.strip('"')
+    df = load_features(in_fn, sep = sep)
+    n_old = df.shape[0]
+    for i in range(df.shape[0]):
+        rec = df.loc[i, ]
+        chrom = rec["chrom"]
         if chrom not in dat:
             dat[chrom] = []
-        dat[chrom].append((start, end, feature))
-    fp.close()
+        dat[chrom].append((rec["start"], rec["end"], rec["feature"]))
 
     # merge adjacent features
     for chrom, ch_dat in dat.items():
@@ -241,7 +176,7 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
             if s2 <= e1 + max_gap:    # overlap adjacent region
                 e1 = max(e1, e2)
                 if new_name_how == "join":
-                    f1 = f1 + ">" + f2
+                    f1 = f1 + "__" + f2
             else:                     # otherwise
                 new_list.append((s1, e1, f1))
                 s1, e1, f1 = s2, e2, f2
@@ -249,10 +184,12 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
         dat[chrom] = new_list
 
     # save features
+    n_new = 0
     fp = open(out_fn, "w")
     for chrom in sorted(dat.keys()):
         ch_dat = dat[chrom]
         for s, e, f in ch_dat:
             fp.write("\t".join([chrom, str(s), str(e), f]) + "\n")
+            n_new += 1
     fp.close()
-    return(0)
+    return((0, n_old, n_new))

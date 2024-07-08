@@ -9,7 +9,6 @@ import os
 import sys
 
 from logging import error, info
-
 # requires xcltk>=0.3.0
 from xcltk.baf.genotype import pileup, ref_phasing, vcf_add_genotype
 from xcltk.utils.base import assert_e, assert_n

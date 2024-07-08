@@ -2,13 +2,15 @@
 
 import os
 
-from logging import info, error
+from logging import error
 from logging import warning as warn
 from .gfeature import SNP, SNPSet, BlockRegion
+from ...io.base import load_features, load_snps
+from ...utils.vcf import vcf_load
 from ...utils.zfile import zopen
 
 
-def load_feature_from_txt(fn, sep = "\t", verbose = False):
+def load_feature_from_txt(fn, sep = "\t"):
     """Load features from plain file.
 
     Parameters
@@ -17,143 +19,104 @@ def load_feature_from_txt(fn, sep = "\t", verbose = False):
         Path to header-free plain file listing features, each per line.
         The first 4 columns should be
         <chrom>, <start>, <end> (both 1-based, inclusive), <name>.
-    verbose : bool
-        Whether to print detailed log info.
 
     Returns
     -------
     list
         A list of `BlockRegion` objects if success, `None` otherwise.
     """
-    fp = zopen(fn, "rt")
     reg_list = []
-    nl = 0
-    if verbose:
-        info("start to load features from file '%s' ..." % fn)
-    for line in fp:
-        nl += 1
-        parts = line.rstrip().split(sep)
-        if len(parts) < 4:
-            if verbose:
-                error("too few columns of line %d." % nl)
-            return None           
-        chrom, start, end, name = parts[:4]
-        start, end = int(start), int(end)
-        reg = BlockRegion(chrom, start, end + 1, name)
+    df = load_features(fn, sep = sep)
+    for i in range(df.shape[0]):
+        rec = df.loc[i, ]
+        reg = BlockRegion(
+            rec["chrom"],
+            rec["start"],
+            rec["end"] + 1,
+            rec["feature"]
+        )
         reg_list.append(reg)
-    fp.close()
     return reg_list
 
 
-def load_snp_from_tsv(fn, verbose = False):
+def load_snp_from_tsv(fn, sep = "\t"):
     """Load phased SNPs from TSV file.
 
     Parameters
     ----------
     fn : str
-        Path to TSV file containing 6 columns with header:
+        Path to TSV file containing 6 columns without header:
         <chrom> <pos> <ref> <alt> <ref_hap> <alt_hap>
-    verbose : bool
-        Whether to print detailed log info.
 
     Returns
     -------
     SNPSet object
         A `SNPSet` object if success, `None` otherwise.
     """
-    fp = zopen(fn, "rt")
     snp_set = SNPSet()
-    nl = 0
-    if verbose:
-        info("start to load SNPs from tsv '%s' ..." % fn)
-    for line in fp:
-        nl += 1
-        if nl == 1:
-            continue
-        parts = line.rstrip().split("\t")
-        if len(parts) < 6:
-            if verbose:
-                warn("too few columns of line %d." % nl)
-            continue
-        ref, alt = parts[2].upper(), parts[3].upper()
+    df = load_snps(fn, sep = sep)
+    for i in range(df.shape[0]):
+        nl = i + 1
+        rec = df.loc[i, ]
+        ref, alt = rec["ref"].upper(), rec["alt"].upper()
         if len(ref) != 1 or ref not in "ACGTN":
-            if verbose:
-                warn("invalid REF base of line %d." % nl)
+            warn("invalid REF base of line %d." % nl)
             continue
         if len(alt) != 1 or alt not in "ACGTN":
-            if verbose:
-                warn("invalid ALT base of line %d." % nl)
+            warn("invalid ALT base of line %d." % nl)
             continue
-        a1, a2 = parts[4], parts[5]
-        if (a1 == "0" and a2 == "1") or (a1 == "1" and a2 == "0"):
+        a1, a2 = rec["ref_hap"], rec["alt_hap"]
+        if (a1 == 0 and a2 == 1) or (a1 == 1 and a2 == 0):
             snp = SNP(
-                chrom = parts[0], 
-                pos = int(parts[1]), 
+                chrom = rec["chrom"], 
+                pos = rec["pos"],
                 ref = ref, 
                 alt = alt, 
-                ref_idx = int(a1), 
-                alt_idx = int(a2)
+                ref_idx = a1, 
+                alt_idx = a2
             )
             if snp_set.add(snp) < 0:
-                if verbose:
-                    error("failed to add SNP of line %d." % nl)
+                error("failed to add SNP of line %d." % nl)
                 return None
         else:
-            if verbose:
-                warn("invalid GT of line %d." % nl)
-            continue          
-    fp.close()
+            warn("invalid GT of line %d." % nl)
+            continue
     return snp_set
 
 
-def load_snp_from_vcf(fn, verbose = False):
+def load_snp_from_vcf(fn):
     """Load phased SNPs from VCF file.
 
     Parameters
     ----------
     fn : str
         Path to VCF file.
-    verbose : bool
-        Whether to print detailed log info.
 
     Returns
     -------
     SNPSet object
         A `SNPSet` object if success, `None` otherwise.
     """
-    fp = zopen(fn, "rt")
     snp_set = SNPSet()
-    nl = 0
-    if verbose:
-        info("start to load SNPs from vcf '%s' ..." % fn)
-    for line in fp:
-        nl += 1
-        if line[0] in ("#", "\n"):
-            continue
-        parts = line.rstrip().split("\t")
-        if len(parts) < 10:
-            if verbose:
-                warn("too few columns of line %d." % nl)
-            continue
-        ref, alt = parts[3].upper(), parts[4].upper()
+    df, header = vcf_load(fn)
+    for i in range(df.shape[0]):
+        nl = i + 1
+        rec = df.loc[i, ]
+        ref, alt = rec["REF"].upper(), rec["ALT"].upper()
         if len(ref) != 1 or ref not in "ACGTN":
-            if verbose:
-                warn("invalid REF base of line %d." % nl)
+            warn("invalid REF base of line %d." % nl)
             continue
         if len(alt) != 1 or alt not in "ACGTN":
-            if verbose:
-                warn("invalid ALT base of line %d." % nl)
+            warn("invalid ALT base of line %d." % nl)
             continue          
-        fields = parts[8].split(":")
+        fields = rec["FORMAT"].split(":")
         if "GT" not in fields:
-            if verbose:
-                warn("GT not in line %d." % nl)
+            warn("GT not in line %d." % nl)
             continue
         idx = fields.index("GT")
-        values = parts[9].split(":")
+        values = rec.iloc[9].split(":")
         if len(values) != len(fields):
-            if verbose:
-                warn("len(fields) != len(values) in line %d." % nl)
+            warn("len(fields) != len(values) in line %d." % nl)
             continue
         gt = values[idx]
         sep = ""
@@ -162,28 +125,24 @@ def load_snp_from_vcf(fn, verbose = False):
         elif "/" in gt: 
             sep = "/"
         else:
-            if verbose:
-                warn("invalid delimiter of line %d." % nl)
+            warn("invalid delimiter of line %d." % nl)
             continue
-        a1, a2 = gt.split(sep)[:2]
-        if (a1 == "0" and a2 == "1") or (a1 == "1" and a2 == "0"):
+        a1, a2 = [int(x) for x in gt.split(sep)[:2]]
+        if (a1 == 0 and a2 == 1) or (a1 == 1 and a2 == 0):
             snp = SNP(
-                chrom = parts[0], 
-                pos = int(parts[1]), 
+                chrom = rec["CHROM"],
+                pos = rec["POS"], 
                 ref = ref, 
                 alt = alt, 
-                ref_idx = int(a1), 
-                alt_idx = int(a2)
+                ref_idx = a1, 
+                alt_idx = a2
             )
             if snp_set.add(snp) < 0:
-                if verbose:
-                    error("failed to add SNP of line %d." % nl)
+                error("failed to add SNP of line %d." % nl)
                 return None
         else:
-            if verbose:
-                warn("invalid GT of line %d." % nl)
-            continue          
-    fp.close()
+            warn("invalid GT of line %d." % nl)
+            continue
     return snp_set
 
 
@@ -191,6 +150,7 @@ def _fmt_line(ln, k):
         items = ln.split("\t")
         items[0] = str(int(items[0]) + k)
         return("\t".join(items))
+
 
 # internal use only!
 def merge_mtx(in_fn_list, in_format,

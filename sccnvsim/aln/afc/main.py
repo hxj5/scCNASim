@@ -10,17 +10,18 @@ import time
 
 from logging import debug, error, info
 from logging import warning as warn
-
 from .config import Config, COMMAND
 from .core import fc_features
 from .thread import ThreadData
-from .utils import load_feature_from_txt, load_snp_from_vcf, \
-    load_snp_from_tsv, merge_mtx, merge_tsv
-
+from .utils import load_feature_from_txt, \
+    load_snp_from_vcf, load_snp_from_tsv, \
+    merge_mtx
 from ...app import APP, VERSION
-from ...counts.io import load_xdata
+from ...io.base import load_bams, load_barcodes, load_samples,  \
+    load_list_from_str
+from ...io.counts import load_xdata
 from ...utils.xlog import init_logging
-from ...utils.zfile import zopen, ZF_F_GZIP, ZF_F_PLAIN
+from ...utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
 
 
 def usage(fp = sys.stdout, conf = None):
@@ -60,23 +61,20 @@ def usage(fp = sys.stdout, conf = None):
     fp.write(s)
 
 
-def afc_main(argv, conf = None):
+def afc_main(argv):
     """Command-Line interface.
 
     Parameters
     ----------
     argv : list
         A list of cmdline parameters.
-    conf : fc::Config object
-        Configuration object.
     
     Returns
     -------
     int
         0 if success, -1 otherwise [int]
     """
-    if conf is None:
-        conf = Config()
+    conf = Config()
 
     if len(argv) <= 2:
         usage(sys.stdout, conf.defaults)
@@ -177,7 +175,7 @@ def afc_wrapper(
     conf.no_orphan = no_orphan
 
     ret = afc_run(conf)
-    return(ret)
+    return((ret, conf))
 
 
 def afc_core(conf):
@@ -210,7 +208,7 @@ def afc_core(conf):
     for reg in conf.reg_list:
         if feature_idx % batch_size == 0:
             batch_idx += 1
-            batch_dir = os.path.join(conf.feature_dir, "batch%d" % batch_idx)
+            batch_dir = os.path.join(conf.aln_dir, "batch%d" % batch_idx)
             os.makedirs(batch_dir, exist_ok = True)
         feature_dir = os.path.join(batch_dir, reg.name)
         os.makedirs(feature_dir, exist_ok = True)
@@ -350,7 +348,7 @@ def afc_run(conf):
         info("time spent: %.2fs" % (end_time - start_time, ))
 
     return(ret)
-    
+
 
 def prepare_config(conf):
     """Prepare configures for downstream analysis
@@ -373,13 +371,12 @@ def prepare_config(conf):
         if conf.sam_list_fn:
             error("should not specify 'sam_fn' and 'sam_list_fn' together.")
             return(-1)
-        conf.sam_fn_list = conf.sam_fn.split(",")
+        conf.sam_fn_list = load_list_from_str(conf.sam_fn, sep = ",")
     else:
         if not conf.sam_list_fn:
             error("one of 'sam_fn' and 'sam_list_fn' should be specified.")
             return(-1)
-        with open(conf.sam_list_fn, "r") as fp:
-            conf.sam_fn_list = [x.rstrip() for x in fp.readlines()]
+        conf.sam_fn_list = load_bams(conf.sam_list_fn)
     
     for fn in conf.sam_fn_list:
         if not os.path.isfile(fn):
@@ -392,8 +389,7 @@ def prepare_config(conf):
             error("should not specify barcodes and sample IDs together.")
             return(-1)
         if os.path.isfile(conf.barcode_fn):
-            with zopen(conf.barcode_fn, "rt") as fp:
-                conf.barcodes = sorted([x.strip() for x in fp])   # UPDATE!! use numpy or pandas to load
+            conf.barcodes = sorted(load_barcodes(conf.barcode_fn))
             if len(set(conf.barcodes)) != len(conf.barcodes):
                 error("duplicate barcodes!")
                 return(-1)
@@ -406,10 +402,9 @@ def prepare_config(conf):
             error("should not specify 'sample_id_str' and 'sample_fn' together.")
             return(-1)
         elif conf.sample_id_str:
-            conf.sample_ids = conf.sample_id_str.split(",")
+            conf.sample_ids = load_list_from_str(conf.sample_id_str, sep = ",")
         elif conf.sample_id_fn:
-            with zopen(conf.sample_id_fn, "rt") as fp:
-                conf.sample_ids = [x.strip() for x in fp]
+            conf.sample_ids = load_samples(conf.sample_id_fn)
         else:
             warn("use default sample IDs ...")
             conf.sample_ids = ["Sample%d" % i for i in \
@@ -424,9 +419,9 @@ def prepare_config(conf):
         error("out dir needed!")
         return(-1)
     os.makedirs(conf.out_dir, exist_ok = True)
-    conf.feature_dir = os.path.join(conf.out_dir, "features")
-    os.makedirs(conf.feature_dir, exist_ok = True)
-    conf.count_dir = os.path.join(conf.out_dir, "train_counts")
+    conf.aln_dir = os.path.join(conf.out_dir, "alignments")
+    os.makedirs(conf.aln_dir, exist_ok = True)
+    conf.count_dir = os.path.join(conf.out_dir, "%s_counts" % COMMAND)
     os.makedirs(conf.count_dir, exist_ok = True)
 
     conf.out_feature_fn = os.path.join(
@@ -444,8 +439,7 @@ def prepare_config(conf):
 
     if conf.feature_fn:
         if os.path.isfile(conf.feature_fn): 
-            conf.reg_list = load_feature_from_txt(
-                conf.feature_fn, verbose = True)
+            conf.reg_list = load_feature_from_txt(conf.feature_fn)
             if not conf.reg_list:
                 error("failed to load feature file.")
                 return(-1)
@@ -462,9 +456,9 @@ def prepare_config(conf):
         if os.path.isfile(conf.snp_fn):
             if conf.snp_fn.endswith(".vcf") or conf.snp_fn.endswith(".vcf.gz")\
                     or conf.snp_fn.endswith(".vcf.bgz"):
-                conf.snp_set = load_snp_from_vcf(conf.snp_fn, verbose = True)
+                conf.snp_set = load_snp_from_vcf(conf.snp_fn)
             else:
-                conf.snp_set = load_snp_from_tsv(conf.snp_fn, verbose = True)
+                conf.snp_set = load_snp_from_tsv(conf.snp_fn)
             if not conf.snp_set or conf.snp_set.get_n() <= 0:
                 error("failed to load snp file.")
                 return(-1)

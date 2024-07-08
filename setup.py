@@ -1,13 +1,15 @@
 # setup.py
 
-from setuptools import setup, find_packages
+
 from codecs import open
 from os import path
+from setuptools import setup, find_packages
+
 
 here = path.abspath(path.dirname(__file__))
 
 # load configures
-exec(open("./sccnvsim/config.py").read())
+exec(open("./sccnvsim/app.py").read())
 
 # Get the long description from the relevant file
 with open(path.join(here, "README.md"), encoding='utf-8') as f:
@@ -66,5 +68,4 @@ setup(
 
     # buid the distribution: python setup.py sdist
     # upload to pypi: twine upload dist/...
-
 )
