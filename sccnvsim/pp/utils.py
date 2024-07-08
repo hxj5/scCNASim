@@ -154,6 +154,7 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
         Number of records after merging.
     """
     sep = "\t"
+    max_fn_len = 127
     n_old, n_new = -1, -1
 
     # load data
@@ -176,7 +177,10 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
             if s2 <= e1 + max_gap:    # overlap adjacent region
                 e1 = max(e1, e2)
                 if new_name_how == "join":
-                    f1 = f1 + "__" + f2
+                    if len(f1) < max_fn_len:
+                        f1 = f1 + "__" + f2
+                        if len(f1) >= max_fn_len:
+                            f1 += "__"      # as a marker of truncated string.
             else:                     # otherwise
                 new_list.append((s1, e1, f1))
                 s1, e1, f1 = s2, e2, f2
