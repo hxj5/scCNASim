@@ -13,8 +13,6 @@ def main():
 
 
 def main_core(conf):
-    ret = -1
-
     conf.show()
     os.makedirs(conf.g.out_dir, exist_ok = True)
 
@@ -24,7 +22,7 @@ def main_core(conf):
 
     # preprocessing
     info("start preprocessing ...")
-    r, pp_res, pp_conf = pp_wrapper(
+    pp_ret, pp_res = pp_wrapper(
         cell_anno_fn = conf.pp.cell_anno_fn,
         feature_fn = conf.pp.feature_fn,
         snp_fn = conf.pp.snp_fn,
@@ -32,14 +30,14 @@ def main_core(conf):
         clone_meta_fn = conf.pp.clone_meta_fn,
         out_dir = os.path.join(conf.g.out_dir, "pp")
     )
-    if r < 0:
-        error("preprocessing failed (%d)." % r)
+    if pp_ret < 0:
+        error("preprocessing failed (%d)." % pp_ret)
         raise ValueError
 
 
     # allele-specific feature counting
     info("start allele-specific feature counting ...")
-    r, afc_conf = afc_wrapper(
+    afc_ret, afc_res = afc_wrapper(
         sam_fn = conf.afc.sam_fn,
         barcode_fn = pp_res["barcode_fn_new"],
         feature_fn = pp_res["feature_fn_new"],
@@ -60,12 +58,18 @@ def main_core(conf):
         excl_flag = conf.afc.excl_flag,
         no_orphan = conf.afc.no_orphan
     )
+    if afc_ret < 0:
+        error("allele-specific feature counting failed (%d)." % afc_ret)
+        raise ValueError
 
-    return(0)
+
+    res = None
+    return(res)
 
 
 def main_run(conf):
     ret = -1
+    res = None
 
     start_time = time.time()
     time_str = time.strftime(
@@ -73,7 +77,7 @@ def main_run(conf):
     info("start time: %s." % time_str)
 
     try:
-        ret = main_core(conf)
+        res = main_core(conf)
     except ValueError as e:
         error(str(e))
         error("Running program failed.")
@@ -88,4 +92,4 @@ def main_run(conf):
         info("end time: %s" % time_str)
         info("time spent: %.2fs" % (end_time - start_time, ))
 
-    return(ret)
+    return((ret, res))

@@ -131,7 +131,7 @@ def afc_main(argv):
             error("invalid option: '%s'." % op)
             return(-1)
         
-    ret = afc_run(conf)
+    ret, res = afc_run(conf)
     return(ret)
 
 
@@ -174,8 +174,8 @@ def afc_wrapper(
     conf.excl_flag = -1 if excl_flag is None else excl_flag
     conf.no_orphan = no_orphan
 
-    ret = afc_run(conf)
-    return((ret, conf))
+    ret, res = afc_run(conf)
+    return((ret, res))
 
 
 def afc_core(conf):
@@ -314,9 +314,16 @@ def afc_core(conf):
             adata.layers[ale] = dat.X
     adata.transpose().write_h5ad(conf.out_adata_fn)
 
+    res = {
+        "feature_meta_fn": conf.out_feature_meta_fn,
+        "adata_fn": conf.out_adata_fn
+    }
+    return(res)
+
 
 def afc_run(conf):
     ret = -1
+    res = None
     cmdline = None
 
     start_time = time.time()
@@ -329,7 +336,7 @@ def afc_run(conf):
         info("CMD: %s" % cmdline)
 
     try:
-        ret = afc_core(conf)
+        res = afc_core(conf)
     except ValueError as e:
         error(str(e))
         error("Running program failed.")
@@ -347,7 +354,7 @@ def afc_run(conf):
         info("end time: %s" % time_str)
         info("time spent: %.2fs" % (end_time - start_time, ))
 
-    return(ret)
+    return((ret, res))
 
 
 def prepare_config(conf):

@@ -145,4 +145,5 @@ def pp_wrapper(
     conf.out_dir = out_dir
     
     ret, res = pp_run(conf)
-    return((ret, res, conf))
+    #return((ret, res, conf))
+    return((ret, res))
