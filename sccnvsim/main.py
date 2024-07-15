@@ -76,17 +76,14 @@ def main_core(conf):
 
     # count simulation.
     info("start count simulation ...")
-    cell_anno = load_cells(pp_res["cell_anno_fn_new"])
-    assert "cell_type" in cell_anno.columns
-    adata = ad.read_h5ad(afc_res["adata_fn"])
-    assert "cell" in adata.obs.columns
-    assert np.all(adata.obs["cell"].isin(cell_anno["cell"]))
-    adata.obs = adata.obs.merge(cell_anno, how = "left", on = "cell")
-    assert "cell_type" in adata.obs.columns
-
     adata_fn_new = afc_res["adata_fn"].replace(".h5ad", ".cell_anno.h5ad")
-    adata.write_h5ad(adata_fn_new)
-    info("new input count adata file is saved to '%s'." % adata_fn_new)
+    add_cell_anno(
+        adata_fn = afc_res["adata_fn"],
+        cell_anno_fn = pp_res["cell_anno_fn_new"],
+        out_adata_fn = adata_fn_new
+    )
+    info("new input (annotated) count adata file is saved to '%s'." % \
+        adata_fn_new)
 
     cs_ret, cs_res = cs_wrapper(
         count_fn = adata_fn_new,
@@ -163,3 +160,19 @@ def prepare_config(conf):
     # check `rs` config.
 
     return(0)
+
+
+def add_cell_anno(adata_fn, cell_anno_fn, out_adata_fn):
+    cell_anno = load_cells(cell_anno_fn)
+    assert "cell" in cell_anno.columns
+    assert "cell_type" in cell_anno.columns
+
+    adata = ad.read_h5ad(adata_fn)
+    assert "cell" in adata.obs.columns
+
+    assert np.all(adata.obs["cell"].isin(cell_anno["cell"]))
+    adata.obs = adata.obs.merge(cell_anno, how = "left", on = "cell")
+
+    assert "cell_type" in adata.obs.columns
+
+    adata.write_h5ad(out_adata_fn)

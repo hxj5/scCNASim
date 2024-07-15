@@ -61,6 +61,7 @@ def cs_core(conf):
                 (conf.adata.var["start"] <= end) &      \
                 (conf.adata.var["end"] >= start))[0]
             cnv_fet[c_region] = feature_idx
+    info("extract CNV features from %d records." % conf.cnv_profile.shape[0])
 
 
     # n cells in each clone.
@@ -77,6 +78,7 @@ def cs_core(conf):
                 n_cell = np.sum(conf.adata.obs["cell_type"] == c_type)
                 d[c_type] = n_cell
                 n_cell_each.append(n_cell)
+    info("#cells in each clone: %s." % str(n_cell_each))
 
 
     # get size factors.
@@ -103,12 +105,14 @@ def cs_core(conf):
         )
     else:
         raise ValueError
+    info("size factors calculated.")
 
 
     # processing allele A, B, U separately.
     adata_new = None
     allele_params = {}
     for idx, allele in enumerate(("A", "B", "U")):
+        info("start simulating counts of allele '%s'." % allele)
         adata_ale, params_ale = gen_clone_core(
             adata = conf.adata,
             allele = allele,
