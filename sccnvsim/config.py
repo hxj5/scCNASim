@@ -5,6 +5,7 @@ import sys
 
 from .aln.afc.config import Config as AFC_Conf
 from .aln.afc.config import DefaultConfig as AFC_DefConf
+from .cs.config import Config as CS_Conf
 from .pp.config import Config as PP_Conf
 
 
@@ -13,7 +14,7 @@ class Config:
         self.g = GlobalConfig()
         self.pp = PPConfig()
         self.afc = AFCConfig()
-        self.cs = None
+        self.cs = CSConfig()
         self.rs = None
 
     def show(self, fp = None):
@@ -30,7 +31,7 @@ class Config:
         self.afc.show(fp = fp, prefix = "\t")
 
         fp.write("Count Simulation Config:\n")
-        #self.cs.show(fp = fp, prefix = "\t")   # TODO: implement
+        self.cs.show(fp = fp, prefix = "\t")
 
         fp.write("Read Simulation Config:\n")
         #self.rs.show(fp = fp, prefix = "\t")   # TODO: implement
@@ -45,10 +46,16 @@ class GlobalConfig:
         The output folder.
     cell_tag : str
         Tag for cell barcodes, set to `None` when using sample IDs.
+        Default is `"CB"`.
     umi_tag : str
         Tag for UMI, set to `None` when reads only.
+        Default is `"UB"`.
     ncores : int
         Number of processes.
+        Default is `1`.
+    verbose : bool
+        Whether to show detailed logging information.
+        Default is `False`.
     """
     def __init__(self):
         self._afc_def_conf = AFC_DefConf()
@@ -57,6 +64,7 @@ class GlobalConfig:
         self.cell_tag = self._afc_def_conf.CELL_TAG
         self.umi_tag = self._afc_def_conf.UMI_TAG
         self.ncores = self._afc_def_conf.NPROC
+        self.verbose = False
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -67,6 +75,7 @@ class GlobalConfig:
         s += "%scell_tag = %s\n" % (prefix, self.cell_tag)
         s += "%sumi_tag = %s\n" % (prefix, self.umi_tag)
         s += "%sncores = %s\n" % (prefix, self.ncores)
+        s += "%sverbose = %s\n" % (prefix, self.verbose)
         s += "%s\n" % prefix
 
         fp.write(s)
@@ -133,18 +142,25 @@ class AFCConfig(AFC_Conf):
         Typically used in well-based data (e.g., SMART-seq2).
     min_count : int
         Mininum aggragated count for SNP.
+        Default is `1`.
     min_maf : int
         Mininum minor allele fraction for SNP.
+        Default is `0`.
     min_mapq : int
         Minimum MAPQ for read filtering.
+        Default is `20`.
     min_len : int
         Minimum mapped length for read filtering.
+        Default is `30`.
     incl_flag : int
         Required flags: skip reads with all mask bits unset.
+        Default is `0`.
     excl_flag : int
         Filter flags: skip reads with any mask bits set.
+        Default is `772` (when use UMI) or `1796` (otherwise).
     no_orphan : bool
         If `True`, skip anomalous read pairs.
+        Default is `True`.
     """
     def __init__(self):
         super().__init__()
@@ -167,6 +183,64 @@ class AFCConfig(AFC_Conf):
         s += "%sinclude_flag = %d\n" % (prefix, self.incl_flag)
         s += "%sexclude_flag = %d\n" % (prefix, self.excl_flag)
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
+        s += "%s\n" % prefix
+
+        fp.write(s)
+
+
+class CSConfig(CS_Conf):
+    """Configuration of count simulation.
+
+    Attributes
+    ----------
+    size_factor : str
+        The type of size factor.
+        Currently, only support "libsize" (library size).
+        Set to `None` if do not use size factors for model fitting.
+        Default is `"libsize"`.
+    marginal : str
+        Type of marginal distribution.
+        One of "auto" (auto select), "poisson" (Poisson), 
+        "nb" (Negative Binomial),
+        and "zinb" (Zero-Inflated Negative Binomial).
+        Default is `"auto"`.
+    kwargs_fit_sf : dict
+        The additional kwargs passed to function 
+        :func:`~marginal.fit_libsize_wrapper` for fitting size factors.
+        Default is `{}`.
+        The available arguments are:
+        dist : str
+            Type of distribution. One of "normal" (normal) and "t" (t).
+            Default is `"normal"`.
+    kwargs_fit_rd : dcit
+        The additional kwargs passed to function 
+        :func:`~marginal.fit_RD_wrapper` for fitting read depth.
+        Default is `{}`.
+        The available arguments are:
+        min_nonzero_num : int
+            The minimum number of cells that have non-zeros for one feature.
+            If smaller than the cutoff, then the feature will not be fitted
+            (i.e., its mean will be directly treated as 0).
+            Default is `3`.
+        max_iter : int
+            Number of maximum iterations in model fitting.
+            Default is `1000`.
+        pval_cutoff : float
+            The p-value cutoff for model selection with GLR test.
+            Default is `0.05`.
+    """
+    def __init__(self):
+        super().__init__()
+
+    def show(self, fp = None, prefix = ""):
+        if fp is None:
+            fp = sys.stdout
+        
+        s =  "%s\n" % prefix
+        s += "%ssize_factor = %s\n" % (prefix, self.size_factor)
+        s += "%smarginal = %s\n" % (prefix, self.marginal)
+        s += "%skwargs_fit_sf = %s\n" % (prefix, self.kwargs_fit_sf)
+        s += "%skwargs_fit_rd = %s\n" % (prefix, self.kwargs_fit_rd)
         s += "%s\n" % prefix
 
         fp.write(s)

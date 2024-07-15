@@ -1,4 +1,4 @@
-# pp.py - preprocessing
+# main.py - main() function for preprocessing.
 
 
 import os

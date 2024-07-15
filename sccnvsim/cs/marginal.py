@@ -2,13 +2,13 @@
 
 import anndata as ad
 import copy
-import logging
 import multiprocessing
 import numpy as np
 import pandas as pd
 import scipy as sp
 
 from collections import OrderedDict
+from logging import info
 from ..utils import base as xbase
 from ..utils import xmath
 from ..utils.xmath import   \
@@ -101,13 +101,13 @@ def fit_libsize(
 
     # fitting
     if verbose:
-        logging.info("fitting library size in %d cell types ..." %  \
+        info("fitting library size in %d cell types ..." %  \
             (len(cell_type_fit), ))
     
     params = OrderedDict()
     for c_type in cell_type_fit:
         if verbose:
-            logging.info("processing cell type '%s'." % c_type)
+            info("processing cell type '%s'." % c_type)
         c_X = X[cell_types == c_type, :]
         c_par = fit_libsize_cell_type(
             X = c_X,
@@ -129,7 +129,7 @@ def fit_libsize_wrapper(
     ----------
     xdata : anndata object
         It contains the *cell x feature* matrix of sample values.
-        It should have a column in `xdata.obs`.
+        It should have a column "cell_type" in `xdata.obs`.
     cell_type_fit : list
         A list of cell types (str) whose features will be fitted.
         If `None`, use all unique cell types in `xdata`.
@@ -147,7 +147,7 @@ def fit_libsize_wrapper(
         :func:`fit_libsize_cell_type`.
     """
     if verbose:
-        logging.info("start ...")
+        info("start ...")
 
     # check args
     assert "cell_type" in xdata.obs.columns
@@ -241,7 +241,7 @@ def simu_libsize(
         Updated parameters.
     """
     if verbose:
-        logging.info("start ...")
+        info("start ...")
 
     params = copy.deepcopy(params)
     all_cell_types = list(params.keys())
@@ -255,13 +255,13 @@ def simu_libsize(
         assert len(n_cell_each) == len(cell_types)
 
     if verbose:
-        logging.info("simulating library size in %d cell types ..." %  \
+        info("simulating library size in %d cell types ..." %  \
             (n_cell_types, ))
 
     s = []
     for c_idx, c_type in enumerate(cell_types):
         if verbose:
-            logging.info("processing cell type '%s' ..." % c_type)
+            info("processing cell type '%s' ..." % c_type)
         c_par = params[c_type]
         c_s = simu_libsize_cell_type(
             params = c_par,
@@ -309,7 +309,7 @@ def fit_RD_feature(
     x,
     s = None,
     marginal = "auto",
-    max_iter = 100,
+    max_iter = 1000,
     pval_cutoff = 0.05
 ):
     """Fit one feature.
@@ -392,7 +392,8 @@ def fit_RD_feature(
 
         if marginal == "auto" or marginal == "zinb":
             if m >= v:                     # no over-dispersion.
-                ret_poi, par_poi, mres_poi = __fit_dist_poi(x, s, max_iter, verbose)
+                ret_poi, par_poi, mres_poi = __fit_dist_poi(
+                    x, s, max_iter, verbose)
                 flag |= (1 << 2)
                 if ret_poi != 0:
                     flag |= (1 << 6)
@@ -402,7 +403,8 @@ def fit_RD_feature(
                     model, par, mres = "poi", par_poi, mres_poi
                     break
                 
-                ret_zip, par_zip, mres_zip = __fit_dist_zip(x, s, max_iter, verbose)
+                ret_zip, par_zip, mres_zip = __fit_dist_zip(
+                    x, s, max_iter, verbose)
                 flag |= (1 << 4)
                 if ret_zip != 0:
                     flag |= (1 << 8)
@@ -421,7 +423,8 @@ def fit_RD_feature(
             else:                          # potential over-dispension.
                 mres_nb = None
                 if marginal == "auto" or np.min(x) > 0:
-                    ret_nb, par_nb, mres_nb = __fit_dist_nb(x, s, max_iter, verbose)
+                    ret_nb, par_nb, mres_nb = __fit_dist_nb(
+                        x, s, max_iter, verbose)
                     flag |= (1 << 3)
                     if ret_nb != 0:
                         flag |= (1 << 7)
@@ -431,14 +434,17 @@ def fit_RD_feature(
                         model, par, mres = "nb", par_nb, mres_nb
                         break
                     
-                # assert (marginal == "auto" and np.min(x) <= 0) or (marginal == "zinb" and np.min(x) <= 0)
+                # assert (marginal == "auto" and np.min(x) <= 0) or \
+                #       (marginal == "zinb" and np.min(x) <= 0)
 
-                ret_zinb, par_zinb, mres_zinb = __fit_dist_zinb(x, s, max_iter, verbose)
+                ret_zinb, par_zinb, mres_zinb = __fit_dist_zinb(
+                    x, s, max_iter, verbose)
                 flag |= (1 << 5)
                 if ret_zinb != 0:
                     flag |= (1 << 9)
                     if mres_nb is None:
-                        ret_nb, par_nb, mres_nb = __fit_dist_nb(x, s, max_iter, verbose)
+                        ret_nb, par_nb, mres_nb = __fit_dist_nb(
+                            x, s, max_iter, verbose)
                         flag |= (1 << 3)
                         if ret_nb != 0:
                             flag |= (1 << 7)
@@ -464,7 +470,8 @@ def fit_RD_feature(
                 model, par = "poi", estimate_dist_poi(x, s)
                 break
             else:
-                ret_nb, par_nb, mres_nb = __fit_dist_nb(x, s, max_iter, verbose)
+                ret_nb, par_nb, mres_nb = __fit_dist_nb(
+                    x, s, max_iter, verbose)
                 flag |= (1 << 3)
                 if ret_nb != 0:
                     flag |= (1 << 7)
@@ -508,7 +515,8 @@ def __fit_RD_feature(
 
 def fit_RD_cell_type(
     X,
-    size_factor = "libsize",    # set to `None` to turn it off.
+    s,
+    s_type,
     marginal = "auto",
     min_nonzero_num = 3,
     ncores = 1,
@@ -522,10 +530,12 @@ def fit_RD_cell_type(
     ----------
     X : np.array (2d)
         The *cell x feature* matrix containing sample values.
-    size_factor : str
-        The type of size factor. 
-        Currently, only support "libsize" (library size).
-        Set to `None` if do not use size factors for model fitting.
+    s : list-like
+        Size factors. Its length and order should match rows of `X`.
+        Set to `None` if do not use size factors for fitting.
+    s_type : str
+        The type of size factors. Currently only "libsize" is supported.
+        Set to `None` if do not use size factors for fitting.
     marginal : str
         Type of marginal distribution.
         One of "auto" (auto select), "poisson" (Poisson), 
@@ -550,22 +560,21 @@ def fit_RD_cell_type(
         The fitted parameters, will be used by downstream simulation.
     """
     if verbose:
-        logging.info("start ...")
+        info("start ...")
 
     if marginal not in ("auto", "zinb", "nb", "poisson"):
         raise ValueError("invalid marginal '%s'." % marginal)
     
     n, p = X.shape
-    s = None
-    if size_factor is None:
-        pass
-    elif size_factor == "libsize":
-        s = np.sum(X, axis = 1)     # use library size as size factor.
-    else:
-        raise ValueError("invalid size factor type '%s'." % size_factor)
+    if s is None:
+        assert s_type is None
+    if s_type is None:
+        assert s is None
+    if s is not None:
+        assert len(s) == n
 
     if verbose:
-        logging.info("processing %d features in %d cells (ncores = %d) ..." % \
+        info("processing %d features in %d cells (ncores = %d) ..." % \
             (p, n, ncores))
     
     pool = multiprocessing.Pool(processes = ncores)
@@ -597,8 +606,8 @@ def fit_RD_cell_type(
     result = [res.get() for res in result]
 
     if verbose:
-        logging.info("multi-processing finished.")
-        logging.info("merge results ...")
+        info("multi-processing finished.")
+        info("merge results ...")
 
     # TODO: implement a class for cell type specific params.
     params_nz = []
@@ -606,7 +615,7 @@ def fit_RD_cell_type(
         "params_nz": None,                    # params for non-zero features (pd.DataFrame).
         "fet_idx_nz": fet_idx["nz"],          # index (0-based) of non-zero features (set).
         "fet_idx_oth": fet_idx["oth"],        # index (0-based) of other features (set).
-        "size_factor_type": size_factor,      # size factor type (str or None).
+        "size_factor_type": s_type,           # size factor type (str).
         "size_factor_value": s,               # size factor values (np.array or None).
         "min_nonzero_num": min_nonzero_num,   # min number of non-zero entries (int).
         "n_cell": n,                          # number of cells (int).
@@ -652,9 +661,10 @@ def fit_RD_cell_type(
 # TODO: consider Cox–Reid bias adjustment (e.g., in the DESeq2 paper).
 def fit_RD(
     X,
+    s,
+    s_type,
     cell_types,
     cell_type_fit,
-    size_factor = "libsize",
     marginal = "auto",
     min_nonzero_num = 3,
     ncores = 1,
@@ -668,14 +678,16 @@ def fit_RD(
     ----------
     X : np.array (2d)
         It contains the *cell x feature* matrix of sample values.
+    s : list-like
+        Size factors. Its length and order should match rows of `X`.
+        Set to `None` if do not use size factors for fitting.
+    s_type : str
+        The type of size factors. Currently only "libsize" is supported.
+        Set to `None` if do not use size factors for fitting.
     cell_types : list
         The cell types. Its length and order should match the rows of `X`.
     cell_type_fit : list
         The cell types to be fitted.
-    size_factor : str
-        The type of size factor. 
-        Currently, only support "libsize" (library size).
-        Set to `None` if do not use size factors for model fitting.
     marginal : str
         Type of marginal distribution.
         One of "auto" (auto select), "poisson" (Poisson), 
@@ -703,6 +715,14 @@ def fit_RD(
         :func:`fit_RD_cell_type`.
     """
     # check args
+    n, p = X.shape
+    if s is None:
+        assert s_type is None
+    if s_type is None:
+        assert s is None
+    if s is not None:
+        assert len(s) == n
+
     cell_types = np.array(cell_types)
     all_cell_types = list(set(cell_types))
     assert len(cell_type_fit) == len(set(cell_type_fit)) and \
@@ -712,20 +732,20 @@ def fit_RD(
         raise ValueError("invalid marginal '%s'." % marginal)
 
     # model fitting
-    n, p = X.shape
-
     if verbose:
-        logging.info("fitting %d features in %d cell types (ncores = %d) ..." %  \
+        info("fitting %d features in %d cell types (ncores = %d) ..." %  \
             (p, len(cell_type_fit), ncores))
 
     params = OrderedDict()
     for c_type in cell_type_fit:
         if verbose:
-            logging.info("processing cell type '%s'." % c_type)
-        c_X = X[cell_types == c_type, :]
+            info("processing cell type '%s'." % c_type)
+        c_idx = cell_types == c_type
+        c_X = X[c_idx, :]
         c_par = fit_RD_cell_type(
             X = c_X,
-            size_factor = size_factor,
+            s = s[c_idx] if s is not None else None,
+            s_type = s_type,
             marginal = marginal,
             min_nonzero_num = min_nonzero_num,
             ncores = ncores,
@@ -737,13 +757,13 @@ def fit_RD(
         params[c_type] = c_par
 
     if verbose:
-        logging.info("fitting statistics:")
+        info("fitting statistics:")
         fet_idx_df = pd.DataFrame(data = {
             "cell_type": cell_type_fit,
             "fet_idx_nz": [len(r["fet_idx_nz"]) for r in params.values()],
             "fet_idx_oth": [len(r["fet_idx_oth"]) for r in params.values()]
         })
-        logging.info("\n" + str(fet_idx_df))
+        info("\n" + str(fet_idx_df))
     
     return(params)
 
@@ -803,9 +823,11 @@ def fit_RD_wrapper(
         The feature names. Its order matches with the `index`.
     """
     if verbose:
-        logging.info("start ...")
+        info("start ...")
 
     # check args
+    X = sparse2array(xdata.X)
+
     assert "cell_type" in xdata.obs.columns
     assert "feature" in xdata.var.columns
 
@@ -813,15 +835,24 @@ def fit_RD_wrapper(
     if cell_type_fit is None:
         cell_type_fit = sorted(list(all_cell_types))
 
+    s = None
+    if size_factor is None:
+        pass
+    elif size_factor == "libsize":
+        s = np.sum(X, axis = 1)
+    else:
+        raise ValueError("invalid size factor type '%s'." % size_factor)
+    
     if marginal not in ("auto", "zinb", "nb", "poisson"):
         raise ValueError("invalid marginal '%s'." % marginal)
 
     # model fitting
     params = fit_RD(
-        X = sparse2array(xdata.X),
+        X = X,
+        s = s,
+        s_type = size_factor,
         cell_types = xdata.obs["cell_type"],
         cell_type_fit = cell_type_fit,
-        size_factor = size_factor,
         marginal = marginal,
         min_nonzero_num = min_nonzero_num,
         ncores = ncores,
@@ -833,7 +864,7 @@ def fit_RD_wrapper(
 
 
 
-def simu_RD_feature(params, n, s = None, s_type = "libsize"):
+def simu_RD_feature(params, n, s = None, s_type = None):
     """Simulate RD values for one feature.
     
     Parameters
@@ -847,6 +878,7 @@ def simu_RD_feature(params, n, s = None, s_type = "libsize"):
         Set to `None` if do not use it.
     s_type : str
         The type of size factors. Currently only "libsize" is supported.
+        Set to `None` if do not use it.
     
     Returns
     -------
@@ -898,7 +930,7 @@ def simu_RD_cell_type(
         Simulated RD values of *cell x feature*.
     """
     if verbose:
-        logging.info("start ...")
+        info("start ...")
 
     # check args
     assert len(params["params_nz"]) == len(params["fet_idx_nz"])
@@ -906,11 +938,13 @@ def simu_RD_cell_type(
     p_oth = len(params["fet_idx_oth"])
     p = p_nz + p_oth
 
-    if params["size_factor_type"] is not None and s is None:
-        raise ValueError("size factors missing; originally '%s'." % params["size_factor_type"])
+    if params["size_factor_type"] is None and s is not None:
+        raise ValueError("size factors unused.")
+    elif params["size_factor_type"] is not None and s is None:
+        raise ValueError("size factors missing.")
 
     if verbose:
-        logging.info("simulating on %d features in %d cells (ncores = %d) ..." %  \
+        info("simulating on %d features in %d cells (ncores = %d) ..." %  \
             (p, n, ncores))
 
     mtx = np.zeros((n, p))
@@ -937,8 +971,8 @@ def simu_RD_cell_type(
     result = [res.get() for res in result]
 
     if verbose:
-        logging.info("multi-processing finished.")
-        logging.info("merge results ...")
+        info("multi-processing finished.")
+        info("merge results ...")
 
     for dat, index in result:
         mtx[:, index] = dat
@@ -951,7 +985,7 @@ def simu_RD(
     cell_type_new = None,
     cell_type_old = None,
     n_cell_each = None,
-    size_factor = None,
+    s = None,
     cn_fold = None,
     total_count_new = None,
     ncores = 1, 
@@ -977,12 +1011,12 @@ def simu_RD(
         Number of cells in each new cell type (`cell_type_new`).
         Its length and order should match `cell_type_new`.
         Set to `None` to use #cells of old cell types (in training data).
-    size_factor : list
+    s : list
         Cell-type-specific size factors.
         Its length and order should match `cell_type_new`.
         Its elements are vectors whose lengths matching elements of 
         `n_cell_each`.
-        Set to `None` to use size factors of old cell types (in training data).
+        Set to `None` if do not use it.
     cn_fold : list
         The copy number (CN) fold, e.g., 1.0 for copy neutral; >1.0 for copy
         gain; and <1.0 for copy loss.
@@ -1028,11 +1062,11 @@ def simu_RD(
         assert cell_type_old is not None
 
         #Note that when `cell_type_new` is not None, `cell_type_old`, 
-        #`n_cell_each`, `size_factor`, and `cn_fold` should all be specified
+        #`n_cell_each`, `s`, and `cn_fold` should all be specified
         #with valid values.
         #
         #assert n_cell_each is not None
-        #assert size_factor is not None
+        #assert s is not None
         #assert cn_fold is not None
 
     assert len(cell_type_new) == len(cell_type_old)
@@ -1047,23 +1081,22 @@ def simu_RD(
     n_cell_new = np.sum(n_cell_each)
 
     if verbose:
-        logging.info("simulating %d features in %d new cells from %d cell types (ncores = %d) ..." %  \
+        info("simulating %d features in %d new cells from %d cell types (ncores = %d) ..." %  \
             (p, n_cell_new, len(cell_type_new), ncores))
-        logging.info("number of cells in each simulated cell type:\n\t%s." % str(n_cell_each))
+        info("number of cells in each simulated cell type:\n\t%s." % \
+             str(n_cell_each))
 
-
-    if size_factor is None:
-        # note that elements of size_factors can still be None
-        # when *size factor* is not used during training. 
-        size_factor = np.array([params[c_type]["size_factor_value"] for c_type in cell_type_old])
+    if s is None:
+        s = [None for _ in cell_type_new]
     else:
-        assert len(size_factor) == len(cell_type_new)
-    for s, n_cell in zip(size_factor, n_cell_each):
-        if s is not None:
-            assert len(s) == n_cell
+        assert len(s) == len(cell_type_new)
+        for c_s, n_cell in zip(s, n_cell_each):
+            if c_s is not None:
+                assert len(c_s) == n_cell
 
     if cn_fold is None:
-        cn_fold = np.array([np.repeat(1.0, p) for _ in range(len(cell_type_new))])
+        cn_fold = np.array([np.repeat(1.0, p) \
+                            for _ in range(len(cell_type_new))])
     else:
         assert len(cn_fold) == len(cell_type_new)
         for fet_fold_lst in cn_fold:
@@ -1075,8 +1108,10 @@ def simu_RD(
         assert xbase.is_scalar_numeric(total_count_new) or \
             len(total_count_new) == len(cell_type_new)
 
-    total_count_old = np.array([params[c_type]["n_read"] for c_type in cell_type_old])
-    n_cell_old = np.array([params[c_type]["n_cell"] for c_type in cell_type_old])
+    total_count_old = np.array([params[c_type]["n_read"] \
+                            for c_type in cell_type_old])
+    n_cell_old = np.array([params[c_type]["n_cell"] \
+                            for c_type in cell_type_old])
 
 
     # simulation
@@ -1086,17 +1121,19 @@ def simu_RD(
         r = np.repeat(1.0, n_cell_types)
     elif xbase.is_scalar_numeric(total_count_new):
         r = np.repeat(
-            total_count_new / np.sum(total_count_old / n_cell_old * n_cell_each),
+            total_count_new/np.sum(total_count_old / n_cell_old * n_cell_each),
             n_cell_types)
     else:
-        # scDesign2: r = (total_count_new / n_cell_new) / (total_count_old / n_cell_old)
+        # scDesign2: r = (total_count_new / n_cell_new) / \
+        #                  (total_count_old / n_cell_old)
         r = (total_count_new / n_cell_each) / (total_count_old / n_cell_old)
 
     params_new = dict()
     mtx = None
-    for c_idx, (c_type_new, c_type_old) in enumerate(zip(cell_type_new, cell_type_old)):
+    for c_idx, (c_type_new, c_type_old) in enumerate(zip(
+        cell_type_new, cell_type_old)):
         if verbose:
-            logging.info("simulating for new cell type '%s' based on '%s' ..." %  \
+            info("simulating for new cell type '%s' based on '%s' ..." %  \
                 (c_type_new, c_type_old))
         c_par = copy.deepcopy(params[c_type_old])
         scaling = r[c_idx] * cn_fold[c_idx][c_par["params_nz"]["index"]]
@@ -1104,7 +1141,7 @@ def simu_RD(
         c_mtx = simu_RD_cell_type(
             params = c_par,
             n = n_cell_each[c_idx],
-            s = size_factor[c_idx] if size_factor is not None else None,
+            s = s[c_idx],
             ncores = ncores,
             verbose = verbose
         )
@@ -1122,8 +1159,7 @@ def simu_RD_wrapper(
     features,
     cell_type_new = None,
     cell_type_old = None,
-    n_cell_new = None,
-    cell_type_prop = None,
+    n_cell_each = None,
     size_factor_par = None,
     cn_fold = None,
     total_count_new = None,
@@ -1150,19 +1186,15 @@ def simu_RD_wrapper(
         Set to `None` to use all the old cell types (in training data).
         Note that when `cell_type_new` is not None, `cell_type_old` must be
         specified with valid values.
-    n_cell_new : int
-        Total number of cells to be simulated.
-        If `None`, set `n_cell_each` to #cells of the old cell types 
-        (in training data).
-    cell_type_prop : list
-        The proportion of cells in each new cell type.
+    n_cell_each : list
+        Number of cells in each new cell type (`cell_type_new`).
         Its length and order should match `cell_type_new`.
-        If `None`, the proportion will be calculated from #cells of old cell
-        types (in the training data).
+        Set to `None` to use #cells of old cell types (in training data).
     size_factor_par : dict
-        The fitted parameters of size factors, e.g., returned by 
+        The parameters of size factors, e.g., returned by 
         :func:`fit_libsize`, used for simulating new size factors.
-        Set to `None` if do not use size factors.
+        Set to `None` to use size factors of old cell types (in training data),
+        could be `None`s when not used during training.
     cn_fold : dict
         The copy number (CN) fold, e.g., 1.0 for copy neutral; >1.0 for copy
         gain; and <1.0 for copy loss.
@@ -1186,13 +1218,14 @@ def simu_RD_wrapper(
     Returns
     -------
     xdata object
-        Simulated RD values of *cell x feature*.
+        Simulated RD values of *cell x feature*. It has one column "cell_type"
+        in ".obs" and one column "feature" in ".var".
     dict
         The updated `params` incorporating CN-folds, the same length 
         as `cell_type_new`, while keep the input `params` unchanged.
     """
     if verbose:
-        logging.info("start ...")
+        info("start ...")
 
     # check args
     params = copy.deepcopy(params)
@@ -1215,27 +1248,17 @@ def simu_RD_wrapper(
     n_cell_types = len(cell_type_new)
 
 
-    n_cell_each = None
-    if n_cell_new is None:
+    if n_cell_each is None:
         n_cell_each = [params[c_type]["n_cell"] for c_type in cell_type_old]
-    else:
-        if cell_type_prop is None:
-            cell_type_prop = [params[c_type]["n_cell"] for c_type in cell_type_old]
-        else:
-            assert len(cell_type_prop) == len(cell_type_new)
-        cell_type_prop = cell_type_prop / np.sum(cell_type_prop)
-
-        n_cell_each = np.round(cell_type_prop * n_cell_new).astype(np.int32)
-        if np.sum(n_cell_each) > n_cell_new:
-            idx = np.argmax(n_cell_each)
-            n_cell_each[idx] -= np.sum(n_cell_each) - n_cell_new
-        elif np.sum(n_cell_each) < n_cell_new:
-            idx = np.argmin(n_cell_each)
-            n_cell_each[idx] += n_cell_new - np.sum(n_cell_each)
-
+    assert len(n_cell_each) == len(cell_type_new)
 
     size_factors = None
-    if size_factor_par is not None:
+    if size_factor_par is None:
+        # note that elements of size_factors can still be None
+        # when *size factor* is not used during training. 
+        size_factors = np.array([params[c_type]["size_factor_value"] \
+                            for c_type in cell_type_old])
+    else:
         size_factors, _ = simu_libsize(
             params = size_factor_par,
             cell_types = cell_type_old,
@@ -1248,9 +1271,10 @@ def simu_RD_wrapper(
     else:
         assert isinstance(cn_fold, dict)
         if verbose:
-            logging.info("CN fold are specified in %d cell types." % len(cn_fold))
+            info("CN fold are specified in %d cell types." % len(cn_fold))
 
-        cn_fold_lst = np.array([np.repeat(1.0, p) for _ in range(n_cell_types)])
+        cn_fold_lst = np.array([np.repeat(1.0, p) \
+                            for _ in range(n_cell_types)])
         for c_type, fet_fold_lst in cn_fold.items():
             if c_type not in cell_type_new:
                 raise ValueError("invalid cell type '%s' in cn_fold." % c_type)
@@ -1266,7 +1290,7 @@ def simu_RD_wrapper(
         cell_type_new = cell_type_new,
         cell_type_old = cell_type_old,
         n_cell_each = n_cell_each,
-        size_factor = size_factors,
+        s = size_factors,
         cn_fold = cn_fold,
         total_count_new = total_count_new,
         ncores = ncores, 
@@ -1277,7 +1301,7 @@ def simu_RD_wrapper(
         X = mtx,
         obs = pd.DataFrame(data = {
             "cell_type": np.repeat(cell_type_new, n_cell_each)}),
-        var = pd.DataFrame(data = {"feature": features}),
+        var = pd.DataFrame(data = {"feature": features})
     )
 
     return((xdata, params_new))

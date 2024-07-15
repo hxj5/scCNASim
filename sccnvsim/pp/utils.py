@@ -1,4 +1,4 @@
-# pp.py - preprocessing
+# utils.py - preprocessing utils.
 
 import functools
 from logging import error

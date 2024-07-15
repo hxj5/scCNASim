@@ -440,9 +440,9 @@ def prepare_config(conf):
             conf.count_dir, conf.out_prefix + "%s.mtx" % ale)
     
     conf.out_feature_meta_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "features.meta.pickle")
+        conf.count_dir, conf.out_prefix + "features.meta.pickle")
     conf.out_adata_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "counts.h5ad")
+        conf.count_dir, conf.out_prefix + "counts.h5ad")
 
     if conf.feature_fn:
         if os.path.isfile(conf.feature_fn): 
