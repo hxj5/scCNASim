@@ -3,8 +3,8 @@
 
 import sys
 
-from .aln.afc.config import Config as AFC_Conf
-from .aln.afc.config import DefaultConfig as AFC_DefConf
+from .afc.config import Config as AFC_Conf
+from .afc.config import DefaultConfig as AFC_DefConf
 from .cs.config import Config as CS_Conf
 from .pp.config import Config as PP_Conf
 

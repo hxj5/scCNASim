@@ -5,9 +5,9 @@ import os
 from logging import error
 from logging import warning as warn
 from .gfeature import SNP, SNPSet, BlockRegion
-from ...io.base import load_features, load_snps
-from ...utils.vcf import vcf_load
-from ...utils.zfile import zopen
+from ..io.base import load_features, load_snps
+from ..utils.vcf import vcf_load
+from ..utils.zfile import zopen
 
 
 def load_feature_from_txt(fn, sep = "\t"):

@@ -1,6 +1,6 @@
 # mcount_snp.py - counting machine for SNPs.
 
-from ...utils.sam import get_query_bases
+from ..utils.sam import get_query_bases
 
 
 class UCount:

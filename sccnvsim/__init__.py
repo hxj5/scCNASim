@@ -1,6 +1,6 @@
 # CNV simulation in single cells.
 
-from . import aln
+from . import afc
 from . import app
 from . import config
 from . import cs

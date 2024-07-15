@@ -6,7 +6,7 @@ import numpy as np
 import os
 import time
 from logging import info, error
-from .aln.afc.main import afc_wrapper
+from .afc.main import afc_wrapper
 from .cs.main import cs_wrapper
 from .io.base import load_cells
 from .pp.main import pp_wrapper

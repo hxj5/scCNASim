@@ -11,9 +11,9 @@ from logging import debug, error, info
 from .mcount_feature import MCount as PrevFeatureMCount
 from .mcount_feature_all import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
-from ...utils.sam import sam_fetch, \
+from ..utils.sam import sam_fetch, \
     BAM_FPAIRED, BAM_FPROPER_PAIR
-from ...utils.zfile import zopen, ZF_F_GZIP
+from ..utils.zfile import zopen, ZF_F_GZIP
 
 
 def check_read(read, conf):

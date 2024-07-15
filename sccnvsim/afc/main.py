@@ -16,12 +16,12 @@ from .thread import ThreadData
 from .utils import load_feature_from_txt, \
     load_snp_from_vcf, load_snp_from_tsv, \
     merge_mtx
-from ...app import APP, VERSION
-from ...io.base import load_bams, load_barcodes, load_samples,  \
+from ..app import APP, VERSION
+from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str
-from ...io.counts import load_xdata
-from ...utils.xlog import init_logging
-from ...utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
+from ..io.counts import load_xdata
+from ..utils.xlog import init_logging
+from ..utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
 
 
 def usage(fp = sys.stdout, conf = None):

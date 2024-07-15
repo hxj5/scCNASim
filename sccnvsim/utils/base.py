@@ -1,8 +1,8 @@
 # base.py - basic utils.
 
 
-import os
 import numpy as np
+import os
 
 
 def assert_e(path):
