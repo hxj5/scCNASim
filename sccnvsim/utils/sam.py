@@ -1,6 +1,11 @@
 # sam.py - sam alignment processing.
 
 
+import os
+import subprocess
+from logging import error
+
+
 def get_query_bases(read, full_length = False):
     """Qurey bases that are within the alignment.
 
@@ -118,8 +123,30 @@ def sam_fetch(sam, chrom, start, end):
         return itr if itr else None
 
 
-def simu_cell_barcodes(m, size, suffix = "-1"):
-    pass
+def sort_bam_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
+    inplace = False
+    if out_bam is None or out_bam == in_bam:
+        inplace = True
+        out_bam = in_bam + ".tmp.bam"
+    try:
+        proc = subprocess.Popen(
+            args = "samtools sort -m %s -@ %d -t %s -o %s %s" % \
+                (max_mem, nthreads - 1, tag, out_bam, in_bam),
+            shell = True,
+            executable = "/bin/bash",
+            stdout = subprocess.PIPE,
+            stderr = subprocess.PIPE
+        )
+        outs, errs = proc.communicate()
+        ret = proc.returncode
+        if ret != 0:
+            raise RuntimeError(str(errs.decode()))
+    except:
+        error("Error: samtools sort failed (retcode '%s')." % str(ret))
+        return(-1)
+    if inplace:
+        os.replace(out_bam, in_bam)
+    return(0)
 
 
 BAM_FPAIRED = 1

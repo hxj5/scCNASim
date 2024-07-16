@@ -213,10 +213,8 @@ def afc_core(conf):
         feature_dir = os.path.join(batch_dir, reg.name)
         os.makedirs(feature_dir, exist_ok = True)
         reg.res_dir = feature_dir
-        reg.bams = {ale: os.path.join(reg.res_dir, "%s.%s.bam" % \
-                    (reg.name, ale)) for ale in ("A", "B", "U")}
-        reg.bams_sort = {ale: os.path.join(reg.res_dir, "%s.%s.uumi_sort.bam" \
-                            % (reg.name, ale)) for ale in ("A", "B", "U")}
+        reg.aln_fns = {ale: os.path.join(reg.res_dir, "%s.%s.aln.%s.tsv" % \
+                    (reg.name, ale, COMMAND)) for ale in ("A", "B", "U")}
         feature_idx += 1
 
     # split feature list and save to file
@@ -428,7 +426,7 @@ def prepare_config(conf):
     os.makedirs(conf.out_dir, exist_ok = True)
     conf.aln_dir = os.path.join(conf.out_dir, "alignments")
     os.makedirs(conf.aln_dir, exist_ok = True)
-    conf.count_dir = os.path.join(conf.out_dir, "%s_counts" % COMMAND)
+    conf.count_dir = os.path.join(conf.out_dir, "counts")
     os.makedirs(conf.count_dir, exist_ok = True)
 
     conf.out_feature_fn = os.path.join(
@@ -440,9 +438,9 @@ def prepare_config(conf):
             conf.count_dir, conf.out_prefix + "%s.mtx" % ale)
     
     conf.out_feature_meta_fn = os.path.join(
-        conf.count_dir, conf.out_prefix + "features.meta.pickle")
+        conf.out_dir, conf.out_prefix + "features.meta.pickle")
     conf.out_adata_fn = os.path.join(
-        conf.count_dir, conf.out_prefix + "counts.h5ad")
+        conf.out_dir, conf.out_prefix + "counts.h5ad")
 
     if conf.feature_fn:
         if os.path.isfile(conf.feature_fn): 

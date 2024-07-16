@@ -63,12 +63,9 @@ class BlockRegion(Region):
         A list of SNPs (`SNP` objects) located within the block.
     res_dir : str
         Path to the folder storing the results of this region.
-    bams : dict
-        The BAM files containing allele-specific (A,B,U) UMIs. Keys are the
-        alleles (A,B,U), values are the paths to the BAM files.
-    bams_sort : dict
-        The BAM files containing allele-specific (A,B,U) UMIs sorted by UUMI.
-        Keys are the alleles (A,B,U), values are the paths to the BAM files.
+    aln_fns : dict
+        The files containing allele-specific (A,B,U) alignments/UMIs. 
+        Keys are the alleles (A,B,U), values are the paths to the files.
     """
     def __init__(self, chrom, start, end, name = None, 
                 snp_list = None, res_dir = None):
@@ -76,5 +73,4 @@ class BlockRegion(Region):
         self.name = name
         self.snp_list = snp_list
         self.res_dir = res_dir
-        self.bams = None
-        self.bams_sort = None
+        self.aln_fns = None

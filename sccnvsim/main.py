@@ -23,6 +23,8 @@ def main_core(conf):
     conf.show()
     os.makedirs(conf.g.out_dir, exist_ok = True)
 
+    step = 1
+
     # Note:
     # Use `xx_wrapper()`` function in each step instead of directly accessing
     # or modifying the internal `config` object, to keep codes independent.
@@ -35,13 +37,14 @@ def main_core(conf):
         snp_fn = conf.pp.snp_fn,
         cnv_profile_fn = conf.pp.cnv_profile_fn,
         clone_meta_fn = conf.pp.clone_meta_fn,
-        out_dir = os.path.join(conf.g.out_dir, "pp")
+        out_dir = os.path.join(conf.g.out_dir, "%d_pp" % step)
     )
     if pp_ret < 0:
         error("preprocessing failed (%d)." % pp_ret)
         raise ValueError
     info("pp results:")
     info(str(pp_res))
+    step += 1
 
 
     # allele-specific feature counting.
@@ -51,7 +54,7 @@ def main_core(conf):
         barcode_fn = pp_res["barcode_fn_new"],
         feature_fn = pp_res["feature_fn_new"],
         phased_snp_fn = pp_res["snp_fn_new"],
-        out_dir = conf.g.out_dir,
+        out_dir = os.path.join(conf.g.out_dir, "%d_afc" % step),
         sam_list_fn = conf.afc.sam_list_fn,
         sample_ids = conf.afc.sample_ids, 
         sample_id_fn = conf.afc.sample_id_fn,
@@ -72,7 +75,7 @@ def main_core(conf):
         raise ValueError
     info("afc results:")
     info(str(afc_res))
-    
+    step += 1
 
     # count simulation.
     info("start count simulation ...")
@@ -89,7 +92,7 @@ def main_core(conf):
         count_fn = adata_fn_new,
         cnv_profile_fn = pp_res["cnv_profile_fn_new"],
         clone_meta_fn = pp_res["clone_meta_fn_new"],
-        out_dir = os.path.join(conf.g.out_dir, "simu_counts"),
+        out_dir = os.path.join(conf.g.out_dir, "%d_cs" % step),
         size_factor = conf.cs.size_factor,
         marginal = conf.cs.marginal,
         ncores = conf.g.ncores,
@@ -102,6 +105,7 @@ def main_core(conf):
         raise ValueError
     info("cs results:")
     info(str(cs_res))
+    step += 1
 
 
     # construct returned values.

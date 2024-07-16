@@ -8,8 +8,8 @@ import pysam
 import subprocess
 
 from logging import debug, error, info
-from .mcount_feature import MCount as PrevFeatureMCount
-from .mcount_feature_all import MCount as FeatureMCount
+from .mcount_ab import MCount as ABFeatureMCount
+from .mcount_feature import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
 from ..utils.sam import sam_fetch, \
     BAM_FPAIRED, BAM_FPROPER_PAIR
@@ -58,7 +58,7 @@ def fc_features(thdata):
     alleles = thdata.out_ale_fns.keys()
 
     snp_mcnt = SNPMCount(conf.samples, conf)
-    prev_mcnt = PrevFeatureMCount(conf.samples, conf)
+    ab_mcnt = ABFeatureMCount(conf.samples, conf)
     mcnt = FeatureMCount(conf.samples, conf)
 
     m_reg = float(len(reg_list))
@@ -69,7 +69,7 @@ def fc_features(thdata):
                 (thdata.idx, reg.name))
 
         ret, reg_ale_cnt = \
-            fc_fet1(reg, alleles, sam_list, snp_mcnt, prev_mcnt, mcnt, conf)
+            fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf)
         if ret < 0 or reg_ale_cnt is None:
             raise RuntimeError("errcode -9 (%s)." % reg.name)
 
@@ -109,14 +109,12 @@ def fc_features(thdata):
     return((0, thdata))
 
 
-def fc_fet1(reg, alleles, sam_list, snp_mcnt, prev_mcnt, mcnt, conf):
-    if fc_prev(reg, sam_list, snp_mcnt, prev_mcnt, conf) < 0:
+def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
+    if fc_ab(reg, sam_list, snp_mcnt, ab_mcnt, conf) < 0:
         return((-3, None))
-    mcnt.add_feature(reg, prev_mcnt)
+    mcnt.add_feature(reg, ab_mcnt)
 
     ret = smp = umi = ale_idx = None
-    bam_fps = {ale:pysam.AlignmentFile(fn, "wb", template = sam_list[0]) \
-                for ale, fn in reg.bams.items()}
     for idx, sam in enumerate(sam_list):
         itr = sam_fetch(sam, reg.chrom, reg.start, reg.end - 1)
         if not itr:    
@@ -135,44 +133,39 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, prev_mcnt, mcnt, conf):
                 continue
             if (not smp) or (not umi) or ale_idx is None:
                 continue
-            uumi = smp + ">" + umi
-            read.set_tag(conf.uumi_tag, uumi)
-            if ale_idx == 0:
-                bam_fps["A"].write(read)
-            elif ale_idx == 1:
-                bam_fps["B"].write(read)
-            elif ale_idx in (-2, -3):
-                bam_fps["U"].write(read)
-
-    for fp in bam_fps.values():
-        fp.close()
-
-    for ale, fn in reg.bams.items():
-        nthreads = 4 if ale == "U" else 1
-        if sort_bam_by_tag(
-            in_bam = fn, 
-            tag = conf.uumi_tag, 
-            out_bam = reg.bams_sort[ale],
-            nthreads = nthreads
-        ) < 0:
-            return((-7, None))
-        os.remove(fn)
 
     if mcnt.stat() < 0:
         return((-9, None))
     
-    reg_ale_cnt = {ale:{smp:0 for smp in conf.samples} for ale in alleles}
+    reg_ale_cnt = {ale: {smp:0 for smp in conf.samples} for ale in alleles}
+    aln_fps = {ale: open(fn, "w") for ale, fn in reg.aln_fns.items()}
+    ale_umi = None
     for smp, scnt in mcnt.cell_cnt.items():
         reg_ale_cnt["A"][smp] = scnt.allele_cnt[0]
         reg_ale_cnt["B"][smp] = scnt.allele_cnt[1]
         reg_ale_cnt["D"][smp] = scnt.allele_cnt[2]
         reg_ale_cnt["O"][smp] = scnt.allele_cnt[-1]
         reg_ale_cnt["U"][smp] = scnt.allele_cnt[-2] + scnt.allele_cnt[-3]
+        for ale, fp in aln_fps.items():
+            if ale == "A":
+                ale_umi = scnt.umi_cnt[0]
+            elif ale == "B":
+                ale_umi = scnt.umi_cnt[1]
+            elif ale == "U":
+                ale_umi = scnt.umi_cnt[-2]
+                ale_umi.update(scnt.umi_cnt[-3])
+            else:
+                raise ValueError
+            for umi in sorted(list(ale_umi)):
+                fp.write("%s\t%s\n" % (smp, umi))
+
+    for fp in aln_fps.values():
+        fp.close()
 
     return((0, reg_ale_cnt))
 
 
-def fc_prev(reg, sam_list, snp_mcnt, mcnt, conf):
+def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
     mcnt.add_feature(reg)
     for snp in reg.snp_list:
         ret = plp_snp(snp, sam_list, snp_mcnt, conf)
@@ -238,30 +231,4 @@ def plp_snp(snp, sam_list, mcnt, conf):
     snp_minor_cnt = min(snp_ref_cnt, snp_alt_cnt)
     if snp_minor_cnt < snp_cnt * conf.min_maf:
         return(5)
-    return(0)
-
-
-def sort_bam_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
-    inplace = False
-    if out_bam is None or out_bam == in_bam:
-        inplace = True
-        out_bam = in_bam + ".tmp.bam"
-    try:
-        proc = subprocess.Popen(
-            args = "samtools sort -m %s -@ %d -t %s -o %s %s" % \
-                (max_mem, nthreads - 1, tag, out_bam, in_bam),
-            shell = True,
-            executable = "/bin/bash",
-            stdout = subprocess.PIPE,
-            stderr = subprocess.PIPE
-        )
-        outs, errs = proc.communicate()
-        ret = proc.returncode
-        if ret != 0:
-            raise RuntimeError(str(errs.decode()))
-    except:
-        error("Error: samtools sort failed (retcode '%s')." % str(ret))
-        return(-1)
-    if inplace:
-        os.replace(out_bam, in_bam)
     return(0)
