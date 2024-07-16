@@ -13,6 +13,7 @@ from .config import Config
 from .marginal import fit_libsize, simu_libsize, fit_RD, simu_RD
 from ..io.base import load_clones, load_cnvs
 from ..utils.grange import str2tuple
+from ..utils.xbarcode import rand_cell_barcodes
 from ..utils.xmatrix import sparse2array
 
 
@@ -142,6 +143,12 @@ def cs_core(conf):
         adata_new.layers[allele] = adata_ale.X
         allele_params[allele] = params_ale
 
+    adata_new.obs["cell"] = rand_cell_barcodes(
+        m = 16,
+        n = adata_new.shape[0],
+        suffix = "-1",
+        sort = True
+    )
 
     # save results.
     cs_params = dict(
@@ -310,8 +317,10 @@ def gen_clone_core(
 
     cn_fold_list = []
     for clone in clones:
-        assert clone in cn_fold
-        cn_fold_list.append(cn_fold[clone])
+        if clone in cn_fold:
+            cn_fold_list.append(cn_fold[clone])
+        else:
+            cn_fold_list.append(np.repeat(1.0, p))
 
     params = fit_RD(
         X = adata.layers[layer],
