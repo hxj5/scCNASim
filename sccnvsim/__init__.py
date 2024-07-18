@@ -6,6 +6,7 @@ from . import config
 from . import cs
 from . import io
 from . import pp
+from . import rs
 from . import tests
 from . import utils
 from .app import VERSION

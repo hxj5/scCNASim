@@ -170,7 +170,8 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
 
     # merge adjacent features
     for chrom, ch_dat in dat.items():
-        iv_list = sorted(ch_dat, key = functools.cmp_to_key(__cmp_two_intervals))
+        iv_list = sorted(ch_dat, 
+                    key = functools.cmp_to_key(__cmp_two_intervals))
         s1, e1, f1 = iv_list[0]
         new_list = []
         for s2, e2, f2 in iv_list[1:]:

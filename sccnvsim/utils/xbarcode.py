@@ -9,6 +9,8 @@ class Barcode:
         self.m = m
         self.d = "ACGT"    # in ascending order.
 
+        assert m <= 31
+
     def int2str(self, i):
         x = [self.d[(i >> 2*j) & 3] for j in range(self.m)]
         x.reverse()
@@ -23,6 +25,7 @@ class Barcode:
         return(i)
     
     def __randint(self, m, n, b, e):
+        """Generate a random sample """
         assert (e - b) % 4 == 0
         if m <= 6:
             x = np.random.choice(range(b, e), size = n, replace = False)
@@ -35,13 +38,17 @@ class Barcode:
         x4 = self.__randint(m - 1, k4, b + 3*u, b + 4*u)
         return(np.concatenate([x1, x2, x3, x4]))
     
-    def sample(self, n, sort = True):
+    def sample_int(self, n, sort = True):
         assert n <= 4**self.m
         x = self.__randint(self.m, n, 0, 4**self.m)
         if sort:
             x = np.sort(x)     # as self.d is in ascending order.
+        assert len(x) == len(np.unique(x))
+        return(x)
+
+    def sample(self, n, sort = True):
+        x = self.sample_int(n, sort = sort)
         s = [self.int2str(i) for i in x]
-        assert len(s) == len(set(s))
         return(s)
 
 

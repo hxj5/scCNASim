@@ -906,7 +906,7 @@ def __simu_RD_feature(params, n, s, s_type, index):
 
 
 def simu_RD_cell_type(
-    params, n, s = None, ncores = 1, verbose = False
+    params, n, s = None, dtype = np.int32, ncores = 1, verbose = False
 ):
     """Simulate RD values for all features in one cell type.
     
@@ -919,6 +919,8 @@ def simu_RD_cell_type(
     s : np.array (1d)
         The size factor. Its length should be `n`.
         Set to `None` if do not use it.
+    dtype : object
+        The dtype of the simulated matrix.
     ncores : int
         Number of cores/sub-processes.
     verbose : bool
@@ -976,6 +978,7 @@ def simu_RD_cell_type(
 
     for dat, index in result:
         mtx[:, index] = dat
+    mtx = mtx.astype(dtype)
 
     return(mtx)
 
@@ -988,6 +991,7 @@ def simu_RD(
     s = None,
     cn_fold = None,
     total_count_new = None,
+    dtype = np.int32,
     ncores = 1, 
     verbose = False
 ):
@@ -1029,6 +1033,8 @@ def simu_RD(
         If a list, it is a list of cell-type-specific total read counts whose 
         length and order should match `cell_type_new`.
         Set to `None` to set the scaling factor of total library size to 1.
+    dtype : object
+        The dtype of the simulated matrix.
     ncores : int
         Number of cores/sub-processes.
     verbose : bool
@@ -1142,6 +1148,7 @@ def simu_RD(
             params = c_par,
             n = n_cell_each[c_idx],
             s = s[c_idx],
+            dtype = dtype,
             ncores = ncores,
             verbose = verbose
         )
@@ -1150,6 +1157,7 @@ def simu_RD(
         else:
             mtx = np.vstack((mtx, c_mtx))
         params_new[c_type_new] = copy.deepcopy(c_par)
+    mtx = mtx.astype(dtype)
 
     return((mtx, params_new))
 
@@ -1163,6 +1171,7 @@ def simu_RD_wrapper(
     size_factor_par = None,
     cn_fold = None,
     total_count_new = None,
+    dtype = np.int32,
     ncores = 1, 
     verbose = False
 ):
@@ -1210,6 +1219,8 @@ def simu_RD_wrapper(
         If a list, it is a list of cell-type-specific total read counts whose 
         length and order should match `cell_type_new`.
         Set to `None` to set the scaling factor of total library size to 1.
+    dtype : object
+        The dtype of the simulated matrix.
     ncores : int
         Number of cores/sub-processes.
     verbose : bool
@@ -1293,6 +1304,7 @@ def simu_RD_wrapper(
         s = size_factors,
         cn_fold = cn_fold,
         total_count_new = total_count_new,
+        dtype = dtype,
         ncores = ncores, 
         verbose = verbose
     )

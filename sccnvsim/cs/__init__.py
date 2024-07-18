@@ -1,4 +1,6 @@
 # counts simulation
 
-from . import marginal as mar
+from . import config
+from . import main
+from . import marginal
 from . import metric

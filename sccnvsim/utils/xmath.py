@@ -339,6 +339,7 @@ def nb2_to_nb1(mu, alpha):
 
 
 def rand_zinb(mu, alpha, infl, size):
+    """Generate a random sample from zinb distribution."""
     dat = None
     if alpha > 0.0:
         n, p = nb2_to_nb1(mu, alpha)
