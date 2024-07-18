@@ -210,7 +210,8 @@ def afc_core(conf):
             batch_idx += 1
             batch_dir = os.path.join(conf.aln_dir, "batch%d" % batch_idx)
             os.makedirs(batch_dir, exist_ok = True)
-        feature_dir = os.path.join(batch_dir, reg.name)
+        feature_dir = os.path.join(
+            batch_dir, "%d_%s" % (feature_idx, reg.name))
         os.makedirs(feature_dir, exist_ok = True)
         reg.res_dir = feature_dir
         reg.aln_fns = {ale: os.path.join(reg.res_dir, "%s.%s.aln.%s.tsv" % \

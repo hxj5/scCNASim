@@ -185,7 +185,7 @@ class UUMISampler:
             for uumi_idx, new_umi in zip(uumi_idxes, new_umis):
                 cell, umi = cells[uumi_idx], umis[uumi_idx]
                 if cell not in self.dat:
-                    self.dat = {}
+                    self.dat[cell] = {}
                 if umi not in self.dat[cell]:
                     self.dat[cell][umi] = []
                 self.dat[cell][umi].append((i, new_umi, reg_idx))
