@@ -20,8 +20,8 @@ class SNPSet:
         for snp in snp_list:
             chrom = snp.chrom
             pos = snp.pos
-            hap_ref = snp.get_hap_allele(0)
-            hap_alt = snp.get_hap_allele(1)
+            hap_ref = snp.get_hap_base(0)
+            hap_alt = snp.get_hap_base(1)
             if chrom not in res:
                 res[chrom] = {}
             res[chrom][pos] = (hap_ref, hap_alt)
@@ -81,8 +81,8 @@ def mask_read(read, snps, hap, fa):
         A `SNPSet` object.
     hap : int
         The haplotype index, 0 or 1.
-    fa : fa.FAFeature object.
-        The object for reference FASTA of one feature.
+    fa : fa.FAChrom object.
+        The object for reference FASTA of one chrom.
 
     Returns
     -------
@@ -91,11 +91,13 @@ def mask_read(read, snps, hap, fa):
     """
     chrom = format_chrom(read.reference_name)
     pairs = read.get_aligned_pairs(matches_only = True, with_seq = False)
+    if not pairs:
+        raise ValueError
+    fa.add_read(chrom, pairs[0][1] + 1)
+
     qseq = list(read.query_sequence)
     qqual = read.query_qualities
     qbase = None
-    if not pairs:
-        raise ValueError
     for idx, pos in pairs:    # here both `idx` and `pos` are 0-based.
         pos1 = pos + 1
         if snps.contain(chrom, pos1):
