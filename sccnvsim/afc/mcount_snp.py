@@ -48,7 +48,7 @@ class UCount:
         else:
             bases = get_query_bases(read, full_length = False)
             self.allele = bases[idx].upper()
-            self.allele_idx = snp.get_feature_allele_index(self.allele)
+            self.allele_idx = snp.get_hap_idx(self.allele)
         return(0)
 
     def stat(self):

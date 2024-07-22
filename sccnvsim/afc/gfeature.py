@@ -16,25 +16,35 @@ class SNP(Region):
         The ref base.
     alt : str
         The alt base.
-    ref_idx : int
-        The GT index for ref base, 0 or 1.
-    alt_idx : int
-        The GT index for alt base, 1 or 0.   
+    ref_hap : int
+        The haplotype index for the `ref` base, 0 or 1.
+    alt_hap : int
+        The haplotype index for the `alt` base, 1 or 0.   
     """
-    def __init__(self, chrom, pos, ref, alt, ref_idx, alt_idx):
+    def __init__(self, chrom, pos, ref, alt, ref_hap, alt_hap):
         super().__init__(chrom, pos, pos + 1)
+        ref = ref.upper()
+        alt = alt.upper()
+
         self.pos = pos
         self.ref = ref
         self.alt = alt
-        self.ref_idx = ref_idx
-        self.alt_idx = alt_idx
-        self.gt = {ref:ref_idx, alt:alt_idx}
+        self.ref_hap = ref_hap
+        self.alt_hap = alt_hap
+        self.gt = {ref:ref_hap, alt:alt_hap}
+        self.hap = {ref_hap:ref, alt_hap:alt}
 
     def get_id(self):
         return "%s_%d" % (self.chrom, self.pos)
 
-    def get_feature_allele_index(self, base):
+    def get_hap_idx(self, base):
+        base = base.upper()
         return self.gt[base] if base in self.gt else -1
+
+    def get_hap_base(self, hap):
+        if hap not in self.hap:
+            return(None)
+        return(self.hap[hap])
 
 
 class SNPSet(RegionSet):

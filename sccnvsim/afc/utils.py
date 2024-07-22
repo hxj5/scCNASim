@@ -72,8 +72,8 @@ def load_snp_from_tsv(fn, sep = "\t"):
                 pos = rec["pos"],
                 ref = ref, 
                 alt = alt, 
-                ref_idx = a1, 
-                alt_idx = a2
+                ref_hap = a1, 
+                alt_hap = a2
             )
             if snp_set.add(snp) < 0:
                 error("failed to add SNP of line %d." % nl)
@@ -134,8 +134,8 @@ def load_snp_from_vcf(fn):
                 pos = rec["POS"], 
                 ref = ref, 
                 alt = alt, 
-                ref_idx = a1, 
-                alt_idx = a2
+                ref_hap = a1, 
+                alt_hap = a2
             )
             if snp_set.add(snp) < 0:
                 error("failed to add SNP of line %d." % nl)
