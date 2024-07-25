@@ -1,6 +1,12 @@
 # main.py - allele-specific feature counting.
 
 
+# TODO:
+# 1. update the SNP list contained in each feature by removing the filtered 
+#    SNPs (e.g., when aggregated counts < min_count). It may affect the
+#    inference of read haplotype (or read mask) in read sampling, 
+#    when based on these contained SNPs.
+
 import getopt
 import multiprocessing
 import os

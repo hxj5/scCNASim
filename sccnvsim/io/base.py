@@ -20,6 +20,10 @@ def __load_one_column_file(fn, out_fmt = "array"):
         return(x)
     
 
+def __save_one_column_file(df, fn):
+    df.to_csv(fn, header = False, index = False)
+    
+
 def load_bams(fn):
     return(__load_one_column_file(fn))
 
@@ -32,13 +36,25 @@ def load_samples(fn):
     return(__load_one_column_file(fn))
 
 
+def save_samples(df, fn):
+    return(__save_one_column_file(df, fn))
+
+
 ### Multiple columns
+
+def __save_multi_column_file(df, fn, sep = "\t"):
+    df.to_csv(fn, sep = sep, header = False, index = False)
+
 
 def load_cells(fn, sep = "\t"):
     df = pd.read_csv(fn, sep = sep, header = None)
     df.columns = df.columns.astype(str)
     df.columns.values[:2] = ["cell", "cell_type"]
     return(df)
+
+
+def save_cells(df, fn, sep = "\t"):
+    return(__save_multi_column_file(df, fn, sep))
 
 
 def load_clones(fn, sep = "\t"):

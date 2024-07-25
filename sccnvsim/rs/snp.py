@@ -1,6 +1,7 @@
 # snp.py
 
 
+from logging import warning as warn
 from ..utils.grange import format_chrom
 
 
@@ -80,7 +81,7 @@ def mask_read(read, snps, hap, fa):
     snps : SNPSet object.
         A `SNPSet` object.
     hap : int
-        The haplotype index, 0 or 1.
+        The haplotype index, 0, 1, or `None`.
     fa : fa.FAChrom object.
         The object for reference FASTA of one chrom.
 
@@ -92,7 +93,7 @@ def mask_read(read, snps, hap, fa):
     chrom = format_chrom(read.reference_name)
     pairs = read.get_aligned_pairs(matches_only = True, with_seq = False)
     if not pairs:
-        raise ValueError
+        raise ValueError("invalid pairs for read '%s'." % read.query_name)
     fa.add_read(chrom, pairs[0][1] + 1)
 
     qseq = list(read.query_sequence)
@@ -100,12 +101,19 @@ def mask_read(read, snps, hap, fa):
     qbase = None
     for idx, pos in pairs:    # here both `idx` and `pos` are 0-based.
         pos1 = pos + 1
-        if snps.contain(chrom, pos1):
-            qbase = snps.query(chrom, pos1, hap)
+        if hap in (0, 1):
+            if snps.contain(chrom, pos1):
+                qbase = snps.query(chrom, pos1, hap)
+            else:
+                qbase = fa.query(chrom, pos1)
         else:
+            if snps.contain(chrom, pos1):
+                warn("read '%s' from hap 'U' contains SNP '%s:%d'." % \
+                    (read.query_name, chrom, pos1))
             qbase = fa.query(chrom, pos1)
         if not qbase:
-            raise ValueError
+            raise ValueError("invalid qbase for pos '%s:%d' in read '%s'." % \
+                (chrom, pos1, read.query_name))
         qbase = qbase.upper()
         qseq[idx] = qbase
     read.query_sequence = "".join(qseq)

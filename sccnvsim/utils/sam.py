@@ -1,9 +1,30 @@
 # sam.py - sam alignment processing.
 
 
+import multiprocessing
 import os
+import pysam
 import subprocess
 from logging import error
+
+
+def check_read(read, conf):
+    if read.mapq < conf.min_mapq:
+        return(-2)
+    if conf.excl_flag and read.flag & conf.excl_flag:
+        return(-3)
+    if conf.incl_flag and not read.flag & conf.incl_flag:
+        return(-4)
+    if conf.no_orphan and read.flag & BAM_FPAIRED and not \
+        read.flag & BAM_FPROPER_PAIR:
+        return(-5)
+    if conf.cell_tag and not read.has_tag(conf.cell_tag):
+        return(-11)
+    if conf.umi_tag and not read.has_tag(conf.umi_tag):
+        return(-12)
+    if len(read.positions) < conf.min_len:
+        return(-21)
+    return(0)
 
 
 def get_query_bases(read, full_length = False):
@@ -121,9 +142,23 @@ def sam_fetch(sam, chrom, start, end):
         return None
     else:
         return itr if itr else None
+    
+
+def sam_index(sam_fn_list, ncores = 1):
+    pool = multiprocessing.Pool(processes = ncores)
+    mp_res = []
+    for sam_fn in sam_fn_list:
+        mp_res.append(pool.apply_async(
+            func = pysam.index,
+            args = (sam_fn, ),
+            callback = None
+        ))
+    pool.close()
+    pool.join()
+    return(0)  
 
 
-def sort_bam_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
+def sam_sort_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
     inplace = False
     if out_bam is None or out_bam == in_bam:
         inplace = True
@@ -146,7 +181,7 @@ def sort_bam_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
         return(-1)
     if inplace:
         os.replace(out_bam, in_bam)
-    return(0)
+    return(0)  
 
 
 BAM_FPAIRED = 1

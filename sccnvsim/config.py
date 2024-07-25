@@ -9,6 +9,11 @@ from .cs.config import Config as CS_Conf
 from .pp.config import Config as PP_Conf
 
 
+# TODO:
+# 1. make --minCOUNT and --minMAF options invisible. 
+#    Users should not filter input phased SNPs.
+
+
 class Config:
     def __init__(self):
         self.g = GlobalConfig()

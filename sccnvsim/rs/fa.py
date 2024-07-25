@@ -1,6 +1,7 @@
 # fa.py - utils for FASTA file.
 
 
+import pysam
 from ..utils.grange import format_chrom
 
 
@@ -9,12 +10,14 @@ class FAChrom:
     
     Attributes
     ----------
-    fa : pysam.FastaFile object
-        The FASTA file object.
+    fn : str
+        The path to FASTA file.
     """
-    def __init__(self, fa):
-        self.fa = fa
-        self.fa_chroms = set(fa.references)
+    def __init__(self, fn):
+        self.fn = fn
+
+        self.fa = pysam.FastaFile(fn)
+        self.fa_chroms = set(self.fa.references)
         
         self.expand = 1000000    # 1M
         
@@ -68,7 +71,7 @@ class FAChrom:
         return(None)
     
     def add_read(self, chrom, lpos):
-        """
+        """Add one read.
         
         Parameters
         ----------
@@ -80,6 +83,11 @@ class FAChrom:
         if chrom != self.chrom:
             self.__add_chrom(chrom)
         self.__add_lpos(lpos)
+
+    def close(self):
+        if self.fa:
+            self.fa.close()
+        self.fa = None
 
     def query(self, chrom, pos):
         """Query the base of one SNP given its position.

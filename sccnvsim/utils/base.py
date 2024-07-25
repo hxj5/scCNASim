@@ -22,3 +22,8 @@ def is_scalar_numeric(x):
 def is_vector(x):
     # ref: https://stackoverflow.com/questions/16807011/python-how-to-identify-if-a-variable-is-an-array-or-a-scalar
     return isinstance(x, (list, tuple, np.ndarray))
+
+
+def is_file_empty(fn):
+    assert os.path.exists(fn)
+    return(os.path.getsize(fn) <= 0)
