@@ -2,7 +2,7 @@
 
 
 import pysam
-from logging import error
+from logging import info, error, debug
 from ..utils.grange import format_chrom
 
 
@@ -20,11 +20,12 @@ class FAChrom:
         self.fa = pysam.FastaFile(fn)
         self.fa_chroms = set(self.fa.references)
         
-        self.expand = 8388608    # 8M
+        #self.expand = 8388608    # 8M
+        self.expand = 1e7         # 10M
         
         self.chrom = None
-        self.left = None
-        self.right = None
+        self.left = None        # the left most position (1-based) of the sliding window in the reference genome.
+        self.right = None       # the right most position (1-based) of the sliding window in the reference genome.
 
         self.bam_lmost = None
 
@@ -55,11 +56,12 @@ class FAChrom:
         self.bam_lmost = pos
 
     def __extract_seq(self):
+        debug("fetch seq for '%s:%d-%d'." % \
+            (self.chrom, self.left, self.right - 1))
         chrom = self.__format_fa_chrom(self.chrom, self.fa_chroms)
         if not chrom:
-            error("invalid chrom '%s'." % chrom)
-            error("self.chrom: '%s'" % str(self.chrom))   # debug
-            error("self.fa_chroms: '%s'" % str(self.fa_chroms))    # debug
+            error("invalid chrom '%s' given current chrom '%s' and fa_chroms '%s'." % \
+                (chrom, self.chrom, self.fa_chroms))
             raise ValueError
         seq = self.fa.fetch(chrom, self.left - 1, self.right - 1)
         if not seq:
@@ -88,6 +90,7 @@ class FAChrom:
         """
         chrom = format_chrom(chrom)
         if chrom != self.chrom:
+            info("add chrom '%s'." % chrom)
             self.__add_chrom(chrom)
         self.__add_lpos(lpos)
 

@@ -20,6 +20,7 @@ from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str, save_cells, save_samples
 from ..utils.base import is_file_empty
+from ..utils.grange import format_chrom
 from ..utils.sam import check_read, sam_index
 from ..utils.xbarcode import Barcode
 from ..utils.xlog import init_logging
@@ -226,6 +227,7 @@ def rs_core(conf):
     in_sam = SAMInput(
         sams = conf.sam_fn_list, n_sam = len(conf.sam_fn_list),
         samples = conf.samples,
+        chroms = [str(i) for i in range(1, 23)] + ["X", "Y"],      # reads from other chroms will be filtered.
         cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
         min_mapq = conf.min_mapq, min_len = conf.min_len,
         incl_flag = conf.incl_flag, excl_flag = conf.excl_flag,
@@ -278,7 +280,7 @@ def rs_core(conf):
     # core part of read sampling.
     info("start to iterate reads ...")
     while True:
-        read_dat = in_sam.fetch()   # get one read.
+        read_dat = in_sam.fetch()   # get one read (after internal filtering).
         if read_dat is None:        # end of file.
             break
         read, cell, umi = read_dat
@@ -300,14 +302,15 @@ def rs_core(conf):
                 read = mask_read(read, snps, hap, fa)
             out_sam.write(read, cell_idx, umi_int, reg_idx, qname)
 
+    in_sam.close()
+    out_sam.close()
+    fa.close()
+
     info("index output BAM file(s) ...")
     sam_index(out_sam_fn_list, ncores = conf.nproc)
     
     # clean
     info("clean ...")
-    in_sam.close()
-    out_sam.close()
-    fa.close()
 
     res = {
         "out_sample_fn": out_sample_fn,
@@ -527,7 +530,7 @@ class MergedSampler:
 class SAMInput:
     def __init__(
         self, 
-        sams, n_sam, samples, 
+        sams, n_sam, samples, chroms,
         cell_tag, umi_tag,
         min_mapq = 20, min_len = 30,
         incl_flag = 0, excl_flag = None,
@@ -541,6 +544,8 @@ class SAMInput:
             assert len(sams) == n_sam
         self.n_sam = n_sam
         self.samples = samples
+
+        self.chroms = set(format_chrom(c) for c in chroms)
 
         self.cell_tag = cell_tag
         self.umi_tag = umi_tag
@@ -557,6 +562,14 @@ class SAMInput:
         self.idx = 0
         self.fp = pysam.AlignmentFile(self.sams[self.idx], "r")
         self.iter = self.fp.fetch()    # CHECK ME! set `until_eof = True`?
+
+    def __check_read(self, read):
+        ret = check_read(read, self)
+        if ret < 0:
+            return(ret)
+        if format_chrom(read.reference_name) not in self.chroms:
+            return(-101)
+        return(0)
 
     def __fetch_read(self):
         """Fetch one read."""
@@ -582,7 +595,7 @@ class SAMInput:
             read = self.__fetch_read()
             if read is None:
                 return(None)
-            if check_read(read, self) == 0:
+            if self.__check_read(read) == 0:
                 break
         cell = umi = None
         if self.use_barcodes():
