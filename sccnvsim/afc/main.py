@@ -186,7 +186,8 @@ def afc_wrapper(
 
 def afc_core(conf):
     if prepare_config(conf) < 0:
-        raise ValueError("errcode -2")
+        error("errcode -2")
+        raise ValueError
     info("program configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
 
@@ -286,7 +287,8 @@ def afc_core(conf):
             debug("data of thread-%d after fc_features:" %  thdata.idx)
             thdata.show(fp = sys.stdout, prefix = "\t")
         if thdata.ret < 0:
-            raise ValueError("errcode -3")
+            error("errcode -3")
+            raise ValueError
 
     # merge results
     nr_reg_list = [td.nr_reg for td in thdata_list]
@@ -298,7 +300,8 @@ def afc_core(conf):
             sum([td.nr_ale[ale] for td in thdata_list]),
             remove = True
         ) < 0:
-            raise ValueError("errcode -17")
+            error("errcode -17")
+            raise ValueError
         
     # construct adata and save into h5ad file
     adata = None

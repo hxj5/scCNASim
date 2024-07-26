@@ -1,6 +1,7 @@
 # snp.py
 
 
+from logging import error
 from logging import warning as warn
 from ..utils.grange import format_chrom
 
@@ -93,7 +94,8 @@ def mask_read(read, snps, hap, fa):
     chrom = format_chrom(read.reference_name)
     pairs = read.get_aligned_pairs(matches_only = True, with_seq = False)
     if not pairs:
-        raise ValueError("invalid pairs for read '%s'." % read.query_name)
+        error("invalid pairs for read '%s'." % read.query_name)
+        raise ValueError
     fa.add_read(chrom, pairs[0][1] + 1)
 
     qseq = list(read.query_sequence)
@@ -112,8 +114,9 @@ def mask_read(read, snps, hap, fa):
                     (read.query_name, chrom, pos1))
             qbase = fa.query(chrom, pos1)
         if not qbase:
-            raise ValueError("invalid qbase for pos '%s:%d' in read '%s'." % \
+            error("invalid qbase for pos '%s:%d' in read '%s'." % \
                 (chrom, pos1, read.query_name))
+            raise ValueError
         qbase = qbase.upper()
         qseq[idx] = qbase
     read.query_sequence = "".join(qseq)

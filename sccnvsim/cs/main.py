@@ -51,7 +51,8 @@ def cs_core(conf):
         if c_region not in cnv_fet:
             res = str2tuple(c_region)
             if res is None:
-                raise ValueError("invalid region '%s'." % c_region)
+                error("invalid region '%s'." % c_region)
+                raise ValueError
             chrom, start, end = res
             if start is None:
                 start = 0
@@ -105,6 +106,7 @@ def cs_core(conf):
             verbose = conf.verbose
         )
     else:
+        error("invalid size factor '%s'." % conf.size_factor)
         raise ValueError
     info("size factors calculated.")
 

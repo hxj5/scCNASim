@@ -92,7 +92,8 @@ def set_ref_cell_types(xdata, ref_cell_types = None, inplace = False):
         elif isinstance(ref_cell_types, str):
             ref_cell_types = [ref_cell_types]
         else:
-            raise ValueError("invalid type of 'ref_cell_types'.")
+            error("invalid type of 'ref_cell_types'.")
+            raise ValueError
 
     if not inplace:       
         xdata = xdata.copy()

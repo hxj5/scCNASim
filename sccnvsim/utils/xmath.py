@@ -5,6 +5,7 @@ import numpy as np
 import scipy as sp
 import warnings
 
+from logging import error
 from scipy.optimize import minimize
 from scipy.stats import betabinom
 from statsmodels.discrete.count_model import ZeroInflatedNegativeBinomialP, ZeroInflatedPoisson
@@ -185,7 +186,8 @@ def __fit_dist_wrapper(
             "disp": 0
         }
     else:
-        raise ValueError("invalid model name '%s'." % model_name)
+        error(("invalid model name '%s'." % model_name))
+        raise ValueError
 
     for k in ("infl", "mu", "disp"):
         if k in par and par[k] < 0.0:

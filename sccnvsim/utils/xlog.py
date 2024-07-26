@@ -58,8 +58,9 @@ def init_logging(log_file = None, stream = None,
     fh_level = logging.DEBUG, fh_datefmt = "%Y-%m-%d %H:%M:%S",
     ch_level = logging.INFO,  ch_datefmt = None
 ):
+    func = "init_logging"
     if log_file is None and stream is None:
-        raise ValueError("at least one of 'log_file' and 'stream' should not be None.")
+        raise ValueError("[E::%s] at least one of 'log_file' and 'stream' should not be None." % func)
     
     fh = ch = None
     handlers = []

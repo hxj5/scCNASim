@@ -8,7 +8,7 @@ import pandas as pd
 import scipy as sp
 
 from collections import OrderedDict
-from logging import info
+from logging import info, error
 from ..utils import base as xbase
 from ..utils import xmath
 from ..utils.xmath import   \
@@ -39,7 +39,8 @@ def fit_libsize_cell_type(
         The fitted parameters, will be used by downstream simulation.
     """
     if dist not in ("normal", "t"):
-        raise ValueError("invalid distribution '%s'." % dist)
+        error("invalid distribution '%s'." % dist)
+        raise ValueError
     
     s = np.sum(X, axis = 1)
     par = None
@@ -48,7 +49,8 @@ def fit_libsize_cell_type(
     else:
         ret, par, mres = fit_dist_t(s)
         if ret != 0:
-            raise RuntimeError("fitting t distribution failed.")
+            error("fitting t distribution failed.")
+            raise RuntimeError
     params = {
         "par": par,
         "dist": dist,
@@ -97,7 +99,8 @@ def fit_libsize(
         np.all(np.isin(cell_type_fit, all_cell_types))
 
     if dist not in ("normal", "t"):
-        raise ValueError("invalid distribution '%s'." % dist)
+        error("invalid distribution '%s'." % dist)
+        raise ValueError
 
     # fitting
     if verbose:
@@ -156,7 +159,8 @@ def fit_libsize_wrapper(
         cell_type_fit = sorted(list(all_cell_types))
 
     if dist not in ("normal", "t"):
-        raise ValueError("invalid distribution '%s'." % dist)
+        error("invalid distribution '%s'." % dist)
+        raise ValueError
 
     # fitting
     params = fit_libsize(
@@ -197,7 +201,8 @@ def simu_libsize_cell_type(params, n, low = None, high = None):
     elif dist == "t":
         s = sp.stats.t.rvs(par["df"], par["loc"], par["scale"], size = n)
     else:
-        raise ValueError("invalid distribution '%s'." % dist)
+        error("invalid distribution '%s'." % dist)
+        raise ValueError
     
     if dist in ("normal", "t"):
         if low is None:
@@ -282,7 +287,8 @@ def __fit_dist_wrapper(mar, *args, **kwargs):
     elif mar == "zinb": func = fit_dist_zinb
     elif mar == "zip":  func = fit_dist_zip
     else:
-        raise ValueError("invalid marginal '%s'." % mar)
+        error("invalid marginal '%s'." % mar)
+        raise ValueError
     ret, par, stat = func(*args, **kwargs)
     mres = {
         "loglik": stat["loglik"] if stat else None,
@@ -374,7 +380,8 @@ def fit_RD_feature(
     >>> print(res)
     """
     if marginal not in ("auto", "zinb", "nb", "poisson"):
-        raise ValueError("invalid marginal '%s'." % marginal)
+        error("invalid marginal '%s'." % marginal)
+        raise ValueError
 
     flag = 0
     model, par = None, None
@@ -485,7 +492,8 @@ def fit_RD_feature(
             break
         
         else:
-            raise ValueError("invalid marginal '%s'." % marginal)
+            error("invalid marginal '%s'." % marginal)
+            raise ValueError
 
     if model is not None:
         flag |= (1 << 0)
@@ -563,7 +571,8 @@ def fit_RD_cell_type(
         info("start ...")
 
     if marginal not in ("auto", "zinb", "nb", "poisson"):
-        raise ValueError("invalid marginal '%s'." % marginal)
+        error("invalid marginal '%s'." % marginal)
+        raise ValueError
     
     n, p = X.shape
     if s is None:
@@ -729,7 +738,8 @@ def fit_RD(
         np.all(np.isin(cell_type_fit, all_cell_types))
 
     if marginal not in ("auto", "zinb", "nb", "poisson"):
-        raise ValueError("invalid marginal '%s'." % marginal)
+        error("invalid marginal '%s'." % marginal)
+        raise ValueError
 
     # model fitting
     if verbose:
@@ -841,10 +851,12 @@ def fit_RD_wrapper(
     elif size_factor == "libsize":
         s = np.sum(X, axis = 1)
     else:
-        raise ValueError("invalid size factor type '%s'." % size_factor)
+        error("invalid size factor type '%s'." % size_factor)
+        raise ValueError
     
     if marginal not in ("auto", "zinb", "nb", "poisson"):
-        raise ValueError("invalid marginal '%s'." % marginal)
+        error("invalid marginal '%s'." % marginal)
+        raise ValueError
 
     # model fitting
     params = fit_RD(
@@ -890,7 +902,8 @@ def simu_RD_feature(params, n, s = None, s_type = None):
         if s_type == "libsize":
             mu = s * mu
         else:
-            raise ValueError("invalid size factor '%s'." % s_type)
+            error("invalid size factor '%s'." % s_type)
+            raise ValueError
     dat = xmath.rand_zinb(
         mu = mu + 0.0,
         alpha = disp + 0.0,
@@ -941,9 +954,11 @@ def simu_RD_cell_type(
     p = p_nz + p_oth
 
     if params["size_factor_type"] is None and s is not None:
-        raise ValueError("size factors unused.")
+        error("size factors unused.")
+        raise ValueError
     elif params["size_factor_type"] is not None and s is None:
-        raise ValueError("size factors missing.")
+        error("size factors missing.")
+        raise ValueError
 
     if verbose:
         info("simulating on %d features in %d cells (ncores = %d) ..." %  \
@@ -1288,7 +1303,8 @@ def simu_RD_wrapper(
                             for _ in range(n_cell_types)])
         for c_type, fet_fold_lst in cn_fold.items():
             if c_type not in cell_type_new:
-                raise ValueError("invalid cell type '%s' in cn_fold." % c_type)
+                error("invalid cell type '%s' in cn_fold." % c_type)
+                raise ValueError
             assert len(fet_fold_lst) == p
             idx = cell_type_new.index(c_type)
             cn_fold_lst[idx] = np.array(fet_fold_lst)

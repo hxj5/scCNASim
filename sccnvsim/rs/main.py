@@ -181,7 +181,8 @@ def rs_wrapper(
 
 def rs_core(conf):
     if prepare_config(conf) < 0:
-        raise ValueError("errcode -2")
+        error("errcode -2")
+        raise ValueError
     info("program configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
 

@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from logging import error
 from ..utils.base import is_function, is_vector
 from ..utils.xmatrix import sparse2array
 
@@ -51,10 +52,12 @@ def __get_metrics(mtype, X, metrics = None, out_fmt = "df"):
         metrics = all_metrics
     for m in metrics:
         if m not in all_metrics:
-            raise ValueError("invalid metric '%s'." % m)
+            error("invalid metric '%s'." % m)
+            raise ValueError
         
     if out_fmt not in all_out_fmt:
-        raise ValueError("invalid output format '%s'." % out_fmt)
+        error("invalid output format '%s'." % out_fmt)
+        raise ValueError
     
     res = []
     if mtype == "cw":
@@ -64,7 +67,8 @@ def __get_metrics(mtype, X, metrics = None, out_fmt = "df"):
             elif m == "zero_prop":
                 res.append(get_cw_zero_prop(X))
             else:
-                raise ValueError("invalid metric '%s'." % m)
+                error("invalid metric '%s'." % m)
+                raise ValueError
     else:
         for m in metrics:
             if m == "mean":
@@ -76,7 +80,8 @@ def __get_metrics(mtype, X, metrics = None, out_fmt = "df"):
             elif m == "zero_prop":
                 res.append(get_gw_zero_prop(X))
             else:
-                raise ValueError("invalid metric '%s'." % m)
+                error("invalid metric '%s'." % m)
+                raise ValueError
         
     if out_fmt == "df":
         res = pd.DataFrame(data = {m:v for m, v in zip(metrics, res)})
@@ -85,7 +90,8 @@ def __get_metrics(mtype, X, metrics = None, out_fmt = "df"):
     elif out_fmt == "list":
         pass
     else:
-        raise ValueError("invalid output format '%s'." % out_fmt)
+        error("invalid output format '%s'." % out_fmt)
+        raise ValueError
     
     return(res)
 
@@ -119,7 +125,8 @@ def __get_metrics_group(mtype, X_lst, X_names = None, metrics = None):
     if X_names is None:
         X_names = ["X" + str(i) for i in range(len(X_lst))]
     if len(X_lst) != len(X_names):
-        raise ValueError("length of 'X_lst' and 'X_names' should be the same!")
+        error("length of 'X_lst' and 'X_names' should be the same!")
+        raise ValueError
     
     result = None
     for idx, (X, name) in enumerate(zip(X_lst, X_names)):
@@ -245,7 +252,8 @@ def __plot_metrics_calc_shape(n, nrows, ncols):
     if ncols is None:
         ncols = int(np.ceil(n / nrows))
     if nrows * ncols < n:
-        raise ValueError("nrows * ncols is small than length of metrics.")
+        error("nrows * ncols is small than length of metrics.")
+        raise ValueError
     return((nrows, ncols))
 
 
@@ -322,7 +330,8 @@ def __plot_metrics_group_format_metrics(metrics, mv, group):
 
     for m in metrics:
         if m not in mv.columns:
-            raise ValueError("metric '%s' not in 'mv'." % m)
+            error("metric '%s' not in 'mv'." % m)
+            raise ValueError
 
     return(metrics)
 
@@ -424,6 +433,7 @@ def __plot_metrics_tran(
             elif tran_position == "end":
                 end_metrics.append(m)
             else:
+                error("invalid tran_position '%s'." % tran_position)
                 raise ValueError
         else:
             metrics.append(m)
@@ -454,16 +464,19 @@ def __plot_metrics_tran_format_transform(transform, metrics):
             else:
                 assert is_vector(tran)
     else:
-        raise ValueError("invalid transform '%s'." % str(transform))
+        error("invalid transform '%s'." % str(transform))
+        raise ValueError
     
     # sanity check `transform`
     for m, tran in transform.items():
         if m not in metrics:
-            raise ValueError("transform metric '%s' not in metrics." % m)
+            error("transform metric '%s' not in metrics." % m)
+            raise ValueError
         for t in tran:
             if not (isinstance(t, str) or is_function(t)):
-                raise ValueError("invalid transform '%s' for metric '%s'." %  \
-                                (str(t), m))
+                error("invalid transform '%s' for metric '%s'." %  \
+                        (str(t), m))
+                raise ValueError
 
     return(transform)
 
@@ -709,19 +722,22 @@ def __plot_mpairs_group_format_mpairs(mpairs, mv, group):
                 mpairs.append((metrics[i], metrics[j]))
     elif is_vector(mpairs):
         if len(mpairs) <= 0:
-            raise ValueError("empty metrics pairs 'mpairs'.")
+            error("empty metrics pairs 'mpairs'.")
+            raise ValueError
         if is_vector(mpairs[0]):
             pass
         else:
             assert len(mpairs) == 2
             mpairs = [mpairs]
     else:
-        raise ValueError("invalid mpairs '%s'." % str(mpairs))
+        error("invalid mpairs '%s'." % str(mpairs))
+        raise ValueError
     
     for m1, m2 in mpairs:
         for m in (m1, m2):
             if m not in mv.columns:
-                raise ValueError("metric '%s' not in 'mv'." % m)
+                error("metric '%s' not in 'mv'." % m)
+                raise ValueError
 
     return(mpairs)
 
@@ -882,6 +898,7 @@ def __plot_mpairs_tran(
             elif tran_position == "end":
                 end_mpairs.append(mp)
             else:
+                error("invaid tran_position '%s'." % tran_position)
                 raise ValueError
         else:
             mpairs.append(mp)

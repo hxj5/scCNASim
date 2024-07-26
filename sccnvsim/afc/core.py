@@ -51,7 +51,8 @@ def fc_features(thdata):
         ret, reg_ale_cnt = \
             fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf)
         if ret < 0 or reg_ale_cnt is None:
-            raise RuntimeError("errcode -9 (%s)." % reg.name)
+            error("errcode -9 (%s)." % reg.name)
+            raise RuntimeError
 
         str_ale = {ale:"" for ale in alleles}
         for i, smp in enumerate(conf.samples):
@@ -135,6 +136,7 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
                 ale_umi = scnt.umi_cnt[-2]
                 ale_umi.update(scnt.umi_cnt[-3])
             else:
+                error("invalid allele '%s'." % ale)
                 raise ValueError
             for umi in sorted(list(ale_umi)):
                 fp.write("%s\t%s\n" % (smp, umi))

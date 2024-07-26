@@ -175,7 +175,8 @@ def sam_sort_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
         outs, errs = proc.communicate()
         ret = proc.returncode
         if ret != 0:
-            raise RuntimeError(str(errs.decode()))
+            error(str(errs.decode()))
+            raise RuntimeError
     except:
         error("Error: samtools sort failed (retcode '%s')." % str(ret))
         return(-1)

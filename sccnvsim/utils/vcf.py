@@ -52,7 +52,8 @@ def vcf_load(fn):
     fp.close()
     
     if not pre_line:
-        raise IOError()
+        error("invalid VCF header.")
+        raise IOError
     assert len(pre_line) > 6
     assert pre_line[:6] == "#CHROM"
     
@@ -139,7 +140,8 @@ def vcf_bgzip(in_fn, out_fn = None, is_in_gzip = False):
             outs, errs = proc.communicate()
             ret = proc.returncode
             if ret != 0:
-                raise RuntimeError(str(errs.decode()))
+                error(str(errs.decode()))
+                raise RuntimeError
         except:
             error("Error: bgzip failed (retcode '%s')." % str(ret))
             sys.exit(1)        
@@ -190,7 +192,8 @@ def vcf_index(fn, idx_fn = None, idx_type = None, ncores = 1):
             outs, errs = proc.communicate()
             ret = proc.returncode
             if ret != 0:
-                raise RuntimeError(str(errs.decode()))
+                error(str(errs.decode()))
+                raise RuntimeError
         except:
             error("Error: bcftools index failed (retcode '%s')." % str(ret))
             sys.exit(1)

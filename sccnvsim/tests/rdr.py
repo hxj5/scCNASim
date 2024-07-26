@@ -4,7 +4,7 @@
 import numpy as np
 import os
 
-from logging import info
+from logging import info, error
 from ..cs.marginal import simu_RD_wrapper
 from ..io.counts import save_10x_data
 from ..utils.grange import str2tuple
@@ -127,7 +127,8 @@ def gen_cnv_wrapper(
         else:
             res = str2tuple(c_region)
             if res is None:
-                raise ValueError("invalid region '%s'." % c_region)
+                error("invalid region '%s'." % c_region)
+                raise ValueError
             chrom, start, end = res
             if start is None:
                 start = 0
@@ -177,7 +178,8 @@ def gen_cnv_wrapper(
             X[c_idx] *= c_fold
         xdata_new.X = X.astype(np.int64)
     else:
-        raise ValueError("invalid how='%s'." % how)
+        error("invalid how='%s'." % how)
+        raise ValueError
     
     # format cell and feature annotations.
     assert np.all(xdata_new.obs["cell_type"].to_numpy() == xdata.obs["cell_type"].to_numpy())
