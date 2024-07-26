@@ -21,7 +21,7 @@ from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str, save_cells, save_samples
 from ..utils.base import is_file_empty
 from ..utils.grange import format_chrom
-from ..utils.sam import check_read, sam_index
+from ..utils.sam import check_read, sam_index, BAM_FPAIRED, BAM_FPROPER_PAIR
 from ..utils.xbarcode import Barcode
 from ..utils.xlog import init_logging
 
@@ -286,6 +286,8 @@ def rs_core(conf):
         read, cell, umi = read_dat
         ale, sample_dat = ms.query(cell, umi)
         if sample_dat is None:  # this read is not sampled.
+            continue
+        if in_sam.check_read2(read) < 0:
             continue
         hap = None
         if ale == "A":
@@ -563,7 +565,7 @@ class SAMInput:
         self.fp = pysam.AlignmentFile(self.sams[self.idx], "r")
         self.iter = self.fp.fetch()    # CHECK ME! set `until_eof = True`?
 
-    def __check_read(self, read):
+    def __check_read_all(self, read):
         ret = check_read(read, self)
         if ret < 0:
             return(ret)
@@ -583,6 +585,31 @@ class SAMInput:
             self.iter = self.fp.fetch()
             return(self.__fetch_read())
         return(read)
+    
+    def check_read1(self, read):
+        # partial filtering to speed up.
+        if format_chrom(read.reference_name) not in self.chroms:
+            return(-101)
+        if read.mapq < self.min_mapq:
+            return(-2)
+        if self.cell_tag and not read.has_tag(self.cell_tag):
+            return(-11)
+        if self.umi_tag and not read.has_tag(self.umi_tag):
+            return(-12)        
+        return(0)
+    
+    def check_read2(self, read):
+        # partial filtering to speed up.
+        if self.excl_flag and read.flag & self.excl_flag:
+            return(-3)
+        if self.incl_flag and not read.flag & self.incl_flag:
+            return(-4)
+        if self.no_orphan and read.flag & BAM_FPAIRED and not \
+            read.flag & BAM_FPROPER_PAIR:
+            return(-5)
+        if len(read.positions) < self.min_len:
+            return(-21)
+        return(0)
 
     def close(self):
         if self.fp:
@@ -595,7 +622,7 @@ class SAMInput:
             read = self.__fetch_read()
             if read is None:
                 return(None)
-            if self.__check_read(read) == 0:
+            if self.check_read1(read) == 0:
                 break
         cell = umi = None
         if self.use_barcodes():

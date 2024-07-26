@@ -30,11 +30,12 @@ class XFormatter(logging.Formatter):
             s += "::%s" % record.module
         if record.funcName:
             s += "::%s" % record.funcName
+        s += "]"
 
         if self.datefmt:
-            s += "::" + self.formatTime(record, self.datefmt)
-        
-        s += "] "
+            s += "[%s]" % self.formatTime(record, self.datefmt)
+        s += " "
+
         if record.message:
             s += str(record.message)
        
@@ -56,7 +57,7 @@ class XFormatter(logging.Formatter):
 
 def init_logging(log_file = None, stream = None, 
     fh_level = logging.DEBUG, fh_datefmt = "%Y-%m-%d %H:%M:%S",
-    ch_level = logging.INFO,  ch_datefmt = None
+    ch_level = logging.INFO,  ch_datefmt = "%Y-%m-%d %H:%M:%S"
 ):
     func = "init_logging"
     if log_file is None and stream is None:
