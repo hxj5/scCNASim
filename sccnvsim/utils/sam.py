@@ -155,7 +155,7 @@ def sam_index(sam_fn_list, ncores = 1):
         ))
     pool.close()
     pool.join()
-    return(0)  
+    return(0)
 
 
 def sam_sort_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):

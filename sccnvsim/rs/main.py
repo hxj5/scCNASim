@@ -2,6 +2,7 @@
 
 
 import anndata as ad
+import gc
 import getopt
 import numpy as np
 import os
@@ -307,6 +308,19 @@ def rs_core(conf):
     in_sam.close()
     out_sam.close()
     fa.close()
+
+    # releae memory, otherwise there will be memory hug when using 
+    # multi-processing in following steps.
+    conf.adata = None
+    conf.reg_list = None
+    del xdata
+    del snp_sets
+    del in_sam
+    del out_sam
+    del fa
+    del all_samplers
+    del ms
+    gc.collect()
 
     info("index output BAM file(s) ...")
     sam_index(out_sam_fn_list, ncores = conf.nproc)

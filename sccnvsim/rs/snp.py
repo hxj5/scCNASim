@@ -1,8 +1,7 @@
 # snp.py
 
 
-from logging import error
-from logging import warning as warn
+from logging import error, debug
 from ..utils.grange import format_chrom
 
 
@@ -109,8 +108,10 @@ def mask_read(read, snps, hap, fa):
             else:
                 qbase = fa.query(chrom, pos1)
         else:
-            if snps.contain(chrom, pos1):
-                warn("read '%s' from hap 'U' contains SNP '%s:%d'." % \
+            # fraction of these reads is very low (<<1%),
+            # CHECK ME! how it happens?
+            if snps.contain(chrom, pos1):   
+                debug("read '%s' from hap 'U' contains SNP '%s:%d'." % \
                     (read.query_name, chrom, pos1))
             qbase = fa.query(chrom, pos1)
         if not qbase:
