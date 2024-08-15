@@ -2,8 +2,8 @@
 
 
 import anndata as ad
-import gc
 import getopt
+import multiprocessing
 import numpy as np
 import os
 import pickle
@@ -11,18 +11,20 @@ import pysam
 import sys
 import time
 
-from logging import info, error
+from logging import info, error, debug
 from logging import warning as warn
 from .config import Config, COMMAND
 from .cumi import CUMISampler, load_cumi
 from .fa import FAChrom
 from .snp import SNPSet, mask_read
+from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str, save_cells, save_samples
 from ..utils.base import is_file_empty
 from ..utils.grange import format_chrom
-from ..utils.sam import check_read, sam_index, BAM_FPAIRED, BAM_FPROPER_PAIR
+from ..utils.sam import sam_index, sam_fetch, sam_merge, \
+    BAM_FPAIRED, BAM_FPROPER_PAIR
 from ..utils.xbarcode import Barcode
 from ..utils.xlog import init_logging
 
@@ -47,6 +49,7 @@ def usage(fp = sys.stdout, conf = None):
     s += "\n"
     s += "Optional arguments:\n"
     s += "  -p, --nproc INT        Number of processes [%d]\n" % conf.NPROC
+    s += "      --chrom STR        Comma separated chromosome names [1-22]\n"
     s += "      --cellTAG STR      Tag for cell barcodes, set to None when using sample IDs [%s]\n" % conf.CELL_TAG
     s += "      --UMItag STR       Tag for UMI, set to None when reads only [%s]\n" % conf.UMI_TAG
     s += "      --UMIlen INT       Length of UMI barcode [%d]\n" % conf.UMI_LEN
@@ -97,7 +100,8 @@ def rs_main(argv):
             "outdir=",
             "help",
 
-            "nproc=", 
+            "nproc=",
+            "chrom=",
             "cellTAG=", "UMItag=", "UMIlen=",
             "debug=",
 
@@ -119,6 +123,7 @@ def rs_main(argv):
         elif op in ("-h", "--help"): usage(sys.stdout, conf.defaults); sys.exit(0)
 
         elif op in ("-p", "--nproc"): conf.nproc = int(val)
+        elif op in (      "--chrom"): conf.chroms = val
         elif op in (      "--celltag"): conf.cell_tag = val
         elif op in (      "--umitag"): conf.umi_tag = val
         elif op in (      "--umilen"): conf.umi_len = int(val)
@@ -147,6 +152,7 @@ def rs_wrapper(
     sample_ids = None, sample_id_fn = None,
     debug_level = 0,
     ncores = 1,
+    chroms = None,
     cell_tag = "CB", umi_tag = "UB", umi_len = 10,
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = None,
@@ -166,6 +172,9 @@ def rs_wrapper(
     conf.out_dir = out_dir
     conf.debug = debug_level
 
+    if chroms is None:
+        chroms = ",".join([str(i) for i in range(1, 23)] + ["X", "Y"])
+    conf.chroms = chroms
     conf.cell_tag = cell_tag
     conf.umi_tag = umi_tag
     conf.umi_len = umi_len
@@ -188,18 +197,22 @@ def rs_core(conf):
     info("program configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
 
+    tmp_dir = os.path.join(conf.out_dir, "tmp")
+    os.makedirs(tmp_dir, exist_ok = True)
+
     # check args.
     info("check args ...")
 
-    alleles = ("A", "B", "U")
-    n_allele = 3
-    #cumi_max_pool = (1000, 1000, 10000)
-    cumi_max_pool = (0, 0, 0)    # 0 means ulimited.
+    alleles = conf.alleles
+    cumi_max_pool = conf.cumi_max_pool
     xdata = conf.adata
 
     assert "cell" in xdata.obs.columns
     assert "cell_type" in xdata.obs.columns
     assert "feature" in xdata.var.columns
+    assert "chrom" in xdata.var.columns
+    xdata.var["chrom"] = xdata.var["chrom"].astype(str)
+    xdata.var["chrom"] = xdata.var["chrom"].map(format_chrom)
     for ale in alleles:
         assert ale in xdata.layers
     n, p = xdata.shape
@@ -207,7 +220,6 @@ def rs_core(conf):
     assert len(conf.reg_list) == p
     for i in range(p):
         assert xdata.var["feature"].iloc[i] == conf.reg_list[i].name
-    snp_sets = [SNPSet(reg.snp_list) for reg in conf.reg_list]
 
     assert conf.umi_len <= 31
     RD = xdata.layers["A"] + xdata.layers["B"] + xdata.layers["U"]
@@ -221,44 +233,44 @@ def rs_core(conf):
     save_samples(xdata.obs[["cell"]], out_sample_fn)
     save_cells(xdata.obs[["cell", "cell_type"]], out_cell_anno_fn)
 
-    # construct key processing units.
-    info("construct key processing units ...")
-
-    # input BAM(s)
-    in_sam = SAMInput(
-        sams = conf.sam_fn_list, n_sam = len(conf.sam_fn_list),
-        samples = conf.samples,
-        chroms = [str(i) for i in range(1, 23)] + ["X", "Y"],      # reads from other chroms will be filtered.
-        cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
-        min_mapq = conf.min_mapq, min_len = conf.min_len,
-        incl_flag = conf.incl_flag, excl_flag = conf.excl_flag,
-        no_orphan = conf.no_orphan
-    )
-    info("%d input BAM(s) loaded." % len(conf.sam_fn_list))
-    
-    # output BAM(s)
     out_sam_dir = os.path.join(conf.out_dir, "bam")
     os.makedirs(out_sam_dir, exist_ok = True)
-    out_sam_fn_list = None
+    out_sam_fn_list = []
+    tmp_sam_dir = os.path.join(tmp_dir, "bam")
+    os.makedirs(tmp_sam_dir, exist_ok = True)
+    tmp_sam_sample_dirs = []
+    tmp_sam_fn_list = [[]]
     if conf.use_barcodes():
-        out_sam_fn_list = [os.path.join(
-            out_sam_dir, conf.out_prefix + "possorted.bam")]
+        sample_dir = os.path.join(tmp_sam_dir, "Sample0")
+        os.makedirs(sample_dir, exist_ok = True)
+        sam_fn = conf.out_prefix + "possorted.bam"
+        tmp_sam_sample_dirs.append(sample_dir)
+        out_sam_fn_list.append(os.path.join(out_sam_dir, sam_fn))
+        for chrom in conf.chrom_list:
+            tmp_sam_fn_list[0].append(os.path.join(
+                sample_dir, "%s.%s" % (chrom, sam_fn)))
     else:
-        out_sam_fn_list = [os.path.join(out_sam_dir, conf.out_prefix + \
-            "%s.possorted.bam" % sample) for sample in out_samples]
-    out_sam = SAMOutput(
-        sams = out_sam_fn_list, n_sam = len(out_sam_fn_list),
-        samples = out_samples, ref_sam = conf.sam_fn_list[0],
-        cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
-        umi_len = conf.umi_len
-    )
-    info("%d output BAM(s) created." % len(out_sam_fn_list))
-
-    # refseq
-    fa = FAChrom(conf.refseq_fn)
-    info("FASTA file loaded.")
-
+        for idx, sample in enumerate(out_samples):
+            sample_dir = os.path.join(tmp_sam_dir, sample)
+            os.makedirs(sample_dir, exist_ok = True)
+            sam_fn = conf.out_prefix + "%s.possorted.bam" % sample
+            tmp_sam_sample_dirs.append(sample_dir)
+            out_sam_fn_list.append(os.path.join(out_sam_dir, sam_fn))
+            tmp_sam_fn_list += [[]]
+            for chrom in conf.chrom_list:
+                tmp_sam_fn_list[idx].append(os.path.join(
+                    sample_dir, "%s.%s" % (chrom, sam_fn)))
+                
+    if conf.debug > 0:
+        debug("len(tmp_sam_fn_list) = %d" % len(tmp_sam_fn_list))
+                
     # CUMI sampling.
+    # TODO:
+    # - CHECK ME!! The new CUMIs are generated for each allele count matrix
+    #   separately, which may cause conflict, e.g., allele A and B may have
+    #   the same CUMIs.
+    # - Create chrom-specific samplers to save memory.
+
     all_samplers = []
     for idx, ale in enumerate(alleles):
         info("CUMI sampling for allele '%s' ..." % ale)
@@ -277,9 +289,167 @@ def rs_core(conf):
         all_samplers.append(sampler)
     ms = MergedSampler(
         {ale:sampler for ale, sampler in zip(alleles, all_samplers)})
+    ms_fn = os.path.join(tmp_dir, "cumi_multi_sampler.pickle")
+    with open(ms_fn, "wb") as fp:
+        pickle.dump(ms, fp)
+
+    # split chrom-specific count adata.
+    chr_ad_fn_list = []
+    for chrom in conf.chrom_list:
+        fn = os.path.join(tmp_dir, "chrom%s.counts.h5ad" % chrom)
+        adat = xdata[:, xdata.var["chrom"] == chrom]
+        adat.write_h5ad(fn)
+        chr_ad_fn_list.append(fn)
+    del conf.adata
+    conf.adata = None
+
+    # FIX ME!!
+    # TEMP operations.
+    # DEL following blocks in future.
+    for i, reg in enumerate(conf.reg_list):
+        reg.index = i
+    # END
+
+    # split chrom-specific regions.
+    chr_reg_fn_list = []
+    chr_reg_idx0_list = []
+    for chrom in conf.chrom_list:
+        fn = os.path.join(tmp_dir, "chrom%s.regions.pickle" % chrom)
+        regions = [reg for reg in conf.reg_list if reg.chrom == chrom]
+        with open(fn, "wb") as fp:
+            pickle.dump(regions, fp)
+        chr_reg_fn_list.append(fn)
+        idx0 = None
+        if len(regions) > 0:
+            idx0 = regions[0].index
+        chr_reg_idx0_list.append(idx0)
+    del conf.reg_list
+    conf.reg_list = None
+
+    # multi-processing for all chromosomes.
+    m_chroms = len(conf.chrom_list)
+    m_thread = conf.nproc if m_chroms >= conf.nproc else m_chroms
+    thdata_list = []
+    pool = multiprocessing.Pool(processes = m_thread)
+    mp_result = []
+    for i in range(len(conf.chrom_list)):
+        thdata = ThreadData(
+            idx = i, conf = conf,
+            chrom = conf.chrom_list[i],
+            reg_obj_fn = chr_reg_fn_list[i],
+            reg_idx0 = chr_reg_idx0_list[i],
+            adata_fn = chr_ad_fn_list[i],
+            msampler_fn = ms_fn,
+            out_samples = out_samples,
+            out_sam_fn_list = [s[i] for s in tmp_sam_fn_list]
+        )
+        thdata_list.append(thdata)
+        if conf.debug > 0:
+            debug("data of thread-%d before:" % i)
+            thdata.show(fp = sys.stdout, prefix = "\t")
+        mp_result.append(pool.apply_async(
+            func = rs_core_chrom, 
+            args = (thdata, ), 
+            callback = None))
+    pool.close()
+    pool.join()
+    mp_result = [res.get() for res in mp_result]
+    retcode_list = [item[0] for item in mp_result]
+    thdata_list = [item[1] for item in mp_result]
+    if conf.debug > 0:
+        debug("returned values of multi-processing:")
+        debug("\t%s" % str(retcode_list))
+
+    # check running status of each sub-process
+    for thdata in thdata_list:         
+        if conf.debug > 0:
+            debug("data of thread-%d after:" %  thdata.idx)
+            thdata.show(fp = sys.stdout, prefix = "\t")
+        if thdata.ret < 0:
+            error("errcode -3")
+            raise ValueError
+    del thdata_list
+
+    # merge BAM files.
+    info("merge output BAM file(s) ...")
+    assert len(out_sam_fn_list) == len(tmp_sam_fn_list)
+    pool = multiprocessing.Pool(processes = conf.nproc)
+    mp_result = []
+    for i in range(len(out_sam_fn_list)):
+        mp_result.append(pool.apply_async(
+            func = sam_merge_and_index, 
+            args = (tmp_sam_fn_list[i], out_sam_fn_list[i]), 
+            callback = None))
+    pool.close()
+    pool.join()
+    
+    # clean
+    info("clean ...")
+    # TODO: delete tmp dir.
+
+    res = {
+        "out_sample_fn": out_sample_fn,
+        "out_cell_anno_fn": out_cell_anno_fn,
+        "out_sam_dir": out_sam_dir,
+        "out_sam_fn_list": out_sam_fn_list
+    }
+    return(res)
+
+
+def rs_core_chrom(thdata):
+    conf = thdata.conf
+
+    alleles = conf.alleles
+    cumi_max_pool = conf.cumi_max_pool
+    out_sam_fn_list = thdata.out_sam_fn_list
+
+    # check args.
+    info("[Thread-%d] processing chrom %s ..." % (thdata.idx, thdata.chrom))
+
+    with open(thdata.reg_obj_fn, "rb") as fp:
+        reg_list = pickle.load(fp)
+    xdata = ad.read_h5ad(thdata.adata_fn)
+    n, p = xdata.shape
+    assert len(reg_list) == p
+    for i in range(p):
+        assert xdata.var["feature"].iloc[i] == reg_list[i].name
+    snp_sets = [SNPSet(reg.snp_list) for reg in reg_list]
+    info("[Thread-%d] %d features loaded in %d cells." % (thdata.idx, p, n))
+
+    # input BAM(s)
+    in_sam = SAMInput(
+        sams = conf.sam_fn_list, n_sam = len(conf.sam_fn_list),
+        samples = conf.samples,
+        chrom = thdata.chrom,
+        cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
+        min_mapq = conf.min_mapq, min_len = conf.min_len,
+        incl_flag = conf.incl_flag, excl_flag = conf.excl_flag,
+        no_orphan = conf.no_orphan
+    )
+    info("[Thread-%d] %d input BAM(s) loaded." % (
+        thdata.idx, len(conf.sam_fn_list)))
+    
+    # output BAM(s)
+    out_sam = SAMOutput(
+        sams = out_sam_fn_list, n_sam = len(out_sam_fn_list),
+        samples = thdata.out_samples, ref_sam = conf.sam_fn_list[0],
+        cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
+        umi_len = conf.umi_len
+    )
+    info("[Thread-%d] %d output BAM(s) created." % (
+        thdata.idx, len(out_sam_fn_list)))
+
+    # refseq
+    fa = FAChrom(conf.refseq_fn)
+    info("[Thread-%d] FASTA file loaded." % thdata.idx)
+
+    # multi-sampler
+    with open(thdata.msampler_fn, "rb") as fp:
+        ms = pickle.load(fp)
+    info("[Thread-%d] multi-sampler loaded." % thdata.idx)
 
     # core part of read sampling.
-    info("start to iterate reads ...")
+    info("[Thread-%d] start to iterate reads ..." % thdata.idx)
     while True:
         read_dat = in_sam.fetch()   # get one read (after internal filtering).
         if read_dat is None:        # end of file.
@@ -301,40 +471,25 @@ def rs_core(conf):
         for dat in sample_dat:
             cell_idx, umi_int, reg_idx = dat    # cell and umi for new BAM.
             if snps is None:
-                snps = snp_sets[reg_idx]
-                read = mask_read(read, snps, hap, fa)
+                if thdata.reg_idx0 is None:
+                    continue
+                idx = reg_idx - thdata.reg_idx0
+                if idx >= len(snp_sets):       # CHECK ME!! could be a multi-mapping UMI.
+                    pass
+                else:
+                    snps = snp_sets[reg_idx - thdata.reg_idx0]
+                    read = mask_read(read, snps, hap, fa)
             out_sam.write(read, cell_idx, umi_int, reg_idx, qname)
 
     in_sam.close()
     out_sam.close()
     fa.close()
 
-    # releae memory, otherwise there will be memory hug when using 
-    # multi-processing in following steps.
-    conf.adata = None
-    conf.reg_list = None
-    del xdata
-    del snp_sets
-    del in_sam
-    del out_sam
-    del fa
-    del all_samplers
-    del ms
-    gc.collect()
+    info("[Thread-%d] index output BAM file(s) ..." % thdata.idx)
+    sam_index(out_sam_fn_list, ncores = 1)
 
-    info("index output BAM file(s) ...")
-    sam_index(out_sam_fn_list, ncores = conf.nproc)
-    
-    # clean
-    info("clean ...")
-
-    res = {
-        "out_sample_fn": out_sample_fn,
-        "out_cell_anno_fn": out_cell_anno_fn,
-        "out_sam_dir": out_sam_dir,
-        "out_sam_fn_list": out_sam_fn_list
-    }
-    return(res)
+    thdata.ret = 0
+    return((0, thdata))
 
 
 def rs_run(conf):
@@ -472,6 +627,11 @@ def prepare_config(conf):
     if not os.path.isfile(conf.refseq_fn):
         error("refseq file needed!")
         return(-1)
+    
+    conf.chrom_list = [format_chrom(c) for c in conf.chroms.split(",")]
+    if len(conf.chrom_list) <= 0:
+        error("chrom names needed!")
+        return(-1)
 
     if conf.cell_tag and conf.cell_tag.upper() == "NONE":
         conf.cell_tag = None
@@ -501,6 +661,11 @@ def prepare_config(conf):
             conf.excl_flag = conf.defaults.EXCL_FLAG_XUMI
 
     return(0)
+
+
+def sam_merge_and_index(in_fn_list, out_fn):
+    sam_merge(in_fn_list, out_fn)
+    pysam.index(out_fn)
 
 
 class MergedSampler:
@@ -546,7 +711,7 @@ class MergedSampler:
 class SAMInput:
     def __init__(
         self, 
-        sams, n_sam, samples, chroms,
+        sams, n_sam, samples, chrom,
         cell_tag, umi_tag,
         min_mapq = 20, min_len = 30,
         incl_flag = 0, excl_flag = None,
@@ -561,7 +726,7 @@ class SAMInput:
         self.n_sam = n_sam
         self.samples = samples
 
-        self.chroms = set(format_chrom(c) for c in chroms)
+        self.chrom = format_chrom(chrom)
 
         self.cell_tag = cell_tag
         self.umi_tag = umi_tag
@@ -577,15 +742,7 @@ class SAMInput:
 
         self.idx = 0
         self.fp = pysam.AlignmentFile(self.sams[self.idx], "r")
-        self.iter = self.fp.fetch()    # CHECK ME! set `until_eof = True`?
-
-    def __check_read_all(self, read):
-        ret = check_read(read, self)
-        if ret < 0:
-            return(ret)
-        if format_chrom(read.reference_name) not in self.chroms:
-            return(-101)
-        return(0)
+        self.iter = sam_fetch(self.fp, self.chrom, None, None)
 
     def __fetch_read(self):
         """Fetch one read."""
@@ -596,14 +753,12 @@ class SAMInput:
                 return(None)
             self.fp.close()
             self.fp = pysam.AlignmentFile(self.sams[self.idx], "r")
-            self.iter = self.fp.fetch()
+            self.iter = sam_fetch(self.fp, self.chrom, None, None)
             return(self.__fetch_read())
         return(read)
     
     def check_read1(self, read):
         # partial filtering to speed up.
-        if format_chrom(read.reference_name) not in self.chroms:
-            return(-101)
         if read.mapq < self.min_mapq:
             return(-2)
         if self.cell_tag and not read.has_tag(self.cell_tag):

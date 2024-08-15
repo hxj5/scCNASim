@@ -33,7 +33,8 @@ def load_feature_from_txt(fn, sep = "\t"):
             rec["chrom"],
             rec["start"],
             rec["end"] + 1,
-            rec["feature"]
+            rec["feature"],
+            i
         )
         reg_list.append(reg)
     return reg_list

@@ -126,7 +126,7 @@ class CUMISampler:
         return(self.dat[cell][umi])
     
     def sample(self, cells, umis, reg_idx):
-        """Sample CUMIs.
+        """Sample CUMIs for one feature.
 
         This function will sample CUMIs from input `cells` and `umis` barcodes
         based on the simulated UMI counts in `X`.

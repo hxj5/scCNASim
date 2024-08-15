@@ -5,3 +5,4 @@ from . import cumi
 from . import fa
 from . import main
 from . import snp
+from . import thread

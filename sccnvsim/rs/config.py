@@ -22,6 +22,7 @@ class Config:
         self.out_dir = None
         self.debug = self.defaults.DEBUG
 
+        self.chroms = self.defaults.CHROMS
         self.cell_tag = self.defaults.CELL_TAG
         self.umi_tag = self.defaults.UMI_TAG
         self.umi_len = self.defaults.UMI_LEN
@@ -33,6 +34,7 @@ class Config:
         self.excl_flag = -1
         self.no_orphan = self.defaults.NO_ORPHAN
 
+        self.chrom_list = None
         self.barcodes = None     # list of barcode strings.
         self.sample_ids = None
         self.adata = None        # the adata containing count matrices.
@@ -44,6 +46,10 @@ class Config:
         self.out_prefix = COMMAND + "."
 
         self.hap_tag = "HT"       # tag for haplotype in BAM file.
+        self.alleles = ("A", "B", "U")
+
+        #self.cumi_max_pool = (1000, 1000, 10000)  # for allele A,B,U
+        self.cumi_max_pool = (0, 0, 0)     # 0 means ulimited.
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -62,6 +68,7 @@ class Config:
         s += "%sdebug_level = %d\n" % (prefix, self.debug)
         s += "%s\n" % prefix
 
+        s += "%schroms = %s\n" % (prefix, self.chroms)
         s += "%scell_tag = %s\n" % (prefix, self.cell_tag)
         s += "%sumi_tag = %s\n" % (prefix, self.umi_tag)
         s += "%sumi_len = %s\n" % (prefix, self.umi_len)
@@ -75,6 +82,7 @@ class Config:
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
         s += "%s\n" % prefix
 
+        s += "%schrom_list = %s\n" % (prefix, str(self.chrom_list))
         s += "%snumber_of_BAMs = %d\n" % (prefix, len(self.sam_fn_list) if \
                 self.sam_fn_list is not None else -1)
         s += "%snumber_of_barcodes = %d\n" % (prefix, len(self.barcodes) if \
@@ -88,6 +96,8 @@ class Config:
         s += "%s\n" % prefix
 
         s += "%shap_tag = %s\n" % (prefix, self.hap_tag)
+        s += "%salleles = %s\n" % (prefix, str(self.alleles))
+        s += "%scumi_max_pool = %s\n" % (prefix, str(self.cumi_max_pool))
         s += "%s\n" % prefix
 
         fp.write(s)
@@ -103,6 +113,7 @@ class DefaultConfig(AFC_Def_Conf):
     def __init__(self):
         super().__init__()
         self.UMI_LEN = 10
+        self.CHROMS = ",".join([str(i) for i in range(1, 23)] + ["X", "Y"])
 
 
 if __name__ == "__main__":

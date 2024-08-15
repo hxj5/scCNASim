@@ -108,7 +108,7 @@ def get_query_qualities(read, full_length=False):
     return result
 
 
-def sam_fetch(sam, chrom, start, end):
+def sam_fetch(sam, chrom, start = None, end = None):
     """Provide a wrapper for sam-fetch method that could automatically
        handle chrom with or without "chr" prefix.
 
@@ -119,17 +119,21 @@ def sam_fetch(sam, chrom, start, end):
     chrom : str
         Chromosome name.
     start : int
-        1-based, inclusive.
+        1-based, inclusive. `None` means minimum possible value.
     end : int
-        1-based, inclusive.
+        1-based, inclusive. `None` means maximum possible value.
 
     Returns
     -------
     Iterator
         Iterator if success, `None` otherwise.
     """
-    try:   # sam.fetch(): start and stop denote 0-based, half-open intervals.
-        itr = sam.fetch(chrom, start - 1, end) 
+    # sam.fetch(): start and stop denote 0-based, half-open intervals.
+    if start is not None:
+        start = start - 1
+
+    try:   
+        itr = sam.fetch(chrom, start, end)
     except:
         pass
     else:
@@ -137,7 +141,7 @@ def sam_fetch(sam, chrom, start, end):
             return itr
     chrom = chrom[3:] if chrom.startswith("chr") else "chr" + chrom
     try:
-        itr = sam.fetch(chrom, start - 1, end)
+        itr = sam.fetch(chrom, start, end)
     except:
         return None
     else:
@@ -145,17 +149,25 @@ def sam_fetch(sam, chrom, start, end):
     
 
 def sam_index(sam_fn_list, ncores = 1):
-    pool = multiprocessing.Pool(processes = ncores)
-    mp_res = []
-    for sam_fn in sam_fn_list:
-        mp_res.append(pool.apply_async(
-            func = pysam.index,
-            args = (sam_fn, ),
-            callback = None
-        ))
-    pool.close()
-    pool.join()
+    if ncores == 1:
+        for sam_fn in sam_fn_list:
+            pysam.index(sam_fn)
+    else:
+        pool = multiprocessing.Pool(processes = ncores)
+        mp_res = []
+        for sam_fn in sam_fn_list:
+            mp_res.append(pool.apply_async(
+                func = pysam.index,
+                args = (sam_fn, ),
+                callback = None
+            ))
+        pool.close()
+        pool.join()
     return(0)
+
+
+def sam_merge(in_fn_list, out_fn):
+    pysam.merge("-f", "-o", out_fn, *in_fn_list)
 
 
 def sam_sort_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
