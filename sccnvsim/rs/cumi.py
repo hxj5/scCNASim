@@ -57,7 +57,7 @@ class UMIGenerator:
 
 
 class CUMISampler:
-    """A sampler to sample cell x Feature CUMIs.
+    """A sampler to sample cell x feature CUMIs.
 
     Here CUMI is short for unique UMI barcode, which is typically set as a
     combination of cell and UMI barcodes (or read query name).
@@ -193,6 +193,46 @@ class CUMISampler:
                 if umi not in self.dat[cell]:
                     self.dat[cell][umi] = []
                 self.dat[cell][umi].append((i, new_umi, reg_idx))
+
+
+class MergedSampler:
+    """Merged object from all allele-specific CUMI samplers.
+
+    Attributes
+    ----------
+    samplers : dict
+        Allele-specific CUMI samplers (CUMISampler object). Keys are the
+        alleles (str) and values are samplers.
+    """
+    def __init__(self, samplers):
+        self.samplers = samplers
+
+    def query(self, cell, umi):
+        """Query CUMI given cell and umi barcodes.
+        
+        Parameters
+        ----------
+        cell : str
+            The cell ID. The cell barcode (10x) or sample ID (SMART-seq).
+        umi : str
+            The read ID. The UMI barcode (10x) or read query name (SMART-seq).
+        
+        Returns
+        -------
+        str
+            The allele where the query CUMI comes from. `None` if the CUMI
+            is not from any sampler.
+        list
+            The meta data assigned to this CUMI. See the returned value of 
+            :func:`CUMISampler.query`. 
+            `None` if the CUMI is not from any sampler.
+        """
+        for allele, sampler in self.samplers.items():
+            res = sampler.query(cell, umi)
+            if res is None:
+                continue
+            return((allele, res))
+        return((None, None))
 
 
 def cumi_sample_for_cells(m, n_list):
