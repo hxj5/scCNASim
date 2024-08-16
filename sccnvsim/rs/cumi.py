@@ -1,6 +1,8 @@
 # cumi.py - cell-specific UMI.
 
 
+import logging
+import multiprocessing
 import numpy as np
 import pandas as pd
 from ..utils.xbarcode import Barcode
@@ -15,6 +17,8 @@ class UMIGenerator:
         The new *cell x feature* matrix of simulated UMI counts.
     m : int
         Length of one new UMI barcode.
+    ncores : int
+        Number of cores.
     b : xbarcode::Barcode object.
         The object to sample UMIs.
     dat : list
@@ -22,28 +26,44 @@ class UMIGenerator:
         Its length equals to number of rows in `X`. Each element is a list of
         arrays, while each array stores the UMIs for one feature.
     """
-    def __init__(self, X, m):
+    def __init__(self, X, m, ncores = 1):
         self.X = X
         self.m = m
         assert m <= 31
+        self.ncores = ncores
 
         self.b = Barcode(m)
         self.dat = None
 
+        logging.info("sample UMIs ...")
         self.__sample_umi()
 
     def __sample_umi(self):
         assert self.dat is None
         self.dat = []
         n, p = self.X.shape
-        for i in range(n):
-            x = self.b.sample_int(n = np.sum(self.X[i, :]), sort = False)
-            res = []
-            k = 0
-            for j in range(p):
-                res.append(x[k:(k+self.X[i, j])])
-                k += self.X[i, j]
-            self.dat.append(res)
+        ncores = min(n, self.ncores)
+        k = None
+        if n % ncores == 0:
+            k = n // ncores
+        else:
+            k = n // ncores + 1
+        mp_res = []
+        logging.info("k=%d with %d cores ..." % (k, ncores))
+        pool = multiprocessing.Pool(processes = ncores)
+        for i in range(0, n, k):
+            X = self.X[i:(i+k), :]
+            mp_res.append(pool.apply_async(
+                func = sample_umi_thread,
+                args = (X, self.m),
+                callback = None
+            ))
+        pool.close()
+        pool.join()
+        mp_res = [res.get() for res in mp_res]
+        for dat in mp_res:
+            self.dat.extend(dat)
+        logging.info("length of sampled UMI data: %d" % len(self.dat))
 
     def get_feature_umi(self, feature_idx):
         """Return the UMIs of each cell for this feature."""
@@ -54,6 +74,21 @@ class UMIGenerator:
 
     def int2str(self, i):
         return self.b.int2str(i)
+
+
+def sample_umi_thread(X, m):
+    dat = []
+    n, p = X.shape
+    b = Barcode(m)
+    for i in range(n):
+        x = b.sample_int(n = np.sum(X[i, :]), sort = False)
+        res = []
+        k = 0
+        for j in range(p):
+            res.append(x[k:(k+X[i, j])])
+            k += X[i, j]
+        dat.append(res)
+    return(dat)
 
 
 class CUMISampler:
@@ -83,15 +118,16 @@ class CUMISampler:
         This option is designed to speed up by reducing the reads to be masked,
         since the read mask is time consuming.
     """
-    def __init__(self, X, m = 10, use_umi = True, max_pool = 0):
+    def __init__(self, X, m = 10, use_umi = True, max_pool = 0, ncores = 1):
         self.X = X
         self.m = m
         self.use_umi = use_umi
         self.max_pool = max_pool
+        self.ncores = ncores
 
         self.umi_gen = None
         if use_umi:
-            self.umi_gen = UMIGenerator(X, m)
+            self.umi_gen = UMIGenerator(X, m, ncores)
         self.dat = {}
 
     def int2str(self, i):
@@ -167,7 +203,7 @@ class CUMISampler:
             m = self.max_pool
         
         n_list = self.X[:, reg_idx]
-        cumi_idx_list = cumi_sample_for_cells(m, n_list)
+        old_cumi_idx_list = cumi_sample_for_cells(m, n_list)
 
         #new_umi_list = None
         #if self.use_umi:
@@ -178,16 +214,16 @@ class CUMISampler:
         #        new_umi_list.append([None] * self.X[i, reg_idx])
         new_umi_list = self.umi_gen.get_feature_umi(reg_idx)
 
-        assert len(cumi_idx_list) == n
+        assert len(old_cumi_idx_list) == n
         assert len(new_umi_list) == n
         for i in range(n):
-            cumi_idxes = cumi_idx_list[i]
+            old_cumi_idxes = old_cumi_idx_list[i]
             new_umis = new_umi_list[i]
-            assert len(cumi_idxes) == self.X[i, reg_idx]
+            assert len(old_cumi_idxes) == self.X[i, reg_idx]
             assert len(new_umis) == self.X[i, reg_idx]
             
-            for cumi_idx, new_umi in zip(cumi_idxes, new_umis):
-                cell, umi = cells[cumi_idx], umis[cumi_idx]
+            for old_cumi_idx, new_umi in zip(old_cumi_idxes, new_umis):
+                cell, umi = cells[old_cumi_idx], umis[old_cumi_idx]
                 if cell not in self.dat:
                     self.dat[cell] = {}
                 if umi not in self.dat[cell]:

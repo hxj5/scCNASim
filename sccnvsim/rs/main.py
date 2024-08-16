@@ -276,7 +276,8 @@ def rs_core(conf):
             xdata.layers[ale],
             m = conf.umi_len,
             use_umi = conf.use_umi(),
-            max_pool = cumi_max_pool[idx]
+            max_pool = cumi_max_pool[idx],
+            ncores = conf.nproc
         )
         for reg_idx, reg in enumerate(conf.reg_list):
             fn = reg.aln_fns[ale]
