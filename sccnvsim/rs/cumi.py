@@ -1,94 +1,206 @@
 # cumi.py - cell-specific UMI.
 
 
-import logging
+import anndata as ad
 import multiprocessing
 import numpy as np
+import os
 import pandas as pd
+import pickle
+from ..utils.base import is_file_empty
 from ..utils.xbarcode import Barcode
 
 
-class UMIGenerator:
+def gen_umis(
+    xdata, 
+    chrom_list, chrom_reg_idx_range_list,
+    alleles, m, out_dir, ncores = 1,
+):
     """To generate cell x feature UMIs to be used in new BAM.
     
-    Attributes
+    Parameters
     ----------
-    X: np.array
-        The new *cell x feature* matrix of simulated UMI counts.
+    xdata : adata object
+        The adata object containing *cell x feature* matrices of simulated 
+        UMI counts.
+    alleles : list
+        A list of alleles, e.g., "A", "B", "U".
     m : int
         Length of one new UMI barcode.
     ncores : int
         Number of cores.
-    b : xbarcode::Barcode object.
-        The object to sample UMIs.
-    dat : list
-        The object storing the UMIs, *cell x feature x UMIs(or UMI_ints)*.
-        Its length equals to number of rows in `X`. Each element is a list of
-        arrays, while each array stores the UMIs for one feature.
+    out_dir : str
+        Output folder.
     """
-    def __init__(self, X, m, ncores = 1):
-        self.X = X
-        self.m = m
-        assert m <= 31
-        self.ncores = ncores
+    assert m <= 31
+    assert len(chrom_list) == len(chrom_reg_idx_range_list)
+    n, p = xdata.shape
 
-        self.b = Barcode(m)
-        self.dat = None
+    ncores = min(n, ncores)
+    k = None
+    if n % ncores == 0:
+        k = n // ncores
+    else:
+        k = n // ncores + 1
 
-        logging.info("sample UMIs ...")
-        self.__sample_umi()
+    tmp_dir = os.path.join(out_dir, "tmp")
+    os.makedirs(tmp_dir, exist_ok = True)
 
-    def __sample_umi(self):
-        assert self.dat is None
-        self.dat = []
-        n, p = self.X.shape
-        ncores = min(n, self.ncores)
-        k = None
-        if n % ncores == 0:
-            k = n // ncores
+    fn_list = []
+    for idx, i in enumerate(range(0, n, k)):
+        fn = os.path.join(tmp_dir, "adata_batch%d.h5ad" % idx)
+        xdata_batch = xdata[i:(i+k), :]
+        xdata_batch.write_h5ad(fn)
+        fn_list.append(fn)
+    del xdata
+
+    mp_res = []
+    pool = multiprocessing.Pool(processes = ncores)
+    for idx, fn in enumerate(fn_list):
+        mp_res.append(pool.apply_async(
+            func = gen_umis_thread,
+            args = (idx, fn, chrom_list, chrom_reg_idx_range_list, alleles, m),
+            callback = None
+        ))
+    pool.close()
+    pool.join()
+    mp_res = [res.get() for res in mp_res]
+
+    dat = []     # chrom x allele
+    for _ in chrom_list:
+        chrom_dat = [[] for __ in range(len(alleles))]
+        dat.append(chrom_dat)
+
+    for idx_res, res in enumerate(mp_res):
+        for c in range(len(chrom_list)):
+            for k in range(len(alleles)):
+                dat[c][k].extend(res[c][k])
+
+    # save chrom-specific UMI data into file.
+    # TODO: this step is time-consuming, use multiprocessing.
+    out_fn_list = []
+    for c, chrom in enumerate(chrom_list):
+        fn = os.path.join(
+            out_dir, "chrom%s.allele_x_cell_x_feature.umis.pickle" % chrom)
+        with open(fn, "wb") as fp:
+            pickle.dump(dat[c], fp)
+        out_fn_list.append(fn)
+    return(out_fn_list)
+
+
+def gen_umis_thread(idx, fn, chrom_list, chrom_reg_idx_range_list, alleles, m):
+    xdata = ad.read_h5ad(fn)
+    RD = None
+    for i, ale in enumerate(alleles):
+        assert ale in xdata.layers
+        if i == 0:
+            RD = xdata.layers[ale].copy()
         else:
-            k = n // ncores + 1
-        mp_res = []
-        logging.info("k=%d with %d cores ..." % (k, ncores))
-        pool = multiprocessing.Pool(processes = ncores)
-        for i in range(0, n, k):
-            X = self.X[i:(i+k), :]
-            mp_res.append(pool.apply_async(
-                func = sample_umi_thread,
-                args = (X, self.m),
-                callback = None
-            ))
-        pool.close()
-        pool.join()
-        mp_res = [res.get() for res in mp_res]
-        for dat in mp_res:
-            self.dat.extend(dat)
-        logging.info("length of sampled UMI data: %d" % len(self.dat))
+            RD += xdata.layers[ale]
+    n, p = RD.shape
 
-    def get_feature_umi(self, feature_idx):
-        """Return the UMIs of each cell for this feature."""
-        res = []
-        for i in range(self.X.shape[0]):
-            res.append(self.dat[i][feature_idx])
-        return(res)
+    dat = []     # chrom x allele x cell
+    for _ in chrom_list:
+        chrom_dat = []
+        for __ in range(len(alleles)):
+            ale_dat = [[] for ___ in range(n)]
+            chrom_dat.append(ale_dat)
+        dat.append(chrom_dat)
 
-    def int2str(self, i):
-        return self.b.int2str(i)
-
-
-def sample_umi_thread(X, m):
-    dat = []
-    n, p = X.shape
     b = Barcode(m)
     for i in range(n):
-        x = b.sample_int(n = np.sum(X[i, :]), sort = False)
-        res = []
-        k = 0
-        for j in range(p):
-            res.append(x[k:(k+X[i, j])])
-            k += X[i, j]
-        dat.append(res)
-    return(dat)
+        x = b.sample_int(n = np.sum(RD[i, :]), sort = False)
+        r = 0
+        for k, ale in enumerate(alleles):
+            X = xdata.layers[ale]
+            for c, (s, e) in enumerate(chrom_reg_idx_range_list):
+                if s is None or e is None:
+                    continue
+                for j in range(s, e):
+                    dat[c][k][i].append(x[r:(r+X[i, j])])
+                    r += X[i, j]
+
+    return(dat)     # chrom x allele x cell x feature
+
+
+def gen_cumis(
+    xdata_fn_list, reg_fn_list, reg_idx_range_list,
+    umi_fn_list, chrom_list,
+    alleles, out_dir,
+    use_umi = True,
+    max_pool = None, ncores = 1
+):
+    assert len(xdata_fn_list) == len(chrom_list)
+    assert len(reg_fn_list) == len(chrom_list)
+    assert len(reg_idx_range_list) == len(chrom_list)
+    assert len(umi_fn_list) == len(chrom_list)
+    if max_pool is None:
+        max_pool = [0] * len(alleles)
+    else:
+        assert len(max_pool) == len(alleles)
+
+    mp_res = []
+    pool = multiprocessing.Pool(processes = ncores)
+    for idx, chrom in enumerate(chrom_list):
+        mp_res.append(pool.apply_async(
+            func = gen_cumis_chrom,
+            kwds = dict(
+                xdata_fn = xdata_fn_list[idx],
+                reg_fn = reg_fn_list[idx],
+                reg_idx_range = reg_idx_range_list[idx], 
+                umi_fn = umi_fn_list[idx],
+                alleles = alleles,
+                out_fn = os.path.join(
+                    out_dir, "chrom%s.cumi.msampler.pickle" % chrom),
+                use_umi = use_umi,
+                max_pool = max_pool
+            ),
+            callback = None
+        ))
+    pool.close()
+    pool.join()
+    mp_res = [res.get() for res in mp_res]
+
+    out_fn_list = mp_res
+    return(out_fn_list)
+    
+
+def gen_cumis_chrom(
+    xdata_fn, reg_fn, reg_idx_range, 
+    umi_fn, alleles, out_fn,
+    use_umi = True, max_pool = None
+):
+    xdata = ad.read_h5ad(xdata_fn)
+    with open(reg_fn, "rb") as fp:
+        reg_list = pickle.load(fp)
+    with open(umi_fn, "rb") as fp:
+        umi_list = pickle.load(fp)
+
+    s, e = reg_idx_range[:2]
+    reg_idx_list = None
+    if s is None or e is None:
+        reg_idx_list = []
+    else:
+        reg_idx_list = range(s, e)
+
+    ale_samplers = []
+    for idx, ale in enumerate(alleles):
+        sampler = CUMISampler(
+            X = xdata.layers[ale],
+            reg_idx_list = reg_idx_list,
+            allele_fn_list = [reg.aln_fns[ale] for reg in reg_list],
+            use_umi = use_umi,
+            umis = umi_list[idx], 
+            max_pool = max_pool[idx]
+        )
+        sampler.sample()
+        ale_samplers.append(sampler)
+
+    ms = MergedSampler(
+        {ale:sampler for ale, sampler in zip(alleles, ale_samplers)})
+    with open(out_fn, "wb") as fp:
+        pickle.dump(ms, fp)
+    return(out_fn)
 
 
 class CUMISampler:
@@ -107,31 +219,109 @@ class CUMISampler:
     ----------
     X: np.array
         The new *cell x feature* matrix of simulated UMI counts.
-    m : int
-        Length of one new UMI barcode.
+    reg_list : list
+        A list of region objects.
     use_umi : int
         Whether use UMI in CUMI.
         If False, only cell barcode is included in CUMI.
+    umis : object
+        The *cell x feature* new UMIs returned by :func:`gen_umis`.
     max_pool : int
         Maximum pool size, i.e., max number of old CUMIs to be used for
         sampling for one feature. Set to `0` if unlimited. 
         This option is designed to speed up by reducing the reads to be masked,
         since the read mask is time consuming.
     """
-    def __init__(self, X, m = 10, use_umi = True, max_pool = 0, ncores = 1):
+    def __init__(
+        self, X, reg_idx_list, allele_fn_list,
+        use_umi = True, umis = None, 
+        max_pool = 0
+    ):
         self.X = X
-        self.m = m
+        self.reg_idx_list = reg_idx_list
+        self.allele_fn_list = allele_fn_list
         self.use_umi = use_umi
+        self.umis = umis
         self.max_pool = max_pool
-        self.ncores = ncores
 
-        self.umi_gen = None
-        if use_umi:
-            self.umi_gen = UMIGenerator(X, m, ncores)
+        assert len(reg_idx_list) == X.shape[1]
+        assert len(reg_idx_list) == len(allele_fn_list)
+        if umis is not None:
+            assert len(umis) == X.shape[0]
+            for dat in umis:
+                assert len(dat) == X.shape[1]
+
         self.dat = {}
+    
+    def __sample_for_feature(self, cells, umis, reg_idx, reg_idx_whole = None):
+        """Sample CUMIs for one feature.
 
-    def int2str(self, i):
-        return self.umi_gen.int2str(i)
+        This function will sample CUMIs from input `cells` and `umis` barcodes
+        based on the simulated UMI counts in `X`.
+        If `use_umi` is `True`, then each sampled CUMI will also be assigned
+        a newly generated UMI barcode (note new cell barcodes have been
+        generated elsewhere beforehand).
+
+        Note that one old CUMI can be assigned multiple new CUMIs, if it is 
+        sampled more than once.
+        
+        Parameters
+        ----------
+        cells : list-like
+            The cell barcodes (str), as part of CUMIs, to be sampled from.
+        umis : list-like
+            The UMI barcodes (str), as part of CUMIs, to be sampled from.
+            Its length and order should match `cells`.
+        reg_idx : int
+            The index (0-based) of the region/feature.
+        
+        Returns
+        -------
+        Void.
+        """
+        n, p = self.X.shape
+        m = len(cells)
+
+        if self.max_pool > 0 and m > self.max_pool:
+            idx = np.random.choice(
+                range(m), 
+                size = self.max_pool,
+                replace = False
+            )
+            idx = sorted(list(idx))
+            cells = [cells[i] for i in idx]
+            umis = [umis[i] for i in idx]
+            m = self.max_pool
+        
+        n_list = self.X[:, reg_idx]
+        old_cumi_idx_list = cumi_sample_for_cells(m, n_list)
+
+        new_umi_list = []
+        for i in range(n):
+            new_umi_list.append(self.umis[i][reg_idx])
+
+        assert len(old_cumi_idx_list) == n
+        assert len(new_umi_list) == n
+        for i in range(n):
+            old_cumi_idxes = old_cumi_idx_list[i]
+            new_umis = new_umi_list[i]
+            assert len(old_cumi_idxes) == self.X[i, reg_idx]
+            if len(new_umis) != self.X[i, reg_idx]:
+                import logging
+                logging.info("n=%d; p=%d; i=%d; reg_idx=%d; reg_idx_whole=%d" % (
+                    n, p, i, reg_idx, reg_idx_whole))
+                logging.info("len(new_umi_list)=%d;" % len(new_umi_list))
+                logging.info("len(new_umis)=%d; Xij=%d" % (len(new_umis), self.X[i, reg_idx]))
+                logging.info("new_umis=%s" % str(new_umis))
+            assert len(new_umis) == self.X[i, reg_idx]
+            
+            for old_cumi_idx, new_umi in zip(old_cumi_idxes, new_umis):
+                cell, umi = cells[old_cumi_idx], umis[old_cumi_idx]
+                if cell not in self.dat:
+                    self.dat[cell] = {}
+                if umi not in self.dat[cell]:
+                    self.dat[cell][umi] = []
+                self.dat[cell][umi].append((i, new_umi, reg_idx_whole))
 
     def query(self, cell, umi):
         """Query new CUMI.
@@ -160,75 +350,15 @@ class CUMISampler:
         if cell not in self.dat or umi not in self.dat[cell]:
             return(None)
         return(self.dat[cell][umi])
-    
-    def sample(self, cells, umis, reg_idx):
-        """Sample CUMIs for one feature.
 
-        This function will sample CUMIs from input `cells` and `umis` barcodes
-        based on the simulated UMI counts in `X`.
-        If `use_umi` is `True`, then each sampled CUMI will also be assigned
-        a newly generated UMI barcode (note new cell barcodes have been
-        generated elsewhere beforehand).
-
-        Note that one old CUMI can be assigned multiple new CUMIs, if it is 
-        sampled more than once.
-        
-        Parameters
-        ----------
-        cells : list-like
-            The cell barcodes (str), as part of CUMIs, to be sampled from.
-        umis : list-like
-            The UMI barcodes (str), as part of CUMIs, to be sampled from.
-            Its length and order should match `cells`.
-        reg_idx : int
-            The index (0-based) of the region/feature.
-        
-        Returns
-        -------
-        Void.
-        """
-        n, p = self.X.shape
-        m = len(cells)
-        assert len(umis) == m
-
-        if self.max_pool > 0 and m > self.max_pool:
-            idx = np.random.choice(
-                range(m), 
-                size = self.max_pool,
-                replace = False
-            )
-            idx = sorted(list(idx))
-            cells = [cells[i] for i in idx]
-            umis = [umis[i] for i in idx]
-            m = self.max_pool
-        
-        n_list = self.X[:, reg_idx]
-        old_cumi_idx_list = cumi_sample_for_cells(m, n_list)
-
-        #new_umi_list = None
-        #if self.use_umi:
-        #    new_umi_list = self.umi_gen.get_feature_umi(reg_idx)
-        #else:
-        #    new_umi_list = []
-        #    for i in range(n):
-        #        new_umi_list.append([None] * self.X[i, reg_idx])
-        new_umi_list = self.umi_gen.get_feature_umi(reg_idx)
-
-        assert len(old_cumi_idx_list) == n
-        assert len(new_umi_list) == n
-        for i in range(n):
-            old_cumi_idxes = old_cumi_idx_list[i]
-            new_umis = new_umi_list[i]
-            assert len(old_cumi_idxes) == self.X[i, reg_idx]
-            assert len(new_umis) == self.X[i, reg_idx]
-            
-            for old_cumi_idx, new_umi in zip(old_cumi_idxes, new_umis):
-                cell, umi = cells[old_cumi_idx], umis[old_cumi_idx]
-                if cell not in self.dat:
-                    self.dat[cell] = {}
-                if umi not in self.dat[cell]:
-                    self.dat[cell][umi] = []
-                self.dat[cell][umi].append((i, new_umi, reg_idx))
+    def sample(self):
+        for reg_idx, reg_idx_whole in enumerate(self.reg_idx_list):
+            fn = self.allele_fn_list[reg_idx]
+            if is_file_empty(fn):
+                continue
+            dat = load_cumi(fn, sep = "\t")
+            self.__sample_for_feature(
+                dat["cell"], dat["umi"], reg_idx, reg_idx_whole)
 
 
 class MergedSampler:

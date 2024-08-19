@@ -51,6 +51,10 @@ class Config:
         #self.cumi_max_pool = (1000, 1000, 10000)  # for allele A,B,U
         self.cumi_max_pool = (0, 0, 0)     # 0 means ulimited.
 
+        self.out_sam_dir = None
+        self.out_step_dir = None
+
+
     def show(self, fp = None, prefix = ""):
         if fp is None:
             fp = sys.stdout
@@ -98,6 +102,10 @@ class Config:
         s += "%shap_tag = %s\n" % (prefix, self.hap_tag)
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
         s += "%scumi_max_pool = %s\n" % (prefix, str(self.cumi_max_pool))
+        s += "%s\n" % prefix
+
+        s += "%sout_sam_dir = %s\n" % (prefix, self.out_sam_dir)
+        s += "%sout_step_dir = %s\n" % (prefix, self.out_step_dir)
         s += "%s\n" % prefix
 
         fp.write(s)

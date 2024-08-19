@@ -13,7 +13,7 @@ import time
 from logging import info, error, debug
 from logging import warning as warn
 from .config import Config, COMMAND
-from .cumi import CUMISampler, load_cumi, MergedSampler
+from .cumi import gen_umis, gen_cumis
 from .fa import FAChrom
 from .sam import SAMInput, SAMOutput, sam_merge_and_index
 from .snp import SNPSet, mask_read
@@ -21,7 +21,6 @@ from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str, save_cells, save_samples
-from ..utils.base import is_file_empty
 from ..utils.grange import format_chrom
 from ..utils.sam import sam_index
 from ..utils.xlog import init_logging
@@ -195,8 +194,6 @@ def rs_core(conf):
     info("program configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
 
-    tmp_dir = os.path.join(conf.out_dir, "tmp")
-    os.makedirs(tmp_dir, exist_ok = True)
 
     # check args.
     info("check args ...")
@@ -222,6 +219,8 @@ def rs_core(conf):
     assert conf.umi_len <= 31
     RD = xdata.layers["A"] + xdata.layers["B"] + xdata.layers["U"]
     assert np.max(RD.sum(axis = 1)) <= 4 ** conf.umi_len    # cell library size
+    del RD
+    RD = None
 
     out_samples = xdata.obs["cell"].to_numpy()
     out_sample_fn = os.path.join(
@@ -231,103 +230,129 @@ def rs_core(conf):
     save_samples(xdata.obs[["cell"]], out_sample_fn)
     save_cells(xdata.obs[["cell", "cell_type"]], out_cell_anno_fn)
 
-    out_sam_dir = os.path.join(conf.out_dir, "bam")
-    os.makedirs(out_sam_dir, exist_ok = True)
-    out_sam_fn_list = []
-    tmp_sam_dir = os.path.join(tmp_dir, "bam")
-    os.makedirs(tmp_sam_dir, exist_ok = True)
-    tmp_sam_sample_dirs = []
-    tmp_sam_fn_list = [[]]
-    if conf.use_barcodes():
-        sample_dir = os.path.join(tmp_sam_dir, "Sample0")
-        os.makedirs(sample_dir, exist_ok = True)
-        sam_fn = conf.out_prefix + "possorted.bam"
-        tmp_sam_sample_dirs.append(sample_dir)
-        out_sam_fn_list.append(os.path.join(out_sam_dir, sam_fn))
-        for chrom in conf.chrom_list:
-            tmp_sam_fn_list[0].append(os.path.join(
-                sample_dir, "%s.%s" % (chrom, sam_fn)))
-    else:
-        for idx, sample in enumerate(out_samples):
-            sample_dir = os.path.join(tmp_sam_dir, sample)
-            os.makedirs(sample_dir, exist_ok = True)
-            sam_fn = conf.out_prefix + "%s.possorted.bam" % sample
-            tmp_sam_sample_dirs.append(sample_dir)
-            out_sam_fn_list.append(os.path.join(out_sam_dir, sam_fn))
-            tmp_sam_fn_list += [[]]
-            for chrom in conf.chrom_list:
-                tmp_sam_fn_list[idx].append(os.path.join(
-                    sample_dir, "%s.%s" % (chrom, sam_fn)))
-                
-    if conf.debug > 0:
-        debug("len(tmp_sam_fn_list) = %d" % len(tmp_sam_fn_list))
-                
-    # CUMI sampling.
-    # TODO:
-    # - CHECK ME!! The new CUMIs are generated for each allele count matrix
-    #   separately, which may cause conflict, e.g., allele A and B may have
-    #   the same CUMIs.
-    # - Create chrom-specific samplers to save memory.
 
-    all_samplers = []
-    for idx, ale in enumerate(alleles):
-        info("CUMI sampling for allele '%s' ..." % ale)
-        sampler = CUMISampler(
-            xdata.layers[ale],
-            m = conf.umi_len,
-            use_umi = conf.use_umi(),
-            max_pool = cumi_max_pool[idx],
-            ncores = conf.nproc
-        )
-        for reg_idx, reg in enumerate(conf.reg_list):
-            fn = reg.aln_fns[ale]
-            if is_file_empty(fn):
-                continue
-            dat = load_cumi(fn, sep = "\t")
-            sampler.sample(dat["cell"], dat["umi"], reg_idx)
-        all_samplers.append(sampler)
-    ms = MergedSampler(
-        {ale:sampler for ale, sampler in zip(alleles, all_samplers)})
-    ms_fn = os.path.join(tmp_dir, "cumi_multi_sampler.pickle")
-    with open(ms_fn, "wb") as fp:
-        pickle.dump(ms, fp)
+    # prepare data
+    info("prepare data ...")
+
+    data_dir = os.path.join(conf.out_step_dir, "0_data")
+    os.makedirs(data_dir, exist_ok = True)
+
+    chrom_reg_idx_range_list = []
+    all_idx = np.array(range(p))
+    for chrom in conf.chrom_list:
+        idx = all_idx[xdata.var["chrom"] == chrom]
+        if len(idx) <= 0:
+            chrom_reg_idx_range_list.append([None, None])
+        else:
+            chrom_reg_idx_range_list.append([idx[0], idx[-1] + 1])
 
     # split chrom-specific count adata.
-    chr_ad_fn_list = []
+    info("split chrom-specific count adata ...")
+
+    d = os.path.join(data_dir, "chrom_counts")
+    os.makedirs(d, exist_ok = True)
+    chrom_counts_fn_list = []
     for chrom in conf.chrom_list:
-        fn = os.path.join(tmp_dir, "chrom%s.counts.h5ad" % chrom)
+        fn = os.path.join(d, "chrom%s.counts.h5ad" % chrom)
         adat = xdata[:, xdata.var["chrom"] == chrom]
         adat.write_h5ad(fn)
-        chr_ad_fn_list.append(fn)
+        chrom_counts_fn_list.append(fn)
     del conf.adata
     conf.adata = None
 
-    # FIX ME!!
-    # TEMP operations.
-    # DEL following blocks in future.
-    for i, reg in enumerate(conf.reg_list):
-        reg.index = i
-    # END
-
     # split chrom-specific regions.
-    chr_reg_fn_list = []
-    chr_reg_idx0_list = []
+    info("split chrom-specific regions ...")
+
+    d = os.path.join(data_dir, "chrom_features")
+    os.makedirs(d, exist_ok = True)
+    chrom_reg_fn_list = []
+    chrom_reg_idx0_list = [s for s, e in chrom_reg_idx_range_list]
     for chrom in conf.chrom_list:
-        fn = os.path.join(tmp_dir, "chrom%s.regions.pickle" % chrom)
+        fn = os.path.join(d, "chrom%s.features.pickle" % chrom)
         regions = [reg for reg in conf.reg_list if reg.chrom == chrom]
         with open(fn, "wb") as fp:
             pickle.dump(regions, fp)
-        chr_reg_fn_list.append(fn)
-        idx0 = None
-        if len(regions) > 0:
-            idx0 = regions[0].index
-        chr_reg_idx0_list.append(idx0)
+        chrom_reg_fn_list.append(fn)
     del conf.reg_list
     conf.reg_list = None
+    step = 1
 
-    # multi-processing for all chromosomes.
+
+    # generate new UMIs
+    info("generate new UMIs ...")
+
+    xdata = load_counts(conf.count_fn)
+    res_umi_dir = os.path.join(conf.out_step_dir, "%d_umi" % step)
+    os.makedirs(res_umi_dir, exist_ok = True)
+    chrom_umi_fn_list = gen_umis(
+        xdata = xdata, 
+        chrom_list = conf.chrom_list, 
+        chrom_reg_idx_range_list = chrom_reg_idx_range_list,
+        alleles = alleles, m = conf.umi_len, 
+        out_dir = res_umi_dir, ncores = conf.nproc
+    )     # note that `xdata` is deleted inside this function.
+    xdata = None
+    assert len(chrom_umi_fn_list) == len(conf.chrom_list)
+    step += 1
+
+
+    # CUMI sampling.
+    info("generate new CUMIs ...")
+    res_cumi_dir = os.path.join(conf.out_step_dir, "%d_cumi" % step)
+    os.makedirs(res_cumi_dir, exist_ok = True)
+    chrom_cumi_fn_list = gen_cumis(
+        xdata_fn_list = chrom_counts_fn_list,
+        reg_fn_list = chrom_reg_fn_list,
+        reg_idx_range_list = chrom_reg_idx_range_list,
+        umi_fn_list = chrom_umi_fn_list,
+        chrom_list = conf.chrom_list,
+        alleles = alleles,
+        out_dir = res_cumi_dir,
+        use_umi = conf.use_umi(),
+        max_pool = cumi_max_pool,
+        ncores = conf.nproc        
+    )
+    assert len(chrom_cumi_fn_list) == len(conf.chrom_list)
+    step += 1
+
+
+    # create output BAM files.
+    conf.out_sam_dir = os.path.join(conf.out_dir, "bam")
+    os.makedirs(conf.out_sam_dir, exist_ok = True)
+    res_sam_dir = os.path.join(conf.out_step_dir, "%d_bam" % step)
+    os.makedirs(res_sam_dir, exist_ok = True)
+
+    out_sam_fn_list = []
+    chrom_sam_sample_dirs = []
+    chrom_sam_fn_list = None          # sample x chrom
+    if conf.use_barcodes():
+        chrom_sam_fn_list = [[]]
+        sample_dir = os.path.join(res_sam_dir, "Sample0")
+        os.makedirs(sample_dir, exist_ok = True)
+        chrom_sam_sample_dirs.append(sample_dir)
+        sam_fn = conf.out_prefix + "possorted.bam"
+        for chrom in conf.chrom_list:
+            chrom_sam_fn_list[0].append(os.path.join(
+                sample_dir, "%s.%s" % (chrom, sam_fn)))
+        out_sam_fn_list.append(os.path.join(conf.out_sam_dir, sam_fn))
+    else:
+        chrom_sam_fn_list = [[] for _ in range(len(out_samples))]
+        for idx, sample in enumerate(out_samples):
+            sample_dir = os.path.join(res_sam_dir, sample)
+            os.makedirs(sample_dir, exist_ok = True)
+            chrom_sam_sample_dirs.append(sample_dir)
+            sam_fn = conf.out_prefix + "%s.possorted.bam" % sample
+            for chrom in conf.chrom_list:
+                chrom_sam_fn_list[idx].append(os.path.join(
+                    sample_dir, "%s.%s" % (chrom, sam_fn)))
+            out_sam_fn_list.append(os.path.join(conf.out_sam_dir, sam_fn))
+
+
+    # generate new BAM files.
+    info("generate new BAM files ...")
+
     m_chroms = len(conf.chrom_list)
-    m_thread = conf.nproc if m_chroms >= conf.nproc else m_chroms
+    m_thread = min(conf.nproc, m_chroms)
     thdata_list = []
     pool = multiprocessing.Pool(processes = m_thread)
     mp_result = []
@@ -335,12 +360,11 @@ def rs_core(conf):
         thdata = ThreadData(
             idx = i, conf = conf,
             chrom = conf.chrom_list[i],
-            reg_obj_fn = chr_reg_fn_list[i],
-            reg_idx0 = chr_reg_idx0_list[i],
-            adata_fn = chr_ad_fn_list[i],
-            msampler_fn = ms_fn,
+            reg_obj_fn = chrom_reg_fn_list[i],
+            reg_idx0 = chrom_reg_idx0_list[i],
+            cumi_fn = chrom_cumi_fn_list[i],
             out_samples = out_samples,
-            out_sam_fn_list = [s[i] for s in tmp_sam_fn_list]
+            out_sam_fn_list = [s[i] for s in chrom_sam_fn_list]
         )
         thdata_list.append(thdata)
         if conf.debug > 0:
@@ -369,19 +393,22 @@ def rs_core(conf):
             raise ValueError
     del thdata_list
 
+
     # merge BAM files.
     info("merge output BAM file(s) ...")
-    assert len(out_sam_fn_list) == len(tmp_sam_fn_list)
+
+    assert len(out_sam_fn_list) == len(chrom_sam_fn_list)
     pool = multiprocessing.Pool(processes = conf.nproc)
     mp_result = []
     for i in range(len(out_sam_fn_list)):
         mp_result.append(pool.apply_async(
             func = sam_merge_and_index, 
-            args = (tmp_sam_fn_list[i], out_sam_fn_list[i]), 
+            args = (chrom_sam_fn_list[i], out_sam_fn_list[i]),
             callback = None))
     pool.close()
     pool.join()
-    
+
+
     # clean
     info("clean ...")
     # TODO: delete tmp dir.
@@ -389,7 +416,7 @@ def rs_core(conf):
     res = {
         "out_sample_fn": out_sample_fn,
         "out_cell_anno_fn": out_cell_anno_fn,
-        "out_sam_dir": out_sam_dir,
+        "out_sam_dir": conf.out_sam_dir,
         "out_sam_fn_list": out_sam_fn_list
     }
     return(res)
@@ -398,22 +425,20 @@ def rs_core(conf):
 def rs_core_chrom(thdata):
     conf = thdata.conf
 
-    alleles = conf.alleles
-    cumi_max_pool = conf.cumi_max_pool
     out_sam_fn_list = thdata.out_sam_fn_list
 
     # check args.
-    info("[Thread-%d] processing chrom %s ..." % (thdata.idx, thdata.chrom))
+    info("[chrom-%s] start loading data ..." % (thdata.chrom, ))
 
     with open(thdata.reg_obj_fn, "rb") as fp:
         reg_list = pickle.load(fp)
-    xdata = ad.read_h5ad(thdata.adata_fn)
-    n, p = xdata.shape
-    assert len(reg_list) == p
-    for i in range(p):
-        assert xdata.var["feature"].iloc[i] == reg_list[i].name
+    #xdata = ad.read_h5ad(thdata.adata_fn)
+    #n, p = xdata.shape
+    #assert len(reg_list) == p
+    #for i in range(p):
+    #    assert xdata.var["feature"].iloc[i] == reg_list[i].name
     snp_sets = [SNPSet(reg.snp_list) for reg in reg_list]
-    info("[Thread-%d] %d features loaded in %d cells." % (thdata.idx, p, n))
+    #info("[chrom-%s] %d features loaded in %d cells." % (thdata.chrom, p, n))
 
     # input BAM(s)
     in_sam = SAMInput(
@@ -425,8 +450,8 @@ def rs_core_chrom(thdata):
         incl_flag = conf.incl_flag, excl_flag = conf.excl_flag,
         no_orphan = conf.no_orphan
     )
-    info("[Thread-%d] %d input BAM(s) loaded." % (
-        thdata.idx, len(conf.sam_fn_list)))
+    debug("[chrom-%s] %d input BAM(s) loaded." % (
+        thdata.chrom, len(conf.sam_fn_list)))
     
     # output BAM(s)
     out_sam = SAMOutput(
@@ -435,20 +460,20 @@ def rs_core_chrom(thdata):
         cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
         umi_len = conf.umi_len
     )
-    info("[Thread-%d] %d output BAM(s) created." % (
-        thdata.idx, len(out_sam_fn_list)))
+    debug("[chrom-%s] %d output BAM(s) created." % (
+        thdata.chrom, len(out_sam_fn_list)))
 
     # refseq
     fa = FAChrom(conf.refseq_fn)
-    info("[Thread-%d] FASTA file loaded." % thdata.idx)
+    debug("[chrom-%s] FASTA file loaded." % thdata.chrom)
 
     # multi-sampler
-    with open(thdata.msampler_fn, "rb") as fp:
+    with open(thdata.cumi_fn, "rb") as fp:
         ms = pickle.load(fp)
-    info("[Thread-%d] multi-sampler loaded." % thdata.idx)
+    debug("[chrom-%s] CUMI multi-sampler loaded." % thdata.chrom)
 
     # core part of read sampling.
-    info("[Thread-%d] start to iterate reads ..." % thdata.idx)
+    info("[chrom-%s] start to iterate reads ..." % thdata.chrom)
     while True:
         read_dat = in_sam.fetch()   # get one read (after internal filtering).
         if read_dat is None:        # end of file.
@@ -484,7 +509,7 @@ def rs_core_chrom(thdata):
     out_sam.close()
     fa.close()
 
-    info("[Thread-%d] index output BAM file(s) ..." % thdata.idx)
+    info("[chrom-%s] index output BAM file(s) ..." % thdata.chrom)
     sam_index(out_sam_fn_list, ncores = 1)
 
     thdata.ret = 0
@@ -599,7 +624,7 @@ def prepare_config(conf):
 
     if conf.count_fn:
         if os.path.isfile(conf.count_fn):
-            conf.adata = ad.read_h5ad(conf.count_fn)
+            conf.adata = load_counts(conf.count_fn)
         else:
             error("count file '%s' does not exist." % conf.count_fn)
             return(-1)
@@ -609,8 +634,7 @@ def prepare_config(conf):
 
     if conf.feature_fn:
         if os.path.isfile(conf.feature_fn):
-            with open(conf.feature_fn, "rb") as fp:
-                conf.reg_list = pickle.load(fp)
+            conf.reg_list = load_features(conf.feature_fn)
             if not conf.reg_list:
                 error("failed to load feature file.")
                 return(-1)
@@ -659,4 +683,19 @@ def prepare_config(conf):
         else:
             conf.excl_flag = conf.defaults.EXCL_FLAG_XUMI
 
+    if conf.out_step_dir is None:
+        conf.out_step_dir = os.path.join(conf.out_dir, "steps")
+    os.makedirs(conf.out_step_dir, exist_ok = True)
+
     return(0)
+
+
+def load_counts(fn):
+    dat = ad.read_h5ad(fn)
+    return(dat)
+
+
+def load_features(fn):
+    with open(fn, "rb") as fp:
+        dat = pickle.load(fp)
+    return(dat)

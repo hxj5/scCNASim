@@ -1,6 +1,10 @@
 # main.py - cmdline interface.
 
 
+# TODO:
+# 1. filter regions based on the input chrom list at the very beginning.
+
+
 import anndata as ad
 import numpy as np
 import os

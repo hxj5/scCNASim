@@ -69,8 +69,6 @@ class BlockRegion(Region):
         1-based end pos, exclusive.
     name : str
         Name of the block.
-    index : int
-        The index of the block, 0-based.
     snp_list : list
         A list of SNPs (`SNP` objects) located within the block.
     res_dir : str
@@ -79,11 +77,10 @@ class BlockRegion(Region):
         The files containing allele-specific (A,B,U) alignments/UMIs. 
         Keys are the alleles (A,B,U), values are the paths to the files.
     """
-    def __init__(self, chrom, start, end, name = None, index = None,
+    def __init__(self, chrom, start, end, name = None,
                 snp_list = None, res_dir = None):
         super().__init__(chrom, start, end)
         self.name = name
-        self.index = index
         self.snp_list = snp_list
         self.res_dir = res_dir
         self.aln_fns = None

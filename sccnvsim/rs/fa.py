@@ -2,7 +2,7 @@
 
 
 import pysam
-from logging import info, error, debug
+from logging import error, debug
 from ..utils.grange import format_chrom
 
 
@@ -90,7 +90,7 @@ class FAChrom:
         """
         chrom = format_chrom(chrom)
         if chrom != self.chrom:
-            info("add chrom '%s'." % chrom)
+            debug("add chrom '%s'." % chrom)
             self.__add_chrom(chrom)
         self.__add_lpos(lpos)
 
