@@ -7,6 +7,69 @@ COMMAND = "rs"
 
 
 class Config:
+    """Configuration for the `rs` module.
+
+    Attributes
+    ----------
+    sam_fn : str or None, default None
+        Comma separated indexed BAM file.
+        Note that one and only one of `sam_fn` and `sam_list_fn` should be
+        specified.
+    sam_list_fn : str or None, default None
+        A file listing indexed BAM files, each per line.
+    barcode_fn : str or None, default None
+        A plain file listing all effective cell barcode.
+        It should be specified for droplet-based data.
+    sample_id_str : str or None, default None
+        Comma separated sample IDs.
+        It should be specified for well-based or bulk data.
+        When `barcode_fn` is not specified, the default value will be
+        "SampleX", where "X" is the 0-based index of the BAM file(s).
+        Note that `sample_id_str` and `sample_id_fn` should not be specified
+        at the same time.
+    sample_id_fn : str or None, default None
+        A file listing sample IDs, each per line.
+    count_fn : str
+        An ".adata" file storing count matrices.
+        Typically it is returned by the `cs` module.
+        This file should contain several layers for the allele-specific count 
+        matrices.
+        Its ".obs" should contain two columns "cell" and "cell_type".
+        Its ".var" should contain two columns "feature" and "chrom".
+    feature_fn : str
+        A pickle object file storing target features.
+        Typically it is returned by the `afc` module.
+        This file contains a list of :class:`~afc.gfeature.BlockRegion`
+        objects, whose order should be the same with the 
+        ".var["feature"]" in `count_fn`.
+    refseq_fn : str
+        A FASTA file storing reference genome sequence.
+    out_dir : str
+        Output directory.
+    chroms : str, default "1,2,...22"
+        Comma separated chromosome names.
+        Reads in other chromosomes will not be used for sampling and hence
+        will not be present in the output BAM file(s).
+    cell_tag : str or None, default "CB"
+        Tag for cell barcodes, set to None when using sample IDs.
+    umi_tag : str or None, default "UB"
+        Tag for UMI, set to None when reads only.
+    umi_len : int, default 10
+        Length of output UMI barcode.
+    nproc : int, default 1
+        Number of processes.
+    min_mapq : int, default 20
+        Minimum MAPQ for read filtering.
+    min_len : int, default 30
+        Minimum mapped length for read filtering.
+    incl_flag : int, default 0
+        Required flags: skip reads with all mask bits unset.
+    excl_flag : int, default -1
+        Filter flags: skip reads with any mask bits set.
+        Value -1 means setting it to 772 when using UMI, or 1796 otherwise.
+    no_orphan : bool, default True
+        If `False`, do not skip anomalous read pairs.
+    """
     def __init__(self):
         self.defaults = DefaultConfig()
         self.argv = None
@@ -34,6 +97,7 @@ class Config:
         self.excl_flag = -1
         self.no_orphan = self.defaults.NO_ORPHAN
 
+        # derived variables
         self.chrom_list = None
         self.barcodes = None     # list of barcode strings.
         self.sample_ids = None
@@ -86,6 +150,7 @@ class Config:
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
         s += "%s\n" % prefix
 
+        # derived variables
         s += "%schrom_list = %s\n" % (prefix, str(self.chrom_list))
         s += "%snumber_of_BAMs = %d\n" % (prefix, len(self.sam_fn_list) if \
                 self.sam_fn_list is not None else -1)
@@ -121,7 +186,8 @@ class DefaultConfig(AFC_Def_Conf):
     def __init__(self):
         super().__init__()
         self.UMI_LEN = 10
-        self.CHROMS = ",".join([str(i) for i in range(1, 23)] + ["X", "Y"])
+        #self.CHROMS = ",".join([str(i) for i in range(1, 23)] + ["X", "Y"])
+        self.CHROMS = ",".join([str(i) for i in range(1, 23)])
 
 
 if __name__ == "__main__":

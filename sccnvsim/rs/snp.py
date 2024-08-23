@@ -10,13 +10,14 @@ class SNPSet:
     
     Attributes
     ----------
-    snp_list : list
-        A list of `gfeature::SNP` objects.
+    snp_list : list of afc.gfeature.SNP
+        A list of SNPs covered by one feature.
     """
     def __init__(self, snp_list):
         self.dat = self.__transform(snp_list)
 
     def __transform(self, snp_list):
+        """Transform the input SNP data."""
         res = {}
         for snp in snp_list:
             chrom = snp.chrom
@@ -47,7 +48,7 @@ class SNPSet:
         return chrom in self.dat and pos in self.dat[chrom]
     
     def query(self, chrom, pos, hap):
-        """Query the haplotype base/allele of one SNP given its position.
+        """Query the haplotype base/allele of one position.
         
         Parameters
         ----------
@@ -60,9 +61,9 @@ class SNPSet:
             
         Returns
         -------
-        str
-            The haplotype base/allele of the query SNP; `None` if the SNP is
-            not in the set or the `hap` is invalid.
+        str or None
+            The haplotype base/allele of the query position.
+            `None` if the `pos` is not a target SNP or the `hap` is invalid.
         """
         if not self.contain(chrom, pos):
             return(None)
@@ -72,18 +73,19 @@ class SNPSet:
 
 
 def mask_read(read, snps, hap, fa):
-    """Mask all other SNPs in one read with reference.
+    """Mask all other positions in one read with reference.
     
     Parameters
     ----------
-    read : pysam.AlignmentSegment object
+    read : pysam.AlignedSegment
         The read to be masked.
-    snps : SNPSet object.
-        A `SNPSet` object.
-    hap : int
+    snps : SNPSet
+        The target SNPs. Positions other than these SNPs will be masked.
+    hap : int or None
         The haplotype index, 0, 1, or `None`.
-    fa : fa.FAChrom object.
-        The object for reference FASTA of one chrom.
+        None indicates "unknown" (U) haplotype.
+    fa : fa.FastFA
+        The object used to extract reference bases/alleles from FASTA file.
 
     Returns
     -------
@@ -108,10 +110,11 @@ def mask_read(read, snps, hap, fa):
             else:
                 qbase = fa.query(chrom, pos1)
         else:
-            # fraction of these reads is very low (<<1%),
-            # CHECK ME! how it happens?
-            if snps.contain(chrom, pos1):   
-                debug("read '%s' from hap 'U' contains SNP '%s:%d'." % \
+            if snps.contain(chrom, pos1):
+                # read in allele "U" state but contains SNPs.
+                # fraction of these reads is very low (<<1%),
+                # CHECK ME! how it happens?
+                debug("[W] read '%s' from hap 'U' contains SNP '%s:%d'." % \
                     (read.query_name, chrom, pos1))
             qbase = fa.query(chrom, pos1)
         if not qbase:

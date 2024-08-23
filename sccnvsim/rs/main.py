@@ -13,8 +13,8 @@ import time
 from logging import info, error, debug
 from logging import warning as warn
 from .config import Config, COMMAND
-from .cumi import gen_umis, gen_cumis
-from .fa import FAChrom
+from .cumi import gen_umis, sample_cumis
+from .fa import FastFA
 from .sam import SAMInput, SAMOutput, sam_merge_and_index
 from .snp import SNPSet, mask_read
 from .thread import ThreadData
@@ -33,15 +33,15 @@ def usage(fp = sys.stdout, conf = None):
     s += "Usage:   %s %s <options>\n" % (APP, COMMAND)
     s += "\n" 
     s += "Options:\n"
-    s += "  -s, --sam FILE         Comma separated indexed sam/bam/cram file.\n"
-    s += "  -S, --samList FILE     A list file containing bam files, each per line.\n"
+    s += "  -s, --sam FILE         Comma separated indexed BAM file.\n"
+    s += "  -S, --samList FILE     A file listing indexed BAM files, each per line.\n"
     s += "  -b, --barcode FILE     A plain file listing all effective cell barcode.\n"
     s += "  -c, --count FILE       An adata file storing count matrices.\n"
     s += "  -R, --region FILE      A pickle object file storing target features.\n"
     s += "  -f, --refseq FILE      A FASTA file storing reference genome sequence.\n"
-    s += "  -i, --sampleList FILE  A list file containing sample IDs, each per line.\n"
+    s += "  -i, --sampleList FILE  A file listing sample IDs, each per line.\n"
     s += "  -I, --sampleIDs STR    Comma separated sample IDs.\n"
-    s += "  -O, --outdir DIR       Output directory for sparse matrices.\n"
+    s += "  -O, --outdir DIR       Output directory.\n"
     s += "  -h, --help             Print this message and exit.\n"
     s += "\n"
     s += "Optional arguments:\n"
@@ -69,13 +69,13 @@ def rs_main(argv):
 
     Parameters
     ----------
-    argv : list
+    argv : list of str
         A list of cmdline parameters.
     
     Returns
     -------
     int
-        0 if success, -1 otherwise [int]
+        Return code. 0 if success, -1 otherwise.
     """
     conf = Config()
 
@@ -155,6 +155,80 @@ def rs_wrapper(
     incl_flag = 0, excl_flag = None,
     no_orphan = True
 ):
+    """Wrapper for running the rs (read sampling) module.
+    
+    Parameters
+    ----------
+    sam_fn : str or None
+        Comma separated indexed BAM file.
+        Note that one and only one of `sam_fn` and `sam_list_fn` should be
+        specified.
+    barcode_fn : str or None
+        A plain file listing all effective cell barcode.
+        It should be specified for droplet-based data.
+    count_fn : str
+        An ".adata" file storing count matrices.
+        Typically it is returned by the `cs` module.
+        This file should contain several layers for the allele-specific count 
+        matrices.
+        Its ".obs" should contain two columns "cell" and "cell_type".
+        Its ".var" should contain two columns "feature" and "chrom".
+    feature_fn : str
+        A pickle object file storing target features.
+        Typically it is returned by the `afc` module.
+        This file contains a list of :class:`~afc.gfeature.BlockRegion`
+        objects, whose order should be the same with the 
+        ".var["feature"]" in `count_fn`.
+    refseq_fn : str
+        A FASTA file storing reference genome sequence.
+    out_dir : str
+        Output directory.
+    sam_list_fn : str or None, default None
+        A file listing indexed BAM files, each per line.
+    sample_ids : str or None, default None
+        Comma separated sample IDs.
+        It should be specified for well-based or bulk data.
+        When `barcode_fn` is not specified, the default value will be
+        "SampleX", where "X" is the 0-based index of the BAM file(s).
+        Note that `sample_id_str` and `sample_id_fn` should not be specified
+        at the same time.
+    sample_id_fn : str or None, default None
+        A file listing sample IDs, each per line.
+    debug_level : {0, 1, 2}
+        The debugging level, the larger the number is, more detailed debugging
+        information will be outputted.
+    ncores : int, default 1
+        Number of cores.
+    chroms : str or None, default None
+        Comma separated chromosome names.
+        Reads in other chromosomes will not be used for sampling and hence
+        will not be present in the output BAM file(s).
+        If None, it will be set as "1,2,...22".
+    cell_tag : str or None, default "CB"
+        Tag for cell barcodes, set to None when using sample IDs.
+    umi_tag : str or None, default "UB"
+        Tag for UMI, set to None when reads only.
+    umi_len : int, default 10
+        Length of output UMI barcode.
+    min_mapq : int, default 20
+        Minimum MAPQ for read filtering.
+    min_len : int, default 30
+        Minimum mapped length for read filtering.
+    incl_flag : int, default 0
+        Required flags: skip reads with all mask bits unset.
+    excl_flag : int or None, default None
+        Filter flags: skip reads with any mask bits set.
+        Value None means setting it to 772 when using UMI, or 1796 otherwise.
+    no_orphan : bool, default True
+        If `False`, do not skip anomalous read pairs.
+
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative otherwise.
+    dict
+        The returned meta information.
+    """
     conf = Config()
     #init_logging(stream = sys.stdout)
 
@@ -170,7 +244,7 @@ def rs_wrapper(
     conf.debug = debug_level
 
     if chroms is None:
-        chroms = ",".join([str(i) for i in range(1, 23)] + ["X", "Y"])
+        chroms = ",".join([str(i) for i in range(1, 23)])
     conf.chroms = chroms
     conf.cell_tag = cell_tag
     conf.umi_tag = umi_tag
@@ -189,7 +263,7 @@ def rs_wrapper(
 
 def rs_core(conf):
     if prepare_config(conf) < 0:
-        error("errcode -2")
+        error("prepare configuration failed.")
         raise ValueError
     info("program configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
@@ -231,13 +305,15 @@ def rs_core(conf):
     save_cells(xdata.obs[["cell", "cell_type"]], out_cell_anno_fn)
 
 
-    # prepare data
-    info("prepare data ...")
+    # prepare data for multi-processing
+    info("prepare data for multi-processing ...")
 
     data_dir = os.path.join(conf.out_step_dir, "0_data")
     os.makedirs(data_dir, exist_ok = True)
 
-    chrom_reg_idx_range_list = []
+    # chrom-specific beginning and ending feature indexes (0-based ) within 
+    # transcriptomics-scale.
+    chrom_reg_idx_range_list = []     # list of tuple(int, int)
     all_idx = np.array(range(p))
     for chrom in conf.chrom_list:
         idx = all_idx[xdata.var["chrom"] == chrom]
@@ -300,7 +376,7 @@ def rs_core(conf):
     info("generate new CUMIs ...")
     res_cumi_dir = os.path.join(conf.out_step_dir, "%d_cumi" % step)
     os.makedirs(res_cumi_dir, exist_ok = True)
-    chrom_cumi_fn_list = gen_cumis(
+    chrom_cumi_fn_list = sample_cumis(
         xdata_fn_list = chrom_counts_fn_list,
         reg_fn_list = chrom_reg_fn_list,
         reg_idx_range_list = chrom_reg_idx_range_list,
@@ -425,20 +501,13 @@ def rs_core(conf):
 def rs_core_chrom(thdata):
     conf = thdata.conf
 
-    out_sam_fn_list = thdata.out_sam_fn_list
-
     # check args.
     info("[chrom-%s] start loading data ..." % (thdata.chrom, ))
 
     with open(thdata.reg_obj_fn, "rb") as fp:
         reg_list = pickle.load(fp)
-    #xdata = ad.read_h5ad(thdata.adata_fn)
-    #n, p = xdata.shape
-    #assert len(reg_list) == p
-    #for i in range(p):
-    #    assert xdata.var["feature"].iloc[i] == reg_list[i].name
     snp_sets = [SNPSet(reg.snp_list) for reg in reg_list]
-    #info("[chrom-%s] %d features loaded in %d cells." % (thdata.chrom, p, n))
+
 
     # input BAM(s)
     in_sam = SAMInput(
@@ -452,25 +521,29 @@ def rs_core_chrom(thdata):
     )
     debug("[chrom-%s] %d input BAM(s) loaded." % (
         thdata.chrom, len(conf.sam_fn_list)))
-    
+
+
     # output BAM(s)
     out_sam = SAMOutput(
-        sams = out_sam_fn_list, n_sam = len(out_sam_fn_list),
+        sams = thdata.out_sam_fn_list, n_sam = len(thdata.out_sam_fn_list),
         samples = thdata.out_samples, ref_sam = conf.sam_fn_list[0],
         cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
         umi_len = conf.umi_len
     )
     debug("[chrom-%s] %d output BAM(s) created." % (
-        thdata.chrom, len(out_sam_fn_list)))
+        thdata.chrom, len(thdata.out_sam_fn_list)))
+
 
     # refseq
-    fa = FAChrom(conf.refseq_fn)
+    fa = FastFA(conf.refseq_fn)
     debug("[chrom-%s] FASTA file loaded." % thdata.chrom)
+
 
     # multi-sampler
     with open(thdata.cumi_fn, "rb") as fp:
         ms = pickle.load(fp)
     debug("[chrom-%s] CUMI multi-sampler loaded." % thdata.chrom)
+
 
     # core part of read sampling.
     info("[chrom-%s] start to iterate reads ..." % thdata.chrom)
@@ -492,25 +565,30 @@ def rs_core_chrom(thdata):
         read.set_tag(conf.hap_tag, ale)
         snps = None
         qname = read.query_name
-        for dat in sample_dat:
-            cell_idx, umi_int, reg_idx = dat    # cell and umi for new BAM.
+        for dat_idx, dat in enumerate(sample_dat):
+            cell_idx, umi_int, reg_idx = dat    # cell and UMI of new CUMI.
             if snps is None:
                 if thdata.reg_idx0 is None:
                     continue
                 idx = reg_idx - thdata.reg_idx0
-                if idx >= len(snp_sets):       # CHECK ME!! could be a multi-mapping UMI.
-                    pass
+                if idx >= len(snp_sets):
+                    # feature not in this chromosome.
+                    # CHECK ME!! could be a multi-mapping UMI?
+                    warn("[chrom-%s] feature index of CUMI '%s-%s' is out of range." \
+                        (thdata.chrom, cell, umi))
                 else:
                     snps = snp_sets[reg_idx - thdata.reg_idx0]
                     read = mask_read(read, snps, hap, fa)
-            out_sam.write(read, cell_idx, umi_int, reg_idx, qname)
+            out_sam.write(read, cell_idx, umi_int, reg_idx, dat_idx, qname)
 
     in_sam.close()
     out_sam.close()
     fa.close()
 
+
+    # index the output BAM files.
     info("[chrom-%s] index output BAM file(s) ..." % thdata.chrom)
-    sam_index(out_sam_fn_list, ncores = 1)
+    sam_index(thdata.out_sam_fn_list, ncores = 1)
 
     thdata.ret = 0
     return((0, thdata))
@@ -553,17 +631,17 @@ def rs_run(conf):
 
 
 def prepare_config(conf):
-    """Prepare configures for downstream analysis
+    """Prepare configures for downstream analysis.
 
     Parameters
     ----------
-    conf :  Config object
-        Configuration info.
+    conf : rs.config.Config
+        Configuration object.
 
     Returns
     -------
     int
-        0 if success, -1 otherwise.
+        Return code. 0 if success, -1 otherwise.
 
     Notes
     -----

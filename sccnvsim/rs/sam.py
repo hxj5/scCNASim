@@ -8,6 +8,34 @@ from ..utils.xbarcode import Barcode
 
 
 class SAMInput:
+    """Input SAM/BAM file object.
+    
+    Attributes
+    ----------
+    sams : str or list of str
+        The input SAM/BAM file(s).
+    n_sam : int
+        Number of input SAM/BAM file(s).
+    samples : list of str
+        A list of cell barcodes (droplet-based platform) or sample IDs 
+        (well-based platform).
+    chrom : str
+        The chromosome name.
+    cell_tag : str or None
+        Tag for cell barcodes, set to None when using sample IDs.
+    umi_tag : str or None
+        Tag for UMI, set to None when reads only.
+    min_mapq : int, default 20
+        Minimum MAPQ for read filtering.
+    min_len : int, default 30
+        Minimum mapped length for read filtering.
+    incl_flag : int, default 0
+        Required flags: skip reads with all mask bits unset.
+    excl_flag : int
+        Filter flags: skip reads with any mask bits set.
+    no_orphan : bool, default True
+        If `False`, do not skip anomalous read pairs.
+    """
     def __init__(
         self, 
         sams, n_sam, samples, chrom,
@@ -30,6 +58,7 @@ class SAMInput:
         self.cell_tag = cell_tag
         self.umi_tag = umi_tag
 
+        assert excl_flag is not None
         self.min_mapq = min_mapq
         self.min_len = min_len
         self.incl_flag = incl_flag
@@ -86,6 +115,20 @@ class SAMInput:
         self.iter = None
     
     def fetch(self):
+        """Fetch one valid read.
+        
+        This function iterately fetch reads until some valid read is fetched,
+        i.e., this read passes all filtering.
+
+        Returns
+        -------
+        tuple of (pysam.AlignedSegment, str, str) or None
+            The fetched valid read data, including
+            - (pysam.AlignedSegment) the fetched valid read.
+            - (str) the cell barcode (droplet) or sample ID (well) of the read.
+            - (str) the UMI barcode (droplet) or query name (well) of the read.
+            None if reaching the end of all input SAM/BAM file(s).
+        """
         while True:
             read = self.__fetch_read()
             if read is None:
@@ -111,6 +154,26 @@ class SAMInput:
 
 
 class SAMOutput:
+    """Output SAM object.
+    
+    Attributes
+    ----------
+    sams : list of str
+        The output SAM/BAM file(s).
+    n_sam : int
+        Number of output SAM/BAM file(s).
+    samples : list of str
+        Output cell barcodes (droplet-based platform) or sample IDs (well-based
+        platform).
+    ref_sam : str
+        The reference SAM/BAM file used as a template for output file(s).
+    cell_tag : str or None
+        Tag for cell barcodes, set to None when using sample IDs.
+    umi_tag : str or None
+        Tag for UMI, set to None when reads only.
+    umi_len : int
+        Length of the UMI barcode.
+    """
     def __init__(
         self,
         sams, n_sam, samples, ref_sam,
@@ -145,7 +208,31 @@ class SAMOutput:
                 fp.close()
         self.fps = None
 
-    def write(self, read, cell_idx, umi_int, reg_idx, qname = None):
+    def write(self, read, cell_idx, umi_int, reg_idx, idx, qname = None):
+        """Write one read into output SAM/BAM file.
+
+        Parameters
+        ----------
+        read : pysam.AlignedSegment
+            The read to be write.
+        cell_idx : int
+            The 0-based index of the new cell/sample within `samples`.
+            The cell barcode or sample ID is part of the new CUMI.
+        umi_int : int
+            The int format of the new UMI barcode, which is part of the 
+            new CUMI.
+        reg_idx : int
+            The 0-based index of the feature within transcriptomics-scale.
+        idx : int
+            0-based index of the new CUMI within all new CUMIs assigned to
+            one old sampled CUMI.
+        qname : str
+            The query name of the read.
+
+        Returns
+        -------
+        Void.
+        """
         fp = None
         if self.use_barcodes():
             fp = self.fps[0]
@@ -155,12 +242,12 @@ class SAMOutput:
         if self.use_umi():
             umi = self.b.int2str(umi_int)
             read.set_tag(self.umi_tag, umi)
+        # suffix = "_%d_%d" % (idx, umi_int)
+        suffix = "_%d" % (idx, )
+        if qname is None:
+            read.query_name += suffix
         else:
-            suffix = "_%d_%d" % (reg_idx, umi_int)
-            if qname is None:
-                read.query_name += suffix
-            else:
-                read.query_name = qname + suffix
+            read.query_name = qname + suffix
         fp.write(read)
 
     def use_barcodes(self):

@@ -3,7 +3,30 @@
 import sys
 
 class ThreadData:
-    """Thread Data"""
+    """Thread Data for processing chrom-specific reads.
+    
+    Attributes
+    ----------
+    idx : int
+        The 0-based index of thread.
+    conf : rs.config.Config
+        The configuration object.
+    chrom : str
+        The chromosome name.
+    reg_obj_fn : str
+        The file storing chrom-specific regions, a list of 
+        :class:`~afc.gfeature.BlockRegion` objects.
+    reg_idx0 : int
+        The 0-based feature index within transcriptomics scale.
+    cumi_fn : str
+        The file storing a chrom-specific :class:`~rs.cumi.MergedSampler`
+        object.
+    out_samples : list of str
+        Output cell barcodes (droplet-based platform) or sample IDs (well-based
+        platform).
+    out_sam_fn_list : list of str
+        A list of output SAM/BAM files for this `chrom`.
+    """
     def __init__(self, 
         idx, conf,
         chrom,

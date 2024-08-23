@@ -16,26 +16,55 @@ def gen_umis(
     chrom_list, chrom_reg_idx_range_list,
     alleles, m, out_dir, ncores = 1,
 ):
-    """To generate cell x feature UMIs to be used in new BAM.
+    """Generate UMIs to be used in new BAM.
+
+    This function generates chrom-specific *allele x cell x feature* UMIs
+    based on the input count matrices in `xdata`. 
     
     Parameters
     ----------
-    xdata : adata object
-        The adata object containing *cell x feature* matrices of simulated 
-        UMI counts.
-    alleles : list
-        A list of alleles, e.g., "A", "B", "U".
+    xdata : anndata.Anndata
+        The ".adata" object containing the allele-specific *cell x feature*
+        matrices of simulated UMI counts.
+        It should contain three layers "A", "B", "U".
+    chrom_list : list of str
+        A list of chromosome names.
+    chrom_reg_idx_range_list : list of tuple
+        The range of chrom-specific feature indexes.
+        Each element in the list is a tuple of (int, int) that are the 0-based
+        start (inclusive) and end (exclusive) indexes of features.
+        The index is within transcriptomics-scale instead of chrom-scale.
+        The tuple would be (None, None) if one chromosome covers no features.
+        Note that the order of the elements should match `chrom_list`. 
+    alleles : list of str
+        A list of alleles, e.g., ["A", "B", "U"].
     m : int
         Length of one new UMI barcode.
-    ncores : int
-        Number of cores.
     out_dir : str
         Output folder.
+    ncores : int, default 1
+        Number of cores.
+
+    Returns
+    -------
+    list of str
+        A list of files, each is a pickle object file storing a "multi-layer" 
+        list of chrom-specific *allele x cell x feature* UMIs.
+        The UMIs can be accessed by, e.g., 
+        dat[allele_idx][cell_idx][feature_idx] (which is a list of UMIs),
+        where the 
+        - "allele_idx" 0-based, matching the order of `alleles`;
+        - "cell_idx" 0-based, matching the row order of ".obs" in `xdata`;
+        - "feature_idx" 0-based, matching the row order of ".var"  in `xdata`.
+        Note that the returned UMIs are stored as `int` type, which can be
+        converted to `str` type by calling 
+        :func:`~utils.xbarcode.Barcode.int2str`.
     """
     assert m <= 31
     assert len(chrom_list) == len(chrom_reg_idx_range_list)
     n, p = xdata.shape
 
+    # split cells for multi-processing
     ncores = min(n, ncores)
     k = None
     if n % ncores == 0:
@@ -66,6 +95,7 @@ def gen_umis(
     pool.join()
     mp_res = [res.get() for res in mp_res]
 
+    # merge chrom-specific UMIs
     dat = []     # chrom x allele
     for _ in chrom_list:
         chrom_dat = [[] for __ in range(len(alleles))]
@@ -88,7 +118,11 @@ def gen_umis(
     return(out_fn_list)
 
 
-def gen_umis_thread(idx, fn, chrom_list, chrom_reg_idx_range_list, alleles, m):
+def gen_umis_thread(
+    idx, fn, 
+    chrom_list, chrom_reg_idx_range_list, 
+    alleles, m
+):
     xdata = ad.read_h5ad(fn)
     RD = None
     for i, ale in enumerate(alleles):
@@ -107,6 +141,8 @@ def gen_umis_thread(idx, fn, chrom_list, chrom_reg_idx_range_list, alleles, m):
             chrom_dat.append(ale_dat)
         dat.append(chrom_dat)
 
+    # UMIs are generated in a cell-specific manner, mimicking real data that
+    # the UMI of each transcript should be unique within one cell.
     b = Barcode(m)
     for i in range(n):
         x = b.sample_int(n = np.sum(RD[i, :]), sort = False)
@@ -123,13 +159,65 @@ def gen_umis_thread(idx, fn, chrom_list, chrom_reg_idx_range_list, alleles, m):
     return(dat)     # chrom x allele x cell x feature
 
 
-def gen_cumis(
+def sample_cumis(
     xdata_fn_list, reg_fn_list, reg_idx_range_list,
     umi_fn_list, chrom_list,
     alleles, out_dir,
     use_umi = True,
     max_pool = None, ncores = 1
 ):
+    """Sampling cell-specific UMIs.
+
+    This function samples cell-specific UMIs (CUMIs) from the previously
+    extracted CUMIs for each feature, and then assign each sampled CUMI with a
+    new CUMI barcode.
+    Note that each CUMI represents a group of reads sharing the same cell+UMI
+    barcode (droplet-based platforms) or cell+query_name (well-based 
+    platforms).
+    
+    Parameters
+    ----------
+    xdata_fn_list : list of str
+        A list of ".adata" filenames, each stores chrom-specific count matrices
+        for every allele.
+        Note that `xdata_fn_list`, `reg_fn_list`, `reg_idx_range_list`,
+        `umi_fn_list`, and `chrom_list` should have the same length and order.
+    reg_fn_list : list of afc.gfeature.BlockRegion
+        A list of :class:`~afc.gfeature.BlockRegion` objects, each stores the
+        allele-specific old CUMIs to be sampled from in its `.aln_fns` 
+        attribute.
+    reg_idx_range_list : list of tuple
+        The range of chrom-specific feature indexes.
+        Each element in the list is a tuple of (int, int) that are the 0-based
+        start (inclusive) and end (exclusive) indexes of features.
+        The index is within transcriptomics-scale instead of chrom-scale.
+        The tuple would be (None, None) if one chromosome covers no features.
+        Note that the order of the elements should match `chrom_list`.        
+    umi_fn_list : list of str
+        A list of files, each stores chrom-specific new UMIs to be used as
+        part of new CUMIs.
+    chrom_list : list of str
+        A list of chromosome names.
+    alleles : list of str
+        A list of alleles, e.g., ["A", "B", "U"].
+    out_dir : str
+        Output folder.
+    use_umi : bool, default True
+        Whether the sequencing platform uses UMIs.
+    max_pool : list of int or None, default None, meaning no limit
+        A list of maximum size of sampling pool of old CUMIs for each allele,
+        0 means no limit for specific allele.
+        If None, every allele has no limit.
+    ncores : int, default 1
+        Number of cores.
+
+    Returns
+    -------
+    list of str
+        A list of pickle files, each storing a chrom-specific `MergedSampler`
+        object that has `query` method for accessing sampled CUMIs.
+        Note that its length and order match `chrom_list`.
+    """
     assert len(xdata_fn_list) == len(chrom_list)
     assert len(reg_fn_list) == len(chrom_list)
     assert len(reg_idx_range_list) == len(chrom_list)
@@ -143,7 +231,7 @@ def gen_cumis(
     pool = multiprocessing.Pool(processes = ncores)
     for idx, chrom in enumerate(chrom_list):
         mp_res.append(pool.apply_async(
-            func = gen_cumis_chrom,
+            func = sample_cumis_chrom,
             kwds = dict(
                 xdata_fn = xdata_fn_list[idx],
                 reg_fn = reg_fn_list[idx],
@@ -165,7 +253,7 @@ def gen_cumis(
     return(out_fn_list)
     
 
-def gen_cumis_chrom(
+def sample_cumis_chrom(
     xdata_fn, reg_fn, reg_idx_range, 
     umi_fn, alleles, out_fn,
     use_umi = True, max_pool = None
@@ -189,8 +277,8 @@ def gen_cumis_chrom(
             X = xdata.layers[ale],
             reg_idx_list = reg_idx_list,
             allele_fn_list = [reg.aln_fns[ale] for reg in reg_list],
+            umis = umi_list[idx],
             use_umi = use_umi,
-            umis = umi_list[idx], 
             max_pool = max_pool[idx]
         )
         sampler.sample()
@@ -204,37 +292,41 @@ def gen_cumis_chrom(
 
 
 class CUMISampler:
-    """A sampler to sample cell x feature CUMIs.
+    """A CUMI sampler.
 
-    Here CUMI is short for unique UMI barcode, which is typically set as a
-    combination of cell and UMI barcodes (or read query name).
-    This class is used for sampling old CUMIs from input `cells` and `umis`
-    barcodes based on simulated UMI counts in `X`, and then assign new CUMI,
-    i.e., cell (+UMI, if `use_umi` is `True`) barcode, to each sampled one.
-
+    This class is used for sampling old CUMIs from input cell and umi barcodes
+    based on simulated UMI counts in `X`, and then assign new CUMI to each 
+    sampled one.
     Note that one old CUMI can be assigned multiple new CUMIs, if it is 
     sampled more than once.
     
     Attributes
     ----------
-    X: np.array
-        The new *cell x feature* matrix of simulated UMI counts.
-    reg_list : list
-        A list of region objects.
-    use_umi : int
-        Whether use UMI in CUMI.
-        If False, only cell barcode is included in CUMI.
-    umis : object
-        The *cell x feature* new UMIs returned by :func:`gen_umis`.
-    max_pool : int
-        Maximum pool size, i.e., max number of old CUMIs to be used for
-        sampling for one feature. Set to `0` if unlimited. 
-        This option is designed to speed up by reducing the reads to be masked,
-        since the read mask is time consuming.
+    X : numpy.ndarray
+        The allele-specific *cell x feature* matrix of simulated UMI/CUMI 
+        counts.
+    reg_idx_list : list of int
+        A list of chrom-specific 0-based feature index.
+        The index is for all features of all chromosomes, which means the 
+        index is not always starting from 0 in each chromosome.
+    allele_fn_list : list of str
+        Allele-specific list of files, each contains the feature-specific
+        old CUMIs to be sampled from.
+    umis : list or None
+        The *cell x feature* new UMIs.
+        It contains *n* cell-specific (sub-)lists, each (sub)list contains 
+        *p* lists of feature-specific UMIs, where (n, p) is the shape of `X`.
+        None means do not use it as part of new CUMIs.
+    use_umi : bool, default True
+        Whether the sequencing platform uses UMIs.
+    max_pool : int, default 0
+        Maximum size of sampling pool of old CUMIs, 0 means no limit.
+        This option is designed to speed up by reducing the number of reads
+        to be masked, since the read mask is time consuming.
     """
     def __init__(
         self, X, reg_idx_list, allele_fn_list,
-        use_umi = True, umis = None, 
+        umis, use_umi = True, 
         max_pool = 0
     ):
         self.X = X
@@ -255,26 +347,21 @@ class CUMISampler:
     
     def __sample_for_feature(self, cells, umis, reg_idx, reg_idx_whole = None):
         """Sample CUMIs for one feature.
-
-        This function will sample CUMIs from input `cells` and `umis` barcodes
-        based on the simulated UMI counts in `X`.
-        If `use_umi` is `True`, then each sampled CUMI will also be assigned
-        a newly generated UMI barcode (note new cell barcodes have been
-        generated elsewhere beforehand).
-
-        Note that one old CUMI can be assigned multiple new CUMIs, if it is 
-        sampled more than once.
         
         Parameters
         ----------
-        cells : list-like
-            The cell barcodes (str), as part of CUMIs, to be sampled from.
-        umis : list-like
-            The UMI barcodes (str), as part of CUMIs, to be sampled from.
+        cells : list of str
+            The feature-specific cell barcodes, as part of CUMIs, to be sampled
+            from.
+        umis : list of str
+            The feature-specific UMI barcodes, as part of CUMIs, to be sampled
+            from.
             Its length and order should match `cells`.
         reg_idx : int
-            The index (0-based) of the region/feature.
-        
+            The index (0-based) of the feature within chrom-scale.
+        reg_idx_whole : int
+            The index (0-based) of the feature within transcriptomics-scale.
+
         Returns
         -------
         Void.
@@ -293,6 +380,7 @@ class CUMISampler:
             umis = [umis[i] for i in idx]
             m = self.max_pool
         
+        # sample old CUMIs.
         n_list = self.X[:, reg_idx]
         old_cumi_idx_list = cumi_sample_for_cells(m, n_list)
 
@@ -300,21 +388,14 @@ class CUMISampler:
         for i in range(n):
             new_umi_list.append(self.umis[i][reg_idx])
 
+        # assign new CUMIs to sampled old UMIs.
         assert len(old_cumi_idx_list) == n
         assert len(new_umi_list) == n
         for i in range(n):
             old_cumi_idxes = old_cumi_idx_list[i]
             new_umis = new_umi_list[i]
             assert len(old_cumi_idxes) == self.X[i, reg_idx]
-            if len(new_umis) != self.X[i, reg_idx]:
-                import logging
-                logging.info("n=%d; p=%d; i=%d; reg_idx=%d; reg_idx_whole=%d" % (
-                    n, p, i, reg_idx, reg_idx_whole))
-                logging.info("len(new_umi_list)=%d;" % len(new_umi_list))
-                logging.info("len(new_umis)=%d; Xij=%d" % (len(new_umis), self.X[i, reg_idx]))
-                logging.info("new_umis=%s" % str(new_umis))
             assert len(new_umis) == self.X[i, reg_idx]
-            
             for old_cumi_idx, new_umi in zip(old_cumi_idxes, new_umis):
                 cell, umi = cells[old_cumi_idx], umis[old_cumi_idx]
                 if cell not in self.dat:
@@ -324,7 +405,7 @@ class CUMISampler:
                 self.dat[cell][umi].append((i, new_umi, reg_idx_whole))
 
     def query(self, cell, umi):
-        """Query new CUMI.
+        """Query new CUMI based on old cell and UMI barcodes.
 
         Parameters
         ----------
@@ -335,16 +416,13 @@ class CUMISampler:
         
         Returns
         -------
-        list
-            A list of new CUMIs assigned to the old one. Each element is a
-            tuple, containing
-            int
-                The index of new cell, 0-based;
-            int
-                The integer format of new UMI, can be transformed to string
-                format with `int2str()`.
-            int
-                The index of region/feature, 0-based.
+        list or None
+            A list of new CUMIs assigned to the old one. 
+            Each element of the list is a tuple(int, int, int), containing
+            - (int) The index of new cell, 0-based.
+            - (int) The integer format of new UMI barcode, can be transformed
+              to string format with `int2str()`.
+            - (int) The 0-based index of feature within transcriptomics-scale.
             `None` if the query CUMI (`cell`+`umi`) is not sampled.
         """
         if cell not in self.dat or umi not in self.dat[cell]:
@@ -352,6 +430,7 @@ class CUMISampler:
         return(self.dat[cell][umi])
 
     def sample(self):
+        """Sample CUMIs."""
         for reg_idx, reg_idx_whole in enumerate(self.reg_idx_list):
             fn = self.allele_fn_list[reg_idx]
             if is_file_empty(fn):
@@ -366,7 +445,7 @@ class MergedSampler:
 
     Attributes
     ----------
-    samplers : dict
+    samplers : dict of {str : CUMISampler}
         Allele-specific CUMI samplers (CUMISampler object). Keys are the
         alleles (str) and values are samplers.
     """
@@ -374,7 +453,7 @@ class MergedSampler:
         self.samplers = samplers
 
     def query(self, cell, umi):
-        """Query CUMI given cell and umi barcodes.
+        """Query new CUMI(s) given old cell and UMI IDs.
         
         Parameters
         ----------
@@ -385,13 +464,13 @@ class MergedSampler:
         
         Returns
         -------
-        str
-            The allele where the query CUMI comes from. `None` if the CUMI
-            is not from any sampler.
-        list
-            The meta data assigned to this CUMI. See the returned value of 
-            :func:`CUMISampler.query`. 
-            `None` if the CUMI is not from any sampler.
+        str or None
+            The allele where the query CUMI comes from. 
+            `None` if the query CUMI is not from any sampler.
+        list or None
+            A list of new CUMI(s) assigned to this query CUMI.
+            See the returned value of :func:`~CUMISampler.query()`.
+            `None` if the query CUMI is not from any sampler.
         """
         for allele, sampler in self.samplers.items():
             res = sampler.query(cell, umi)
@@ -402,20 +481,21 @@ class MergedSampler:
 
 
 def cumi_sample_for_cells(m, n_list):
-    """Sampling CUMI indexes.
+    """Sample CUMIs for a list of samples/cells.
 
     Parameters
     ----------
     m : int
         The number of CUMIs to sample from.
-    n_list : list-like
+    n_list : list of int
         Its elements are the numbers of CUMIs to be sampled in each 
         new sample/cell.
 
     Returns
     -------
-    list
-        A list of arrays. Its length and order match `n_list`.
+    list of numpy.ndarray
+        The 0-based indexes of sampled CUMIs for each sample/cell.
+        Its length and order match `n_list`.
         Each element is an array storing the original indexes (0-based) 
         of sampled CUMIs.
     """
@@ -442,6 +522,7 @@ def cumi_sample_for_cells(m, n_list):
 
 
 def load_cumi(fn, sep = "\t"):
+    """Load old CUMIs from file."""
     dat = pd.read_csv(fn, sep = sep, header = None)
     dat.columns = ["cell", "umi"]
     return(dat)
