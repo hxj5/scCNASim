@@ -8,34 +8,8 @@ from ..utils.xbarcode import Barcode
 
 
 class SAMInput:
-    """Input SAM/BAM file object.
-    
-    Attributes
-    ----------
-    sams : str or list of str
-        The input SAM/BAM file(s).
-    n_sam : int
-        Number of input SAM/BAM file(s).
-    samples : list of str
-        A list of cell barcodes (droplet-based platform) or sample IDs 
-        (well-based platform).
-    chrom : str
-        The chromosome name.
-    cell_tag : str or None
-        Tag for cell barcodes, set to None when using sample IDs.
-    umi_tag : str or None
-        Tag for UMI, set to None when reads only.
-    min_mapq : int, default 20
-        Minimum MAPQ for read filtering.
-    min_len : int, default 30
-        Minimum mapped length for read filtering.
-    incl_flag : int, default 0
-        Required flags: skip reads with all mask bits unset.
-    excl_flag : int
-        Filter flags: skip reads with any mask bits set.
-    no_orphan : bool, default True
-        If `False`, do not skip anomalous read pairs.
-    """
+    """Input SAM/BAM file object."""
+
     def __init__(
         self, 
         sams, n_sam, samples, chrom,
@@ -44,6 +18,33 @@ class SAMInput:
         incl_flag = 0, excl_flag = None,
         no_orphan = True
     ):
+        """
+        Parameters
+        ----------
+        sams : str or list of str
+            The input SAM/BAM file(s).
+        n_sam : int
+            Number of input SAM/BAM file(s).
+        samples : list of str
+            A list of cell barcodes (droplet-based platform) or sample IDs
+            (well-based platform).
+        chrom : str
+            The chromosome name.
+        cell_tag : str or None
+            Tag for cell barcodes, set to None when using sample IDs.
+        umi_tag : str or None
+            Tag for UMI, set to None when reads only.
+        min_mapq : int, default 20
+            Minimum MAPQ for read filtering.
+        min_len : int, default 30
+            Minimum mapped length for read filtering.
+        incl_flag : int, default 0
+            Required flags: skip reads with all mask bits unset.
+        excl_flag : int
+            Filter flags: skip reads with any mask bits set.
+        no_orphan : bool, default True
+            If `False`, do not skip anomalous read pairs.
+        """
         self.sams = sams
         if n_sam == 1:
             if not isinstance(sams, list):
@@ -68,8 +69,16 @@ class SAMInput:
         if not self.use_barcodes():
             assert len(self.samples) == n_sam
 
+        # idx : int
+        #   The index of currently iterated BAM file(s), 0-based.
         self.idx = 0
+
+        # fp : pysam.AlignmentFile
+        #   The SAM/BAM file object.
         self.fp = pysam.AlignmentFile(self.sams[self.idx], "r")
+
+        # iter : pysam.IteratorRow
+        #   An iterator over a collection of chrom-specific reads.
         self.iter = sam_fetch(self.fp, self.chrom, None, None)
 
     def __fetch_read(self):
@@ -154,31 +163,32 @@ class SAMInput:
 
 
 class SAMOutput:
-    """Output SAM object.
-    
-    Attributes
-    ----------
-    sams : list of str
-        The output SAM/BAM file(s).
-    n_sam : int
-        Number of output SAM/BAM file(s).
-    samples : list of str
-        Output cell barcodes (droplet-based platform) or sample IDs (well-based
-        platform).
-    ref_sam : str
-        The reference SAM/BAM file used as a template for output file(s).
-    cell_tag : str or None
-        Tag for cell barcodes, set to None when using sample IDs.
-    umi_tag : str or None
-        Tag for UMI, set to None when reads only.
-    umi_len : int
-        Length of the UMI barcode.
-    """
+    """Output SAM object."""
+
     def __init__(
         self,
         sams, n_sam, samples, ref_sam,
         cell_tag, umi_tag, umi_len
     ):
+        """
+        Parameters
+        ----------
+        sams : list of str
+            The output SAM/BAM file(s).
+        n_sam : int
+            Number of output SAM/BAM file(s).
+        samples : list of str
+            Output cell barcodes (droplet-based platform) or sample IDs (
+            well-based platform).
+        ref_sam : str
+            The reference SAM/BAM file used as a template for output file(s).
+        cell_tag : str or None
+            Tag for cell barcodes, set to None when using sample IDs.
+        umi_tag : str or None
+            Tag for UMI, set to None when reads only.
+        umi_len : int
+            Length of the UMI barcode.
+        """
         self.sams = sams
         if n_sam == 1:
             if not isinstance(sams, list):
@@ -195,11 +205,16 @@ class SAMOutput:
         if not self.use_barcodes():
             assert len(self.samples) == n_sam
 
+        # fps : list of pysam.AlignmentFile
+        #   A list of file objects for output SAM/BAM files.
         in_sam = pysam.AlignmentFile(ref_sam, "r")
         self.fps = [pysam.AlignmentFile(fn, "wb", template = in_sam)  \
                     for fn in self.sams]
         in_sam.close()
 
+        # b : utils.xbarcode.Barcode
+        #   The object used for transformming the integer UMIs into string
+        #   format.
         self.b = Barcode(self.umi_len)
 
     def close(self):

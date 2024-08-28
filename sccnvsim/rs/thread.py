@@ -3,30 +3,8 @@
 import sys
 
 class ThreadData:
-    """Thread Data for processing chrom-specific reads.
-    
-    Attributes
-    ----------
-    idx : int
-        The 0-based index of thread.
-    conf : rs.config.Config
-        The configuration object.
-    chrom : str
-        The chromosome name.
-    reg_obj_fn : str
-        The file storing chrom-specific regions, a list of 
-        :class:`~afc.gfeature.BlockRegion` objects.
-    reg_idx0 : int
-        The 0-based feature index within transcriptomics scale.
-    cumi_fn : str
-        The file storing a chrom-specific :class:`~rs.cumi.MergedSampler`
-        object.
-    out_samples : list of str
-        Output cell barcodes (droplet-based platform) or sample IDs (well-based
-        platform).
-    out_sam_fn_list : list of str
-        A list of output SAM/BAM files for this `chrom`.
-    """
+    """Thread Data for processing chrom-specific reads."""
+
     def __init__(self, 
         idx, conf,
         chrom,
@@ -36,6 +14,29 @@ class ThreadData:
         out_samples,
         out_sam_fn_list
     ):
+        """
+        Parameters
+        ----------
+        idx : int
+            The 0-based index of thread.
+        conf : rs.config.Config
+            The configuration object.
+        chrom : str
+            The chromosome name.
+        reg_obj_fn : str
+            The file storing chrom-specific regions, a list of 
+            :class:`~afc.gfeature.BlockRegion` objects.
+        reg_idx0 : int
+            The 0-based feature index within transcriptomics scale.
+        cumi_fn : str
+            The file storing a chrom-specific :class:`~rs.cumi.MergedSampler`
+            object.
+        out_samples : list of str
+            Output cell barcodes (droplet-based platform) or sample IDs (
+            well-based platform).
+        out_sam_fn_list : list of str
+            A list of output SAM/BAM files for this `chrom`.
+        """
         self.idx = idx
         self.conf = conf
 
@@ -47,6 +48,8 @@ class ThreadData:
         self.out_samples = out_samples
         self.out_sam_fn_list = out_sam_fn_list
         
+        # ret : int
+        #   Return code of this thread. 0 if success, negative otherwise.
         self.ret = -1
 
     def destroy(self):

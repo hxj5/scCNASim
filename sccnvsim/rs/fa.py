@@ -8,28 +8,54 @@ from ..utils.grange import format_chrom
 
 class FastFA:
     """Efficient FASTA sequence extractor.
+
+    This class extracts sequences from referene genome (FASTA file).
     
-    Attributes
-    ----------
-    fn : str
-        The path to FASTA file.
+    Note that it is different from the file handler that provides random 
+    access, but instead, it is specially designed to extract reference
+    sequences for the sequentially fetched SAM/BAM alignments.
+    
+    To be efficient, it reduces the I/O times by extracting sequences within
+    a sliding window along the chromosome.
     """
     def __init__(self, fn):
+        """
+        Parameters
+        ----------
+        fn : str
+            The path to FASTA file.
+        """
         self.fn = fn
 
+        # fa : pysam.FastaFile
+        #   The FASTA file object.
         self.fa = pysam.FastaFile(fn)
+
+        # fa_chroms : set of str
+        #   The chromosome/contig names in the FASTA file.
         self.fa_chroms = set(self.fa.references)
         
-        self.expand = 1e7       # minimum sliding window size.
+        # expand : int
+        #   Minimum sliding window size along the chromosome.
+        self.expand = 1e7
         
-        self.chrom = None       # current chrom.
+        # chrom : str
+        #   Name of currently iterated chromosome in the BAM file.
+        self.chrom = None
 
-        # left-most and right-most genomic positions of the sliding window,
-        # 0-based, half open.
+        # left : int
+        #   The left-most genomic position of the sliding window, 
+        #   1-based, inclusive.
         self.left = None
+
+        # right : int
+        #   The right-most genomic position of the sliding window, 
+        #   1-based, exclusive.
         self.right = None
 
-        # left-most genomic position of the currently iterated read, 1-based.
+        # bam_lmost : int
+        #   The left-most genomic position of the currently iterated read,
+        #   1-based.
         self.bam_lmost = None
 
     def __extract_seq(self):

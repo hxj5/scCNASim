@@ -2,35 +2,77 @@
 
 
 class SCount:
-    """Counting for single sample
+    """Counting for single cell.
 
-    Attributes
-    ----------
-    mcnt : MCount object
-        A MCount object that the SCount object belongs to.
-    conf : config::Config object
-        Configuration.
-    ab : mcount_ab::SCount object
-        It contains the feature counting results of allele A & B.
-    allele_cnt : dict
-        The key is the allele index in UMI level, i.e., 0 (ref), 1 (alt),
-        2 (both), -1 (oth), -2 (unknown; covered SNPs without fetched alleles),
-        -3 (unknown; no any SNPs covered), the value is the number of UMIs.
-    umi_cnt : dict
-        HashMap of <int:set> for allele_idx:UMI_set pairs.
-    is_reset : bool
-        Has this object been reset.
+    This class counts the UMIs/reads of all haplotype states for specific 
+    feature in one cell, leveraging previous counting results of mainly
+    haplotype A and B.
+
+    The haplotype state of one UMI/read pair is listed below:
+    * A (Haplotype-A; internal index: 0)
+        Haplotype A has supporting SNPs but haplotype B does not.
+    * B (Haplotype-B; internal index: 1)
+        Haplotype B has supporting SNPs but haplotype A does not.
+    * D (Duplicate; internal index: 2)
+        Both haplotype A and B have supporting SNPs.
+    * O (Others; internal index: -1)
+        Neither haplotype A nor B has supporting SNPs, but other alleles 
+        (bases) in SNP level are fetched.
+    * U (Unknown; internal index: -2)
+        The UMI/read pair is fetched by some SNPs, but no any alleles are
+        fetched.
+    * U (Unknown; internal index: -3)
+        The UMI/read pair is not fetched by any SNPs.
     """
     def __init__(self, mcnt, conf):
+        """
+        Parameters
+        ----------
+        mcnt : afc.mcount_feature.MCount
+            A MCount object (multiple cells) that the SCount object belongs to.
+        conf : afc.config.Config
+            Global configuration object.
+        """
         self.mcnt = mcnt
         self.conf = conf
+
+        # ab : afc.mcount_ab.SCount
+        #   The object containing the feature counting results (mainly of
+        #   haplotype A and B) in this cell.
         self.ab = None
 
-        self.allele_cnt = {0:0, 1:0, 2:0, -1:0, -2:0, -3:0}
-        self.umi_cnt = {0:set(), 1:set(), 2:set(), -1:set(), -2:set(), -3:set()}
+        # hap_cnt : dict of {int : int}
+        #   The haplotype-specific UMI/read counts in feature level.
+        #   The key is the haplotype index in UMI level, 
+        #   the value is the number of UMIs/reads.
+        self.hap_cnt = {0:0, 1:0, 2:0, -1:0, -2:0, -3:0}
+
+        # umi_cnt : dict of {int : set of str}
+        #   The cell-wise supporting UMIs/read pairs for each haplotype state.
+        #   Keys are haplotype indexes, values are set of UMI barcodes or read
+        #   query names.
+        self.umi_cnt = {
+            0:set(), 1:set(), 2:set(), 
+            -1:set(), -2:set(), -3:set()
+        }
+
+        # is_reset : bool
+        #   Whether this object has been reset?
         self.is_reset = False
 
     def add_ab(self, ab):
+        """Add feature counting results of haplotype A and B.
+
+        Parameters
+        ----------
+        ab : afc.mcount_ab.SCount
+            The object containing cell-wise feature counting results of mainly
+            haplotype A and B.
+        
+        Returns
+        -------
+        Void.        
+        """
         self.ab = ab
         self.mark_reset_false()
 
@@ -41,79 +83,116 @@ class SCount:
         self.is_reset = True
 
     def push_read(self, read):
-        """
+        """Count one BAM read.
+
+        Parameters
+        ----------
+        read : pysam.AlignedSegment
+            The BAM read to be counted.
+
         Returns
         -------
         int
-            0 if success, 1 if invalid UMI/read barcode, -1 error.
+            Return code. 0 if success, 1 if read filtered, -1 error.
         str
-            UMI or read barcode. Could be empty or `None`.
+            UMI barcode (droplet-based) or read query name (well-based) of
+            the read.
         int
-            The allele index. One of -3, -2, -1, 0, 1, 2.
+            The haplotype index of this read.
         """
         conf = self.conf
         umi = None
-        ale_idx = None
+        hap_idx = None
         if conf.use_umi():
             umi = read.get_tag(conf.umi_tag)
         else:
             umi = read.query_name
         if not umi:
-            return((1, umi, ale_idx))
+            return((1, umi, hap_idx))
         if umi in self.ab.umi_cnt:
-            ale_idx = self.ab.umi_cnt[umi].allele_idx
+            hap_idx = self.ab.umi_cnt[umi].hap_idx
         else:
-            ale_idx = -3
-        self.umi_cnt[ale_idx].add(umi)
-        return((0, umi, ale_idx))
+            hap_idx = -3
+        self.umi_cnt[hap_idx].add(umi)
+        return((0, umi, hap_idx))
 
     def reset(self):
         if self.is_reset:
             return
-        for ale_idx in self.allele_cnt.keys():
-            self.allele_cnt[ale_idx] = 0
-        for ale_idx in self.umi_cnt.keys():
-            self.umi_cnt[ale_idx].clear()
+        for hap_idx in self.hap_cnt.keys():
+            self.hap_cnt[hap_idx] = 0
+        for hap_idx in self.umi_cnt.keys():
+            self.umi_cnt[hap_idx].clear()
         self.mark_reset_true()
 
     def stat(self):
-        for ale_idx in self.umi_cnt.keys():
-            self.allele_cnt[ale_idx] = len(self.umi_cnt[ale_idx])
+        for hap_idx in self.umi_cnt.keys():
+            self.hap_cnt[hap_idx] = len(self.umi_cnt[hap_idx])
         return(0)
 
 
 class MCount:
-    """Counting for multiple samples
+    """Counting for multiple cells.
+    
+    This class counts the UMIs/reads of all haplotype states for specific 
+    feature in individual cells, leveraging previous counting results of 
+    mainly haplotype A and B.
 
-    Attributes
-    ----------
-    samples : list
-        A list of cell barcodes or sample IDs [list of str].
-    conf : config::Config object
-        Configuration
-    reg : gfeature::BlockRegion object
-        The region in which feature counting is done.
-    ab : mcount_ab::MCount object
-        It contains the feature counting results of allele A & B.
-    cell_cnt : dict
-        HashMap of <str, SCount> for sample:SCount pair.
-    is_reset : bool
-        Has this object been reset.
+    Use the :func:`~afc.mcount_feature.MCount.add_feature` function to add
+    the feature to be counted.
     """
     def __init__(self, samples, conf):
+        """
+        Parameters
+        ----------
+        samples : list of str
+            A list of cell barcodes (droplet-based) or sample IDs (well-based).
+        conf : afc.config.Config
+            Global configuration object.
+        """
         self.samples = samples
         self.conf = conf
 
+        # reg : afc.gfeature.BlockRegion
+        #   The feature to be counted.
         self.reg = None
+
+        # ab : afc.mcount_ab.MCount
+        #   The object containing (multi-cell) feature counting results of 
+        #   mainly haplotype A and B.
         self.ab = None
+
+        # cell_cnt : dict of {str : afc.mcount_feature.SCount}
+        #   The cell-specific counting data.
+        #   Keys are cell barcodes (droplet-based) or sample IDs (well-based),
+        #   values are the associated :class:`~afc.mcount_feature.SCount`
+        #   objects.
         self.cell_cnt = {}
         for smp in self.samples:
             if smp in self.cell_cnt:    # duplicate samples
                 return(-2)
             self.cell_cnt[smp] = SCount(self, self.conf)
+
+        # is_reset : bool
+        #   Whether this object has been reset.
         self.is_reset = False
 
     def add_feature(self, reg, ab):
+        """Add one feature to be counted.
+
+        Parameters
+        ----------
+        reg : afc.gfeature.BlockRegion
+            A feature to be counted.
+        ab : afc.mcount_ab.MCount
+            The object containing (multi-cell) feature counting results of 
+            mainly haplotype A and B.
+        
+        Returns
+        -------
+        int
+            Return code. 0 if success, negative otherwise.
+        """
         self.reset()
         self.reg = reg
         self.ab = ab
@@ -136,11 +215,11 @@ class MCount:
                 scnt.mark_reset_true()
 
     def push_read(self, read, sid = None):
-        """Push one read into this counting machine.
+        """Count one BAM read.
 
         Parameters
         ----------
-        read : pysam::AlignedSegment object
+        read : pysam::AlignedSegment
             A BAM read to be counted.
         sid : str
             The ID of the sample that the read belongs to. 
@@ -149,17 +228,20 @@ class MCount:
         Returns
         -------
         int
-            0 if success, -1 error, 1 if read filtered.
+            Return code. 0 if success, -1 error, 1 if read filtered.
         str
-            Cell barcode or sample name. Could be empty or `None`.
-        str
-            UMI or read barcode. Could be empty or `None`.
+            Cell barcode (droplet-based) or sample name (well-based) of the
+            read.
+        str or None
+            UMI barcode (droplet-based) or read query name (well-based) of
+            the read.
+            None if read is filtered.
         int
-            The allele index. One of -3, -2, -1, 0, 1, 2.
+            The haplotype index of this read.
         """
         conf = self.conf
         smp = None
-        ale_idx = None
+        hap_idx = None
         if conf.use_barcodes():
             smp = read.get_tag(conf.cell_tag)
         else:
@@ -168,14 +250,14 @@ class MCount:
         if smp in self.cell_cnt:
             scnt = self.cell_cnt[smp]
         else:
-            return((1, smp, None, ale_idx))
+            return((1, smp, None, hap_idx))
 
-        ret, umi, ale_idx = scnt.push_read(read)
+        ret, umi, hap_idx = scnt.push_read(read)
         if ret < 0: 
-            return((-1, smp, umi, ale_idx))
+            return((-1, smp, umi, hap_idx))
         elif ret > 0:
-            return((1, smp, umi, ale_idx))
-        return((0, smp, umi, ale_idx))
+            return((1, smp, umi, hap_idx))
+        return((0, smp, umi, hap_idx))
 
     def reset(self):
         if self.is_reset:

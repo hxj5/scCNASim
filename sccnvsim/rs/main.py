@@ -35,7 +35,7 @@ def usage(fp = sys.stdout, conf = None):
     s += "Options:\n"
     s += "  -s, --sam FILE         Comma separated indexed BAM file.\n"
     s += "  -S, --samList FILE     A file listing indexed BAM files, each per line.\n"
-    s += "  -b, --barcode FILE     A plain file listing all effective cell barcode.\n"
+    s += "  -b, --barcode FILE     A plain file listing all effective cell barcode, each per line.\n"
     s += "  -c, --count FILE       An adata file storing count matrices.\n"
     s += "  -R, --region FILE      A pickle object file storing target features.\n"
     s += "  -f, --refseq FILE      A FASTA file storing reference genome sequence.\n"
@@ -263,7 +263,7 @@ def rs_wrapper(
 
 def rs_core(conf):
     if prepare_config(conf) < 0:
-        error("prepare configuration failed.")
+        error("preparing configuration failed.")
         raise ValueError
     info("program configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
@@ -386,7 +386,7 @@ def rs_core(conf):
         out_dir = res_cumi_dir,
         use_umi = conf.use_umi(),
         max_pool = cumi_max_pool,
-        ncores = conf.nproc        
+        ncores = conf.nproc
     )
     assert len(chrom_cumi_fn_list) == len(conf.chrom_list)
     step += 1
@@ -452,6 +452,7 @@ def rs_core(conf):
             callback = None))
     pool.close()
     pool.join()
+
     mp_result = [res.get() for res in mp_result]
     retcode_list = [item[0] for item in mp_result]
     thdata_list = [item[1] for item in mp_result]
@@ -460,12 +461,12 @@ def rs_core(conf):
         debug("\t%s" % str(retcode_list))
 
     # check running status of each sub-process
-    for thdata in thdata_list:         
+    for thdata in thdata_list:
         if conf.debug > 0:
             debug("data of thread-%d after:" %  thdata.idx)
             thdata.show(fp = sys.stdout, prefix = "\t")
         if thdata.ret < 0:
-            error("errcode -3")
+            error("error code for thread-%d: %d" % (thdata.idx, thdata.ret))
             raise ValueError
     del thdata_list
 

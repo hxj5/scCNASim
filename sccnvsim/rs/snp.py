@@ -6,14 +6,20 @@ from ..utils.grange import format_chrom
 
 
 class SNPSet:
-    """SNP set used in read masking.
-    
-    Attributes
-    ----------
-    snp_list : list of afc.gfeature.SNP
-        A list of SNPs covered by one feature.
-    """
+    """SNP set used in read masking."""
+
     def __init__(self, snp_list):
+        """
+        Parameters
+        ----------
+        snp_list : list of afc.gfeature.SNP
+            A list of SNPs covered by one feature.    
+        """
+        # dat : dict
+        #   The data structure stores the haplotypes of SNPs.
+        #   It is a two-layer dict, with "chrom (str)" and "pos (int)" as
+        #   their keys, respectively, and tuples(str, str) of the phased
+        #   reference (REF) and alternative (ALT) alleles as values.
         self.dat = self.__transform(snp_list)
 
     def __transform(self, snp_list):

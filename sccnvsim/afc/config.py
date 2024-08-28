@@ -6,10 +6,82 @@ COMMAND = "afc"
 
 
 class Config:
+    """Configuration for the `rs` module.
+
+    Attributes
+    ----------
+    sam_fn : str or None, default None
+        Comma separated indexed BAM file.
+        Note that one and only one of `sam_fn` and `sam_list_fn` should be
+        specified.
+    sam_list_fn : str or None, default None
+        A file listing indexed BAM files, each per line.
+    barcode_fn : str or None, default None
+        A plain file listing all effective cell barcode.
+        It should be specified for droplet-based data.
+    sample_id_str : str or None, default None
+        Comma separated sample IDs.
+        It should be specified for well-based or bulk data.
+        When `barcode_fn` is not specified, the default value will be
+        "SampleX", where "X" is the 0-based index of the BAM file(s).
+        Note that `sample_id_str` and `sample_id_fn` should not be specified
+        at the same time.
+    sample_id_fn : str or None, default None
+        A file listing sample IDs, each per line.
+    feature_fn : str
+        A TSV file listing target features.
+        It is header-free and its first 4 columns shoud be:
+        - "chrom" (str): chromosome name. 
+        - "start" (int): start genomic position of the feature, 1-based and
+          inclusive.
+        - "end" (int): end genomic position of the feature, 1-based and
+          inclusive.
+        - "feature" (str): feature name.
+    snp_fn : str
+        A TSV or VCF file listing phased SNPs.
+        If TSV, it should be header-free, containing six columns:
+        - "chrom" (str): chromosome name. 
+        - "pos" (int): genomic position of the SNP, 1-based.
+        - "ref" (str): the reference allele (REF) of the SNP.
+        - "alt" (str): the alternative allele (ALT) of the SNP.
+        - "ref_hap" (int): the haplotype index of the "ref", 0 or 1.
+        - "alt_hap" (int): the haplotype index of the "alt", 0 or 1.
+        If VCF, it should store the phased genotype in the "GT" within the
+        "FORMAT" field.
+    out_dir : str
+        Output directory.
+    cell_tag : str or None, default "CB"
+        Tag for cell barcodes, set to None when using sample IDs.
+    umi_tag : str or None, default "UB"
+        Tag for UMI, set to None when reads only.
+    nproc : int, default 1
+        Number of processes.
+    min_count : int, default 1
+        Minimum UMI/read count aggregated from all cells/samples for SNP.
+    min_maf : float, default 0
+        Minimum minor allele fraction for SNP.
+    min_mapq : int, default 20
+        Minimum MAPQ for read filtering.
+    min_len : int, default 30
+        Minimum mapped length for read filtering.
+    incl_flag : int, default 0
+        Required flags: skip reads with all mask bits unset.
+    excl_flag : int, default -1
+        Filter flags: skip reads with any mask bits set.
+        Value -1 means setting it to 772 when using UMI, or 1796 otherwise.
+    no_orphan : bool, default True
+        If `False`, do not skip anomalous read pairs.
+    """
     def __init__(self):
+        # defaults : DefaultConfig
+        #   The default values of parameters.
         self.defaults = DefaultConfig()
+
+        # argv : list of str or None, default None
+        #   A list of command line arguments, typically from sys.argv.
         self.argv = None
 
+        # command-line arguments/parameters.
         self.sam_fn = None
         self.sam_list_fn = None
         self.barcode_fn = None
@@ -32,27 +104,80 @@ class Config:
         self.excl_flag = -1
         self.no_orphan = self.defaults.NO_ORPHAN
 
-        self.barcodes = None     # list of barcode strings.
-        self.sample_ids = None
-        self.reg_list = None     # list of gene/block objects.
-        self.snp_set = None      # set of SNPs.
+        # derived parameters.
 
+        # barcodes : list of str or None
+        #   A list of cell barcodes.
+        #   None if sample IDs are used.
+        self.barcodes = None
+
+        # sample_ids : list of str or None
+        #   A list of sample IDs.
+        #   None if cell barcodes are used.
+        self.sample_ids = None
+
+        # reg_list : list of afc.gfeature.BlockRegion
+        #   A list of features.
+        self.reg_list = None
+
+        # snp_set : afc.gfeature.SNPSet
+        #   The object storing a set of SNPs.
+        self.snp_set = None
+
+        # sam_fn_list : list of str
+        #   A list of input SAM/BAM files. 
         self.sam_fn_list = None
+
+        # samples : list of str
+        #   A list of cell barcodes (droplet-based data) or sample IDs (
+        #   well-based data).
+        #   It will be used as output IDs of each cell.        
         self.samples = None
 
+        # aln_dir : str
+        #   The output folder for alignments.
         self.aln_dir = None
+
+        # count_dir : str
+        #   The output folder for count matrices.
         self.count_dir = None
 
-        self.out_prefix = COMMAND + "."
-        self.out_feature_fn = None
-        self.out_sample_fn = None
-        self.out_ale_fns = {ale:None for ale in ("A", "B", "D", "O", "U")}
+        # alleles : tuple of str
+        #   All alleles.
+        self.alleles = ("A", "B", "D", "O", "U")
 
-        # `out_feature_meta_fn`: a python pickle file storing the 
-        # `self.reg_list`.
-        # It will be saved after extracting reads from input BAM(s),
-        # and be re-loaded for read sampling.
+        # cumi_alleles : tuple of str
+        #   Alleles whose CUMIs will be outputed for read sampling.
+        self.cumi_alleles = ("A", "B", "U")
+
+        # out_prefix : str
+        #   The prefix of the output files.
+        self.out_prefix = COMMAND + "."
+
+        # out_feature_fn : str
+        #   Path to the output feature file.
+        self.out_feature_fn = None
+
+        # out_sample_fn : str
+        #   Path to the output sample file.
+        self.out_sample_fn = None
+
+        # out_ale_fns : dict of {str : str}
+        #   The allele-specific *feature x cell* count matrices.
+        #   Keys are allele names and values are pathes to the count matrix
+        #   files.
+        self.out_ale_fns = {ale:None for ale in self.alleles}
+
+        # out_feature_meta_fn : str
+        #   Path to a python pickle file storing the `reg_list`.
+        #   It will be saved after extracting reads from input BAM(s), and
+        #   re-loaded for read sampling.
         self.out_feature_meta_fn = None
+
+        # out_adata_fn : str
+        #   Path to a ".adata" file storing a :class:`~anndata.Anndata`
+        #   object, which contains all allele-specific *feature x cell* count
+        #   matrices.
         self.out_adata_fn = None
 
     def show(self, fp = None, prefix = ""):
@@ -85,6 +210,8 @@ class Config:
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
         s += "%s\n" % prefix
 
+        # derived parameters.
+        
         s += "%snumber_of_BAMs = %d\n" % (prefix, len(self.sam_fn_list) if \
                 self.sam_fn_list is not None else -1)
         s += "%snumber_of_barcodes = %d\n" % (prefix, len(self.barcodes) if \
@@ -99,6 +226,10 @@ class Config:
 
         s += "%saln_dir = %s\n" % (prefix, self.aln_dir)
         s += "%scount_dir = %s\n" % (prefix, self.count_dir)
+        s += "%s\n" % prefix
+
+        s += "%salleles = %s\n" % (prefix, str(self.alleles))
+        s += "%scumi_alleles = %s\n" % (prefix, str(self.cumi_alleles))
         s += "%s\n" % prefix
 
         s += "%soutput_feature_file = %s\n" % (prefix, self.out_feature_fn)

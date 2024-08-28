@@ -14,12 +14,30 @@ from ..utils.sam import check_read, sam_fetch
 from ..utils.zfile import zopen, ZF_F_GZIP
 
 
-
-# TODO: use clever IPC (Inter-process communication) instead of naive `raise Error`.
 # NOTE: 
-# 1. bgzf errors when using pysam.AlignmentFile.fetch in parallel (with multiprocessing)
-#    https://github.com/pysam-developers/pysam/issues/397
+# 1. bgzf errors when using pysam.AlignmentFile.fetch in parallel (with
+#    multiprocessing): https://github.com/pysam-developers/pysam/issues/397
+
 def fc_features(thdata):
+    """Feature counting for a list of features.
+
+    This function does feature counting for a list of features. When iterating
+    one feature, it (1) generates *allele x cell* counts and output them into
+    allele-specific count matrix file. (2) outputs the corresponding cell and
+    UMI IDs into each allele-specific CUMI file.
+    
+    Parameters
+    ----------
+    thdata : afc.thread.ThreadData
+        The object containing thread-specific data.
+
+    Returns
+    -------
+    int
+        Return code. 0 if success, negative otherwise.
+    afc.thread.ThreadData
+        The thread-specific data.
+    """
     conf = thdata.conf
     thdata.ret = -1
 
@@ -91,6 +109,41 @@ def fc_features(thdata):
 
 
 def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
+    """Feature counting for one feature.
+
+    This function generates *allele x cell* counts for one feature, and output
+    the corresponding cell (cell barcodes or sample IDs) and UMI (UMI barcodes
+    or query name) IDs into each allele-specific CUMI file.
+    These output cell and UMI IDs (CUMIs) will be used by the `rs` module for
+    read (CUMI) sampling.
+    
+    Parameters
+    ----------
+    reg : afc.gfeature.BlockRegion
+        The feature to be counted.
+    alleles : list of str
+        A list of allele names.
+    sam_list : list of pysam.AlignmentFile
+        A list of file objects for input SAM/BAM files.
+    snp_mcnt : afc.mcount_snp.MCount
+        Counting object in SNP level.
+    ab_mcnt : afc.mcount_ab.MCount
+        Counting object for allele "A" and "B" in feature level.
+    mcnt : afc.mcount_feature.MCount
+        Counting object for all alleles in feature level.
+    conf : afc.config.Config
+        Global configuration object.
+
+    Returns
+    -------
+    int
+        Return code. 0 if success, negative otherwise.
+    dict or None
+        The *allele x cell* counts.
+        It is a two-layer dict, with "allele name (str)" and "cell ID (str)"
+        as keys, respectively, and "counts (int)" as values.
+        None if error happens.
+    """
     if fc_ab(reg, sam_list, snp_mcnt, ab_mcnt, conf) < 0:
         return((-3, None))
     mcnt.add_feature(reg, ab_mcnt)
@@ -148,6 +201,34 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
 
 
 def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
+    """Counting for allele A and B in feature level.
+    
+    This function generates UMI/read counts of allele "A" and "B" in each
+    single cells for one feature.
+    The allele/haplotype state of each UMI/read is inferred by checking the
+    phased SNPs covered by this UMI/read.
+
+    Note that when one UMI/read covers multiple SNPs, it will only be counted
+    once in feature level, to avoid the issue of double counting.
+    
+    Parameters
+    ----------
+    reg : afc.gfeature.BlockRegion
+        The feature to be counted.
+    sam_list : list of pysam.AlignmentFile
+        A list of file objects for input SAM/BAM files.
+    snp_mcnt : afc.mcount_snp.MCount
+        Counting object in SNP level.
+    mcnt : afc.mcount_ab.MCount
+        Counting object for allele "A" and "B" in feature level.
+    conf : afc.config.Config
+        Global configuration object.
+
+    Returns
+    -------
+    int
+        Return code. 0 if success, negative otherwise.
+    """
     mcnt.add_feature(reg)
     for snp in reg.snp_list:
         ret = plp_snp(snp, sam_list, snp_mcnt, conf)
@@ -166,23 +247,26 @@ def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
 
 
 def plp_snp(snp, sam_list, mcnt, conf):
-    """Pileup one SNP
+    """Counting in SNP level.
+    
+    This function generates UMI/read counts of the reference (REF) and 
+    alternative (ALT) alleles in each single cells for this SNP.
     
     Parameters
     ----------
-    snp : gfeature::SNP object
-        The SNP to be pileuped.
-    mcnt : mcount::MCount object
-        The counting machine for this SNP.
-    conf : config::Config object
-        Configuration.
-    
+    snp : afc.gfeature.SNP
+        The SNP to be counted.
+    sam_list : list of pysam.AlignmentFile
+        A list of file objects for input SAM/BAM files.
+    mcnt : afc.mcount_snp.MCount
+        Counting object in SNP level.
+    conf : afc.config.Config
+        Global configuration object.
+
     Returns
     -------
-    ret : int
-        The return code. 0 if success; negative if error; positive if filtered.
-    mcnt : mcount::MCount object
-        The object storing the counting results of each single cell.
+    int
+        Return code. 0 if success, negative if error, positive if filtered.
     """
     ret = None
     if mcnt.add_snp(snp) < 0:   # mcnt reset() inside.

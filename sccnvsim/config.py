@@ -146,10 +146,10 @@ class AFCConfig(AFC_Conf):
         A list file containing sample IDs, each per line.
         Typically used in well-based data (e.g., SMART-seq2).
     min_count : int
-        Mininum aggragated count for SNP.
+        Minimum aggragated count for SNP.
         Default is `1`.
     min_maf : int
-        Mininum minor allele fraction for SNP.
+        Minimum minor allele fraction for SNP.
         Default is `0`.
     min_mapq : int
         Minimum MAPQ for read filtering.

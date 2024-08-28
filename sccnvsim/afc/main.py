@@ -37,22 +37,22 @@ def usage(fp = sys.stdout, conf = None):
     s += "\n" 
     s += "Options:\n"
     s += "  -s, --sam FILE         Comma separated indexed sam/bam/cram file.\n"
-    s += "  -S, --samList FILE     A list file containing bam files, each per line.\n"
-    s += "  -b, --barcode FILE     A plain file listing all effective cell barcode.\n"
+    s += "  -S, --samList FILE     A file listing indexed BAM files, each per line.\n"
+    s += "  -b, --barcode FILE     A plain file listing all effective cell barcode, each per line.\n"
     s += "  -R, --region FILE      A TSV file listing target features. The first 4 columns shoud be:\n"
     s += "                         chrom, start, end (both 1-based and inclusive), name.\n"
     s += "  -P, --phasedSNP FILE   A TSV or VCF file listing phased SNPs (i.e., containing phased GT).\n"
-    s += "  -i, --sampleList FILE  A list file containing sample IDs, each per line.\n"
+    s += "  -i, --sampleList FILE  A file listing sample IDs, each per line.\n"
     s += "  -I, --sampleIDs STR    Comma separated sample IDs.\n"
-    s += "  -O, --outdir DIR       Output directory for sparse matrices.\n"
+    s += "  -O, --outdir DIR       Output directory.\n"
     s += "  -h, --help             Print this message and exit.\n"
     s += "\n"
     s += "Optional arguments:\n"
     s += "  -p, --nproc INT        Number of processes [%d]\n" % conf.NPROC
     s += "      --cellTAG STR      Tag for cell barcodes, set to None when using sample IDs [%s]\n" % conf.CELL_TAG
     s += "      --UMItag STR       Tag for UMI, set to None when reads only [%s]\n" % conf.UMI_TAG
-    s += "      --minCOUNT INT     Mininum aggragated count for SNP [%d]\n" % conf.MIN_COUNT
-    s += "      --minMAF FLOAT     Mininum minor allele fraction for SNP [%f]\n" % conf.MIN_MAF
+    #s += "      --minCOUNT INT     Minimum aggragated count for SNP [%d]\n" % conf.MIN_COUNT
+    #s += "      --minMAF FLOAT     Minimum minor allele fraction for SNP [%f]\n" % conf.MIN_MAF
     s += "  -D, --debug INT        Used by developer for debugging [%d]\n" % conf.DEBUG
     s += "\n"
     s += "Read filtering:\n"
@@ -72,13 +72,13 @@ def afc_main(argv):
 
     Parameters
     ----------
-    argv : list
+    argv : list of str
         A list of cmdline parameters.
     
     Returns
     -------
     int
-        0 if success, -1 otherwise [int]
+        Return code. 0 if success, -1 otherwise.
     """
     conf = Config()
 
@@ -101,7 +101,7 @@ def afc_main(argv):
 
             "nproc=", 
             "cellTAG=", "UMItag=", 
-            "minCOUNT=", "minMAF=",
+            #"minCOUNT=", "minMAF=",
             "debug=",
 
             "inclFLAG=", "exclFLAG=", "minLEN=", "minMAPQ=", "countORPHAN"
@@ -123,8 +123,8 @@ def afc_main(argv):
         elif op in ("-p", "--nproc"): conf.nproc = int(val)
         elif op in (      "--celltag"): conf.cell_tag = val
         elif op in (      "--umitag"): conf.umi_tag = val
-        elif op in (      "--mincount"): conf.min_count = int(val)
-        elif op in (      "--minmaf"): conf.min_maf = float(val)
+        #elif op in (      "--mincount"): conf.min_count = int(val)
+        #elif op in (      "--minmaf"): conf.min_maf = float(val)
         elif op in ("-D", "--debug"): conf.debug = int(val)
 
         elif op in ("--inclflag"): conf.incl_flag = int(val)
@@ -150,11 +150,82 @@ def afc_wrapper(
     debug_level = 0,
     ncores = 1,
     cell_tag = "CB", umi_tag = "UB",
-    min_count = 1, min_maf = 0,
+    #min_count = 1, min_maf = 0,
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = None,
     no_orphan = True
 ):
+    """
+    Parameters
+    ----------
+    sam_fn : str or None
+        Comma separated indexed BAM file.
+        Note that one and only one of `sam_fn` and `sam_list_fn` should be
+        specified.
+    barcode_fn : str or None
+        A plain file listing all effective cell barcode.
+        It should be specified for droplet-based data.
+    feature_fn : str
+        A TSV file listing target features.
+        It is header-free and its first 4 columns shoud be:
+        - "chrom" (str): chromosome name. 
+        - "start" (int): start genomic position of the feature, 1-based and
+          inclusive.
+        - "end" (int): end genomic position of the feature, 1-based and
+          inclusive.
+        - "feature" (str): feature name.
+    phased_snp_fn : str
+        A TSV or VCF file listing phased SNPs.
+        If TSV, it should be header-free, containing six columns:
+        - "chrom" (str): chromosome name. 
+        - "pos" (int): genomic position of the SNP, 1-based.
+        - "ref" (str): the reference allele (REF) of the SNP.
+        - "alt" (str): the alternative allele (ALT) of the SNP.
+        - "ref_hap" (int): the haplotype index of the "ref", 0 or 1.
+        - "alt_hap" (int): the haplotype index of the "alt", 0 or 1.
+        If VCF, it should store the phased genotype in the "GT" within the
+        "FORMAT" field.
+    out_dir : str
+        Output directory.
+    sam_list_fn : str or None, default None
+        A file listing indexed BAM files, each per line.
+    sample_ids : str or None, default None
+        Comma separated sample IDs.
+        It should be specified for well-based or bulk data.
+        When `barcode_fn` is not specified, the default value will be
+        "SampleX", where "X" is the 0-based index of the BAM file(s).
+        Note that `sample_id_str` and `sample_id_fn` should not be specified
+        at the same time.
+    sample_id_fn : str or None, default None
+        A file listing sample IDs, each per line.
+    debug_level : {0, 1, 2}
+        The debugging level, the larger the number is, more detailed debugging
+        information will be outputted.
+    ncores : int, default 1
+        Number of cores.
+    cell_tag : str or None, default "CB"
+        Tag for cell barcodes, set to None when using sample IDs.
+    umi_tag : str or None, default "UB"
+        Tag for UMI, set to None when reads only.
+    min_mapq : int, default 20
+        Minimum MAPQ for read filtering.
+    min_len : int, default 30
+        Minimum mapped length for read filtering.
+    incl_flag : int, default 0
+        Required flags: skip reads with all mask bits unset.
+    excl_flag : int or None, default None
+        Filter flags: skip reads with any mask bits set.
+        Value None means setting it to 772 when using UMI, or 1796 otherwise.
+    no_orphan : bool, default True
+        If `False`, do not skip anomalous read pairs.
+
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative otherwise.
+    dict
+        The returned meta information.
+    """
     conf = Config()
     #init_logging(stream = sys.stdout)
 
@@ -171,8 +242,8 @@ def afc_wrapper(
     conf.cell_tag = cell_tag
     conf.umi_tag = umi_tag
     conf.nproc = ncores
-    conf.min_count = min_count
-    conf.min_maf = min_maf
+    #conf.min_count = min_count
+    #conf.min_maf = min_maf
 
     conf.min_mapq = min_mapq
     conf.min_len = min_len
@@ -186,14 +257,19 @@ def afc_wrapper(
 
 def afc_core(conf):
     if prepare_config(conf) < 0:
-        error("errcode -2")
+        error("preparing configuration failed.")
         raise ValueError
     info("program configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
 
-    # extract SNPs for each feature
+
+    # prepare data for multiprocessing.
+    info("prepare data for multiprocessing ...")
+
+    # extract SNPs for each feature.
     if conf.debug > 0:
         debug("extract SNPs for each feature.")
+
     n_reg_with_snp = 0
     for reg in conf.reg_list:
         snp_list = conf.snp_set.fetch(reg.chrom, reg.start, reg.end)
@@ -204,54 +280,47 @@ def afc_core(conf):
             reg.snp_list = []
             if conf.debug > 0:
                 debug("no SNP fetched for feature '%s'." % reg.name)
+
     info("%d features extracted with SNPs." % n_reg_with_snp)
 
-    # assign output result dir to each feature
-    batch_size = 1000         # number of features in each sub-dir.
-    batch_idx = -1
-    batch_dir = None
-    feature_idx = 0
-    feature_dir = None
-    for reg in conf.reg_list:
-        if feature_idx % batch_size == 0:
-            batch_idx += 1
-            batch_dir = os.path.join(conf.aln_dir, "batch%d" % batch_idx)
-            os.makedirs(batch_dir, exist_ok = True)
-        feature_dir = os.path.join(
-            batch_dir, "%d_%s" % (feature_idx, reg.name))
-        os.makedirs(feature_dir, exist_ok = True)
-        reg.res_dir = feature_dir
-        reg.aln_fns = {ale: os.path.join(reg.res_dir, "%s.%s.aln.%s.tsv" % \
-                    (reg.name, ale, COMMAND)) for ale in ("A", "B", "U")}
-        feature_idx += 1
 
-    # split feature list and save to file
+    # assign features to several batches of result folders, to avoid exceeding
+    # the maximum number of files/sub-folders in one folder.
+    assign_feature_batch(conf, batch_size = 1000)
+
+
+    # split feature list and save to file.
+    info("split feature list and save to file ...")
+
     with open(conf.out_feature_meta_fn, "wb") as fp:
         pickle.dump(conf.reg_list, fp)
 
     m_reg = len(conf.reg_list)
-    m_thread = conf.nproc if m_reg >= conf.nproc else m_reg
+    m_thread = min(conf.nproc, m_reg)
+    n_reg = None
+    if m_reg % m_thread == 0:
+        n_reg = m_reg // m_thread
+    else:
+        n_reg = m_reg // m_thread + 1
 
     reg_fn_list = []
-    n_reg = m_reg // m_thread
-    r_reg = m_reg - n_reg * m_thread
-    k_reg = 0
-    i_thread = 0
-    while k_reg <= m_reg - 1:
-        t_reg = n_reg + 1 if i_thread < r_reg else n_reg
-        reg_fn = conf.out_prefix + "feature.pickle." + str(i_thread)
+    for idx, i in enumerate(range(0, m_reg, n_reg)):
+        reg_fn = conf.out_prefix + "feature.pickle." + str(idx)
         reg_fn = os.path.join(conf.out_dir, reg_fn)
         reg_fn_list.append(reg_fn)
         with open(reg_fn, "wb") as fp:
-            pickle.dump(conf.reg_list[k_reg:(k_reg + t_reg)], fp)
-        k_reg += t_reg
-        i_thread += 1
+            pickle.dump(conf.reg_list[i:(i+n_reg)], fp)
+
     for reg in conf.reg_list:  # save memory
         del reg
     conf.reg_list.clear()
     conf.reg_list = None
     conf.snp_set.destroy()
     conf.snp_set = None
+
+
+    # allele-specific counting with multi-processing.
+    info("start allele-specific counting with %d cores ..." % m_thread)
 
     thdata_list = []
     pool = multiprocessing.Pool(processes = m_thread)
@@ -266,7 +335,7 @@ def afc_core(conf):
         )
         thdata_list.append(thdata)
         if conf.debug > 0:
-            debug("data of thread-%d before fc_features:" % i)
+            debug("data of thread-%d before:" % i)
             thdata.show(fp = sys.stdout, prefix = "\t")
         mp_result.append(pool.apply_async(
             func = fc_features, 
@@ -274,6 +343,7 @@ def afc_core(conf):
             callback = show_progress))   # TODO: error_callback?
     pool.close()
     pool.join()
+
     mp_result = [res.get() for res in mp_result]
     retcode_list = [item[0] for item in mp_result]
     thdata_list = [item[1] for item in mp_result]
@@ -284,13 +354,16 @@ def afc_core(conf):
     # check running status of each sub-process
     for thdata in thdata_list:         
         if conf.debug > 0:
-            debug("data of thread-%d after fc_features:" %  thdata.idx)
+            debug("data of thread-%d after:" %  thdata.idx)
             thdata.show(fp = sys.stdout, prefix = "\t")
         if thdata.ret < 0:
-            error("errcode -3")
+            error("error code for thread-%d: %d" % (thdata.idx, thdata.ret))
             raise ValueError
 
-    # merge results
+
+    # merge count matrices.
+    info("merge output count matrices ...")
+
     nr_reg_list = [td.nr_reg for td in thdata_list]
     for ale in conf.out_ale_fns.keys():
         if merge_mtx(
@@ -302,8 +375,11 @@ def afc_core(conf):
         ) < 0:
             error("errcode -17")
             raise ValueError
-        
-    # construct adata and save into h5ad file
+
+
+    # construct adata and save into h5ad file.
+    info("construct adata and save into h5ad file ...")
+
     adata = None
     for idx, ale in enumerate(conf.out_ale_fns.keys()):
         dat = load_xdata(
@@ -321,6 +397,10 @@ def afc_core(conf):
         else:
             adata.layers[ale] = dat.X
     adata.transpose().write_h5ad(conf.out_adata_fn)
+
+
+    # clean
+    info("clean ...")
 
     res = {
         "feature_meta_fn": conf.out_feature_meta_fn,
@@ -366,17 +446,17 @@ def afc_run(conf):
 
 
 def prepare_config(conf):
-    """Prepare configures for downstream analysis
+    """Prepare configures for downstream analysis.
 
     Parameters
     ----------
-    conf :  Config object
-        Configuration info.
+    conf : afc.config.Config
+        Global configuration object.
 
     Returns
     -------
     int
-        0 if success, -1 otherwise.
+        Return code. 0 if success, -1 otherwise.
 
     Notes
     -----
@@ -526,3 +606,44 @@ def prepare_config(conf):
 
 def show_progress(rv = None):
     return(rv)
+
+
+def assign_feature_batch(conf, batch_size = 1000):
+    """Assign features into several batches.
+
+    This function assign features into several batches of result folders, 
+    to avoid exceeding the maximum number of files/sub-folders in one folder.
+    Specifically, it
+    (1) assgins a list of features in `conf.reg_list` into several batches.
+    (2) creates "result folders" for each of the features and sets ".res_dir"
+        attribute of it accordingly.
+    (3) sets ".aln_fns" attribute of each feature, which are the output
+        allele-specific CUMI files.
+    
+    Parameters
+    ----------
+    conf : afc.config.Config
+        Global configuration object.
+    batch_size : int, default 1000
+        Number of features in each batch.
+    
+    Returns
+    -------
+    Void.
+    """
+    batch_idx = -1
+    batch_dir = None
+    feature_idx = 0
+    feature_dir = None
+    for reg in conf.reg_list:
+        if feature_idx % batch_size == 0:
+            batch_idx += 1
+            batch_dir = os.path.join(conf.aln_dir, "batch%d" % batch_idx)
+            os.makedirs(batch_dir, exist_ok = True)
+        feature_dir = os.path.join(
+            batch_dir, "%d_%s" % (feature_idx, reg.name))
+        os.makedirs(feature_dir, exist_ok = True)
+        reg.res_dir = feature_dir
+        reg.aln_fns = {ale: os.path.join(reg.res_dir, "%s.%s.aln.%s.tsv" % \
+                    (reg.name, ale, COMMAND)) for ale in conf.cumi_alleles}
+        feature_idx += 1

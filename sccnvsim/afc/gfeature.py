@@ -4,24 +4,25 @@ from ..utils.grange import Region, RegionSet
 
 
 class SNP(Region):
-    """Phased SNP
+    """Phased SNP."""
 
-    Attributes
-    ----------
-    chrom : str
-        Chromosome name.
-    pos : int
-        1-based position.
-    ref : str
-        The ref base.
-    alt : str
-        The alt base.
-    ref_hap : int
-        The haplotype index for the `ref` base, 0 or 1.
-    alt_hap : int
-        The haplotype index for the `alt` base, 1 or 0.   
-    """
     def __init__(self, chrom, pos, ref, alt, ref_hap, alt_hap):
+        """
+        Parameters
+        ----------
+        chrom : str
+            Chromosome name.
+        pos : int
+            1-based genomic position.
+        ref : str
+            The reference (REF) base of the SNP.
+        alt : str
+            The alternative (ALT) base of the SNP.
+        ref_hap : {0, 1}
+            The haplotype index for the `ref` base.
+        alt_hap : {1, 0}
+            The haplotype index for the `alt` base.
+        """
         super().__init__(chrom, pos, pos + 1)
         ref = ref.upper()
         alt = alt.upper()
@@ -38,17 +39,43 @@ class SNP(Region):
         return "%s_%d" % (self.chrom, self.pos)
 
     def get_hap_idx(self, base):
+        """Get the haplotype index of the SNP give base.
+        
+        Parameters
+        ----------
+        base : str
+            The base, one of {"A", "C", "G", "T"}.
+
+        Returns
+        -------
+        int
+            The haplotype index.
+            0 or 1 if the `base` if one of the "REF" or "ALT" base of the SNP,
+            -1 otherwise.
+        """
         base = base.upper()
         return self.gt[base] if base in self.gt else -1
 
     def get_hap_base(self, hap):
+        """Get the base given the haplotype index.
+        
+        Parameters
+        ----------
+        hap : int
+            The haplotype index.
+            
+        Returns
+        -------
+        str or None
+            The base for the `hap`. None if `hap` is not 0 and 1.
+        """
         if hap not in self.hap:
             return(None)
         return(self.hap[hap])
 
 
 class SNPSet(RegionSet):
-    """A set of phased SNPs"""
+    """A set of phased SNPs."""
     def __init__(self, is_uniq = False):
         super().__init__(is_uniq)
 
@@ -57,30 +84,32 @@ class SNPSet(RegionSet):
 
 
 class BlockRegion(Region):
-    """Block Region
+    """Block/Region with information of its covered SNPs."""
 
-    Attributes
-    ----------
-    chrom : str
-        Chromosome name.
-    start : int
-        1-based start pos, inclusive.
-    end : int
-        1-based end pos, exclusive.
-    name : str
-        Name of the block.
-    snp_list : list
-        A list of SNPs (`SNP` objects) located within the block.
-    res_dir : str
-        Path to the folder storing the results of this region.
-    aln_fns : dict
-        The files containing allele-specific (A,B,U) alignments/UMIs. 
-        Keys are the alleles (A,B,U), values are the paths to the files.
-    """
     def __init__(self, chrom, start, end, name = None,
                 snp_list = None, res_dir = None):
+        """
+        Parameters
+        ----------
+        chrom : str
+            Chromosome name.
+        start : int
+            1-based genomic start position of the region, inclusive.
+        end : int
+            1-based genomic end position of the region, exclusive.
+        name : str
+            Name of the region.
+        snp_list : list of afc.gfeature.SNP
+            A list of SNPs located within the block.
+        res_dir : str
+            Path to the folder storing the results of this region.
+        """
         super().__init__(chrom, start, end)
         self.name = name
         self.snp_list = snp_list
         self.res_dir = res_dir
+
+        # aln_fns : dict of {str : str}
+        #   The files containing allele-specific alignments/CUMIs.
+        #   Keys are the alleles, values are the paths to the files.
         self.aln_fns = None

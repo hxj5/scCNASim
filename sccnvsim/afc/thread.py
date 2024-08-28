@@ -10,6 +10,22 @@ class ThreadData:
         out_feature_fn,
         out_ale_fns
     ):
+        """
+        Parameters
+        ----------
+        idx : int
+            The 0-based index of thread.
+        conf : afc.config.Config
+            The global configuration.
+        reg_obj_fn : str
+            Path to the python pickle file storing a list of features (
+            :class:`~afc.gfeature.BlockRegion` objects).
+        out_feature_fn : str
+            Path to the output feature TSV file in this thread.
+        out_ale_fns : dict of {str : str}
+            Path to the allele-specific count matrix file in this read.
+            Keys are allele names, values are pathes to the count matrix file.
+        """
         self.idx = idx
         self.conf = conf
 
@@ -18,9 +34,19 @@ class ThreadData:
         self.out_feature_fn = out_feature_fn
         self.out_ale_fns = out_ale_fns
 
+        # nr_reg : int
+        #   Number of unique features (row indexes) in the output count matrix
+        #   file.
         self.nr_reg = 0
+
+        # nr_ale : dict of {str : int}
+        #   Number of allele-specific records in the output count matrix
+        #   file(s).
+        #   Keys are allele names, values are number of records.
         self.nr_ale = {ale:0 for ale in out_ale_fns.keys()}
         
+        # ret : int
+        #   Return code. 0 if success, negative otherwise.
         self.ret = -1
 
     def destroy(self):

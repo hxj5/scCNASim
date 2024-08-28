@@ -3,52 +3,68 @@
 from ..utils.sam import get_query_bases
 
 
+# TODO: UMI/read collapsing.
 class UCount:
-    """Counting Unit.
+    """Counting unit for one fetched UMI or read pair of specific SNP.
+    
+    This class processes one fetched UMI (droplet-based) or read pair
+    (well-based) of specific phased SNP.
 
-    TODO: UMI/read collapsing.
-
-    Attributes
-    ----------
-    scnt : SCount object
-        A SCount object that the UCount object belongs to.
-    conf : config::Config object
-        Configuration.
-    allele : str
-        The allele for the query SNP in this UMI.
-    allele_idx : int
-        The index of phased allele. 
-        0 (ref), 1 (alt), -1 (oth).
+    It infers the haplotype state of the UMI/read pair by comparing the 
+    fetched SNP allele to the phased ones, e.g., 
+    if the fetched allele of this SNP is 'A' in this UMI/read pair, and the
+    phased (REF and ALT) alleles of the SNP are 'A' and 'C', respectively, 
+    then the UMI/read pair would be inferred as from the REF haplotype.
     """
     def __init__(self, scnt, conf):
+        """
+        Parameters
+        ----------
+        scnt : afc.mcount_snp.SCount
+            A SCount object (cell level) that the UCount object belongs to.
+        conf : afc.config.Config
+            Global configuration object.
+        """
         self.scnt = scnt
         self.conf = conf
+
+        # allele : str
+        #   The allele (base) for the query SNP in this UMI/read pair.
         self.allele = None
-        self.allele_idx = -2
+
+        # hap_idx : int
+        #   The haplotype index of `allele`.
+        #   * 0 (ref): the fetched SNP allele is from the reference haplotype.
+        #   * 1 (alt): the fetched SNP allele is from the alternative
+        #     haplotype.
+        #   * -1 (oth): some allele is fetched but is from neither the
+        #     reference nor alternative haplotype.
+        #   * -2 (unknown): no allele is fetched (the value is None).
+        self.hap_idx = -2
 
     def push_read(self, read):
-        """Push one read into this count machine.
+        """Count one fetched read covering the SNP.
         
         Parameters
         ----------
-        read : pysam::AlignedSegment object
-            A BAM read to be counted.
+        read : pysam.AlignedSegment
+            A fetched BAM read covering the SNP.
 
         Returns
         -------
         int
-            0 if success, -1 otherwise.
+            Return code. 0 if success, -1 otherwise.
         """
         snp = self.scnt.mcnt.snp
         try:
             idx = read.positions.index(snp.pos - 1)
         except:
             self.allele = None
-            self.allele_idx = -2
+            self.hap_idx = -2
         else:
             bases = get_query_bases(read, full_length = False)
             self.allele = bases[idx].upper()
-            self.allele_idx = snp.get_hap_idx(self.allele)
+            self.hap_idx = snp.get_hap_idx(self.allele)
         return(0)
 
     def stat(self):
@@ -56,28 +72,34 @@ class UCount:
 
 
 class SCount:
-    """Counting for single sample
-
-    Attributes
-    ----------
-    mcnt : MCount object
-        A MCount object that the SCount object belongs to.
-    conf : config::Config object
-        Configuration.
-    tcount : list
-        Total read / UMI counts for A/C/G/T/N bases, only for this 
-        sample [list of int; 5 elements].
-    umi_cnt : dict
-        HashMap of <str:UCount> for umi:UCount pair, mainly for 10x data.
-    is_reset : bool
-        Has this object been reset.
+    """Counting for single cell.
+     
+    This class counts the UMIs/reads fetched by specific SNP in one cell.
     """
     def __init__(self, mcnt, conf):
+        """
+        Parameters
+        ----------
+        mcnt : afc.mcount_snp.MCount
+            A MCount object (multiple cells) that the SCount object belongs to.
+        conf : afc.config.Config
+            Global configuration object.
+        """
         self.mcnt = mcnt
         self.conf = conf
 
+        # tcount : list of int
+        #   The cell-wise total counts of reads/UMIs for A/C/G/T/N bases.
         self.tcount = [0] * 5
+
+        # umi_cnt : dict of {str : afc.mcount_snp.UCount}
+        #   The cell-wise, UMI/read pair-specific counting data.
+        #   Keys are UMI barcodes (droplet-based) or query name (well-based),
+        #   values are the associated :class:`~afc.mcount_snp.UCount` objects.
         self.umi_cnt = {}
+
+        # is_reset : bool
+        #   Whether this object has been reset?
         self.is_reset = False
 
     def mark_reset_false(self):
@@ -127,41 +149,66 @@ class SCount:
 
 
 class MCount:
-    """Counting for multiple samples
+    """Counting for multiple cells.
+    
+    This class generates the pileup UMI/read counts of specific phased SNP
+    in individual cells.
 
-    Attributes
-    ----------
-    samples : list
-        A list of cell barcodes or sample IDs [list of str].
-    conf : config::Config object
-        Configuration
-    snp : gfeature::SNP object
-        The SNP being pileuped.
-    tcount : list
-        Total read / UMI counts for A/C/G/T/N bases, aggregated for all 
-        samples [list of int; 5 elements].
-    base_idx : dict
-        The mapping from base (str) to index (int) for `tcount`.
-    cell_cnt : dict
-        HashMap of <str, SCount> for sample:SCount pair.
-    is_reset : bool
-        Has this object been reset.
+    Use the :func:`~afc.mcount_snp.MCount.add_snp` function to add the SNP
+    to be pileuped.
     """
     def __init__(self, samples, conf):
+        """
+        Parameters
+        ----------
+        samples : list of str
+            A list of cell barcodes (droplet-based) or sample IDs (well-based).
+        conf : afc.config.Config
+            Global configuration object.
+        """
         self.samples = samples
         self.conf = conf
 
+        # snp : afc.gfeature.SNP
+        #   The SNP being pileuped.
         self.snp = None
+
+        # tcount : list of int
+        #   The total counts of reads/UMIs for A/C/G/T/N bases, aggregated
+        #   from all cells.
         self.tcount = [0] * 5
+
+        # base_idx : dict of {str : int}
+        #   The index dict for `tcount`.
         self.base_idx = {"A":0, "C":1, "G":2, "T":3, "N":4}
+
+        # cell_cnt : dict of {str : afc.mcount_snp.SCount}
+        #   The cell-specific counting data.
+        #   Keys are cell barcodes (droplet-based) or sample IDs (well-based),
+        #   values are the associated :class:`~afc.mcount_snp.SCount` objects.
         self.cell_cnt = {}
         for smp in self.samples:
             if smp in self.cell_cnt:    # duplicate samples
                 return(-2)
             self.cell_cnt[smp] = SCount(self, self.conf)
+
+        # is_reset : bool
+        #   Whether this object has been reset.
         self.is_reset = False
 
     def add_snp(self, snp):
+        """Add one SNP to be pileuped.
+
+        Parameters
+        ----------
+        snp : afc.gfeature.SNP
+            A SNP to be pileuped.
+        
+        Returns
+        -------
+        int
+            Return code. 0 if success, negative otherwise.
+        """
         self.reset()
         self.snp = snp
         self.mark_reset_false()
@@ -180,20 +227,20 @@ class MCount:
                 scnt.mark_reset_true()
 
     def push_read(self, read, sid = None):
-        """Push one read into this counting machine.
-
+        """Count one fetched read covering the SNP.
+        
         Parameters
         ----------
-        read : pysam::AlignedSegment object
-            A BAM read to be counted.
-        sid : str
+        read : pysam.AlignedSegment
+            A fetched BAM read covering the SNP.
+        sid : str or None, default None
             The ID of the sample that the read belongs to. 
             Set to `None` if cell barcodes are used.
 
         Returns
         -------
         int
-            0 if success, -1 error, 1 read filtered.
+            Return code. 0 if success, -1 error, 1 read filtered. 
         """
         conf = self.conf
         if conf.use_barcodes():

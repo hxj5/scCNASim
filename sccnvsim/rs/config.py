@@ -71,9 +71,15 @@ class Config:
         If `False`, do not skip anomalous read pairs.
     """
     def __init__(self):
+        # defaults : DefaultConfig
+        #   The default values of parameters.
         self.defaults = DefaultConfig()
+
+        # argv : list of str or None, default None
+        #   A list of command line arguments, typically from sys.argv.
         self.argv = None
 
+        # command-line arguments/parameters.
         self.sam_fn = None
         self.sam_list_fn = None
         self.barcode_fn = None
@@ -98,24 +104,66 @@ class Config:
         self.no_orphan = self.defaults.NO_ORPHAN
 
         # derived variables
-        self.chrom_list = None
-        self.barcodes = None     # list of barcode strings.
-        self.sample_ids = None
-        self.adata = None        # the adata containing count matrices.
-        self.reg_list = None     # list of gene/block objects.
 
+        # chrom_list : list of str or None
+        #   A list of chromosome names.
+        #   It is used when pileup whole chromosomes.
+        self.chrom_list = None
+
+        # barcodes : list of str or None
+        #   A list of cell barcodes.
+        #   None if sample IDs are used.
+        self.barcodes = None
+
+        # sample_ids : list of str or None
+        #   A list of sample IDs.
+        #   None if cell barcodes are used.
+        self.sample_ids = None
+
+        # adata : anndata.Anndata
+        #   The object storing count matrices.
+        self.adata = None
+
+        # reg_list : list of afc.gfeature.BlockRegion
+        #   A list of features.
+        self.reg_list = None
+
+        # sam_fn_list : list of str
+        #   A list of input SAM/BAM files.
         self.sam_fn_list = None
+
+        # samples : list of str
+        #   A list of cell barcodes (droplet-based data) or sample IDs (
+        #   well-based data).
+        #   It will be used as output IDs of each cell.
         self.samples = None
 
+        # out_prefix : str
+        #   The prefix of the output files.
         self.out_prefix = COMMAND + "."
 
-        self.hap_tag = "HT"       # tag for haplotype in BAM file.
+        # hap_tag : str
+        #   Tag for haplotype in the output BAM file.
+        self.hap_tag = "HT"
+
+        # alleles : tuple of str
+        #   All alleles.
         self.alleles = ("A", "B", "U")
 
-        #self.cumi_max_pool = (1000, 1000, 10000)  # for allele A,B,U
-        self.cumi_max_pool = (0, 0, 0)     # 0 means ulimited.
+        # cumi_max_pool : tuple of int
+        #   The maximum size of sampling pool for each allele-specific CUMIs.
+        #   Its length and order should match `alleles`.
+        #   Element value 0 means no limit.
+        #   One example setting for allele A,B,U is:
+        #       self.cumi_max_pool = (1000, 1000, 10000)
+        self.cumi_max_pool = (0, 0, 0)
 
+        # out_sam_dir : str
+        #   Output folder for SAM/BAM file(s).
         self.out_sam_dir = None
+
+        # out_step_dir : str
+        #   Output folder for step-wise results.
         self.out_step_dir = None
 
 
@@ -151,6 +199,7 @@ class Config:
         s += "%s\n" % prefix
 
         # derived variables
+
         s += "%schrom_list = %s\n" % (prefix, str(self.chrom_list))
         s += "%snumber_of_BAMs = %d\n" % (prefix, len(self.sam_fn_list) if \
                 self.sam_fn_list is not None else -1)
@@ -186,7 +235,6 @@ class DefaultConfig(AFC_Def_Conf):
     def __init__(self):
         super().__init__()
         self.UMI_LEN = 10
-        #self.CHROMS = ",".join([str(i) for i in range(1, 23)] + ["X", "Y"])
         self.CHROMS = ",".join([str(i) for i in range(1, 23)])
 
 

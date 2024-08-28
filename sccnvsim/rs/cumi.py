@@ -171,6 +171,7 @@ def sample_cumis(
     This function samples cell-specific UMIs (CUMIs) from the previously
     extracted CUMIs for each feature, and then assign each sampled CUMI with a
     new CUMI barcode.
+
     Note that each CUMI represents a group of reads sharing the same cell+UMI
     barcode (droplet-based platforms) or cell+query_name (well-based 
     platforms).
@@ -297,38 +298,41 @@ class CUMISampler:
     This class is used for sampling old CUMIs from input cell and umi barcodes
     based on simulated UMI counts in `X`, and then assign new CUMI to each 
     sampled one.
+    
     Note that one old CUMI can be assigned multiple new CUMIs, if it is 
     sampled more than once.
-    
-    Attributes
-    ----------
-    X : numpy.ndarray
-        The allele-specific *cell x feature* matrix of simulated UMI/CUMI 
-        counts.
-    reg_idx_list : list of int
-        A list of chrom-specific 0-based feature index.
-        The index is for all features of all chromosomes, which means the 
-        index is not always starting from 0 in each chromosome.
-    allele_fn_list : list of str
-        Allele-specific list of files, each contains the feature-specific
-        old CUMIs to be sampled from.
-    umis : list or None
-        The *cell x feature* new UMIs.
-        It contains *n* cell-specific (sub-)lists, each (sub)list contains 
-        *p* lists of feature-specific UMIs, where (n, p) is the shape of `X`.
-        None means do not use it as part of new CUMIs.
-    use_umi : bool, default True
-        Whether the sequencing platform uses UMIs.
-    max_pool : int, default 0
-        Maximum size of sampling pool of old CUMIs, 0 means no limit.
-        This option is designed to speed up by reducing the number of reads
-        to be masked, since the read mask is time consuming.
     """
     def __init__(
         self, X, reg_idx_list, allele_fn_list,
         umis, use_umi = True, 
         max_pool = 0
     ):
+        """
+        Parameters
+        ----------
+        X : numpy.ndarray
+            The allele-specific *cell x feature* matrix of simulated UMI/CUMI 
+            counts.
+        reg_idx_list : list of int
+            A list of chrom-specific 0-based feature index.
+            The index is for all features of all chromosomes, which means the
+            index is not always starting from 0 in each chromosome.
+        allele_fn_list : list of str
+            Allele-specific list of files, each contains the feature-specific
+            old CUMIs to be sampled from.
+        umis : list or None
+            The *cell x feature* new UMIs.
+            It contains *n* cell-specific (sub-)lists, each (sub)list contains
+            *p* lists of feature-specific UMIs, where (n, p) is the shape
+            of `X`.
+            None means do not use it as part of new CUMIs.
+        use_umi : bool, default True
+            Whether the sequencing platform uses UMIs.
+        max_pool : int, default 0
+            Maximum size of sampling pool of old CUMIs, 0 means no limit.
+            This option is designed to speed up by reducing the number of reads
+            to be masked, since the read mask is time consuming.
+        """
         self.X = X
         self.reg_idx_list = reg_idx_list
         self.allele_fn_list = allele_fn_list
@@ -343,6 +347,17 @@ class CUMISampler:
             for dat in umis:
                 assert len(dat) == X.shape[1]
 
+        # dat : dict
+        #   The data structure stores the mapping between sampled old CUMIs
+        #   to the new assigned CUMIs.
+        #   It is a two-layer dict, with "cell (cell barcode/sample ID, str)"
+        #   and "UMI (UMI barcode/query name, str)" of sampled old CUMIs as
+        #   their keys, respectively, and list of new assigned CUMIs as values.
+        #   Each element of the list is a tuple(int, int, int), containing
+        #   - (int) The index of new cell, 0-based.
+        #   - (int) The integer format of new UMI barcode, can be transformed
+        #     to string format with `int2str()`.
+        #   - (int) The 0-based index of feature within transcriptomics-scale.
         self.dat = {}
     
     def __sample_for_feature(self, cells, umis, reg_idx, reg_idx_whole = None):
@@ -441,15 +456,16 @@ class CUMISampler:
 
 
 class MergedSampler:
-    """Merged object from all allele-specific CUMI samplers.
+    """Merged object from all allele-specific CUMI samplers."""
 
-    Attributes
-    ----------
-    samplers : dict of {str : CUMISampler}
-        Allele-specific CUMI samplers (CUMISampler object). Keys are the
-        alleles (str) and values are samplers.
-    """
     def __init__(self, samplers):
+        """
+        Parameters
+        ----------
+        samplers : dict of {str : CUMISampler}
+            Allele-specific CUMI samplers (CUMISampler object).
+            Keys are the alleles (str) and values are samplers.
+        """
         self.samplers = samplers
 
     def query(self, cell, umi):
