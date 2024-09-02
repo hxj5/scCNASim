@@ -23,7 +23,7 @@ class FastFA:
         Parameters
         ----------
         fn : str
-            The path to FASTA file.
+            Path to the FASTA file.
         """
         self.fn = fn
 

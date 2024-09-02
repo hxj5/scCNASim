@@ -8,24 +8,25 @@ from ..io.base import load_cnvs
 
 
 class CNVRegCN(Region):
-    """Allele-specific copy numbers of CNV region.
+    """Allele-specific copy numbers of CNV region."""
 
-    Attributes
-    ----------
-    chrom : str
-        Chromosome name.
-    start : int
-        The 1-based start pos, inclusive.
-    end : int
-        The 1-based end pos, exclusive.
-    name : str
-        The ID of the region.
-    cn_ale0 : int
-        Copy Number of the first allele.
-    cn_ale1 : int
-        Copy Number of the second allele.
-    """
     def __init__(self, chrom, start, end, name, cn_ale0, cn_ale1):
+        """
+        Parameters
+        ----------
+        chrom : str
+            Chromosome name.
+        start : int
+            The 1-based genomic start pos, inclusive.
+        end : int
+            The 1-based genomic end pos, exclusive.
+        name : str
+            The ID of the region.
+        cn_ale0 : int
+            Copy Number of the first allele.
+        cn_ale1 : int
+            Copy Number of the second allele.
+        """
         super().__init__(chrom, start, end, name)
         self.name = name
         self.cn_ale0 = cn_ale0
@@ -33,20 +34,24 @@ class CNVRegCN(Region):
 
 
 class CNVProfile:
+    """CNV profile of one clone."""
+
     def __init__(self):
+        # rs : afc.grange.RegionSet
+        #   The CNV regions associated with this clone.
         self.rs = RegionSet()
 
     def add_cnv(self, chrom, start, end, name, cn_ale0, cn_ale1):
-        """Add a new CNV profile.
+        """Add a new record of CNV profile.
 
         Parameters
         ----------
         chrom : str
             Chromosome name.
         start : int
-            The 1-based start pos, inclusive.
+            The 1-based genomic start pos, inclusive.
         end : int
-            The 1-based end pos, exclusive.
+            The 1-based genomic end pos, exclusive.
         name : str
             The ID of the region.
         cn_ale0 : int
@@ -57,35 +62,40 @@ class CNVProfile:
         Returns
         -------
         int
-            0 success, 1 discarded as duplicate, -1 error.
+            Return code.
+            0 if success, 1 discarded as duplicate region, -1 error.
         """
         reg = CNVRegCN(chrom, start, end, name, cn_ale0, cn_ale1)
         ret = self.rs.add(reg)
         return(ret)
 
     def fetch(self, chrom, start, end):
-        """Get the CNV profile for the query region.
+        """Get the CNV profile records for the query region.
+
+        This function returns the CNV profile records of the overlapping
+        regions in this clone to the query region.
 
         Parameters
         ----------
         chrom : str
             Chromosome name.
         start : int
-            The 1-based start pos, inclusive.
+            The 1-based genomic start pos, inclusive.
         end : int
-            The 1-based end pos, exclusive.
+            The 1-based genomic end pos, exclusive.
 
         Returns
         -------
-        n : int
+        int
             Number of overlapping regions, -1 if error.
-        profile : list
-            A list of tuples of CNV profiles; `None` if error:
-            cn_ale0 : int
+        list
+            A list of tuples of CNV profiles. Each tuple contains the 
+            region-specific CNV profile:
+            * int
                 Copy numbers of the first allele.
-            cn_ale1 : int
+            * int
                 Copy numbers  of the first allele.
-            reg_id : str
+            * str
                 The region ID.
         """
         hits = self.rs.fetch(chrom, start, end)
@@ -93,6 +103,8 @@ class CNVProfile:
         return((len(res), res))
 
     def get_all(self):
+        """Returns the whole CNV profile of this clone."""
+
         reg_list = self.rs.get_regions(sort = True)
         dat = {
                 "chrom":[],
@@ -112,17 +124,67 @@ class CNVProfile:
         return(dat)     
         
     def query(self, name):
-        """Query CNV profile for the given region and clone."""
+        """Return the CNV profile records given the ID of one query region.
+        
+        Parameters
+        ----------
+        name : str
+            The ID of the query region.
+
+        Returns
+        -------
+        int
+            Number of regions whose ID is `name`.
+        list
+            A list of tuples of CNV profiles. Each tuple contains the 
+            region-specific CNV profile:
+            * int
+                Copy numbers of the first allele.
+            * int
+                Copy numbers  of the first allele.
+            * str
+                The region ID.
+        """
         hits = self.rs.query(name)
         res = [(reg.cn_ale0, reg.cn_ale1, reg.name) for reg in hits]
         return((len(res), res))
 
 
 class CloneCNVProfile:
+    """CNV profiles of all clones."""
+
     def __init__(self):
+        # dat : dict of {str : utils.xcnv.CNVProfile}
+        #   The CNV profiles of all clones.
+        #   Keys are clone IDs, values are clone-specific CNV profiles.
         self.dat = {}
 
     def add_cnv(self, chrom, start, end, name, cn_ale0, cn_ale1, clone_id):
+        """Add a new record of CNV profile.
+
+        Parameters
+        ----------
+        chrom : str
+            Chromosome name.
+        start : int
+            The 1-based genomic start pos, inclusive.
+        end : int
+            The 1-based genomic end pos, exclusive.
+        name : str
+            The ID of the region.
+        cn_ale0 : int
+            Copy Number of the first allele.
+        cn_ale1 : int
+            Copy Number of the second allele.
+        clone_id : str
+            Clone ID.
+
+        Returns
+        -------
+        int
+            Return code.
+            0 if success, 1 discarded as duplicate region, -1 error.
+        """
         if clone_id not in self.dat:
             self.dat[clone_id] = CNVProfile()
         cp = self.dat[clone_id]
@@ -130,22 +192,35 @@ class CloneCNVProfile:
         return(ret)
 
     def fetch(self, chrom, start, end, clone_id):
-        """Get the CNV profile for the query region and cell.
+        """Get the CNV profile records for the query region and clone.
+
+        This function returns the CNV profile records of the overlapping
+        regions in specific clone to the query region.
 
         Parameters
         ----------
         chrom : str
             Chromosome name.
         start : int
-            The 1-based start pos, inclusive.
+            The 1-based genomic start pos, inclusive.
         end : int
-            The 1-based end pos, exclusive.
+            The 1-based genomic end pos, exclusive.
         clone_id : str
             The ID of the CNV clone.
 
         Returns
         -------
-        See @return of :func:`CNVProfile.fetch`.
+        int
+            Number of overlapping regions, -1 if error.
+        list
+            A list of tuples of CNV profiles. Each tuple contains the 
+            region-specific CNV profile:
+            * int
+                Copy numbers of the first allele.
+            * int
+                Copy numbers  of the first allele.
+            * str
+                The region ID.
         """
         if clone_id in self.dat:
             cp = self.dat[clone_id]    # cnv profile
@@ -155,6 +230,7 @@ class CloneCNVProfile:
             return((0, []))
 
     def get_all(self):
+        """Returns the whole CNV profile of all clones."""
         dat_list = {
                 "clone":[],
                 "chrom":[],
@@ -178,15 +254,36 @@ class CloneCNVProfile:
         return(dat_list)
 
     def get_clones(self):
+        """Get all clone IDs."""
         clones = sorted([c for c in self.dat.keys()])
         return(clones)
 
     def query(self, name, clone_id):
-        """Query CNV profile for the given region and clone.
+        """Return the CNV profile records given the query region ID and 
+        clone ID.
+
+        This function returns regions whose ID is `name` in clone `clone_id`.
+        
+        Parameters
+        ----------
+        name : str
+            The ID of the query region.
+        clone_id : str
+            The ID of the query clone.
 
         Returns
         -------
-        See @return of :func:`CNVProfile.fetch`.
+        int
+            Number of regions whose ID is `name` in `clone_id`.
+        list
+            A list of tuples of CNV profiles. Each tuple contains the 
+            region-specific CNV profile:
+            * int
+                Copy numbers of the first allele.
+            * int
+                Copy numbers  of the first allele.
+            * str
+                The region ID.        
         """
         if clone_id in self.dat:
             cp = self.dat[clone_id]    # cnv profile
@@ -199,10 +296,17 @@ class CloneCNVProfile:
 def load_cnv_profile(fn, sep = "\t"):
     """Load CNV profiles from file.
 
+    Parameters
+    ----------
+    fn : str
+        Path to the input file storing clonal CNV profile.
+    sep : str, default "\t"
+        The file delimiter.
+
     Returns
     -------
-    CloneCNVProfile object.
-        `None` if error.
+    utils.xcnv.CloneCNVProfile or None
+        The object of loaded clonal CNV profile. `None` if error.
     """
     try:
         df = load_cnvs(fn, sep = sep)
@@ -226,7 +330,19 @@ def load_cnv_profile(fn, sep = "\t"):
                         
 
 def save_cnv_profile(dat, fn):
-    """Save CNV profile to file."""
+    """Save CNV profile to file.
+    
+    Parameters
+    ----------
+    dat : utils.xcnv.CloneCNVProfile
+        The object of clonal CNV profile to be saved.
+    fn : str
+        Path to the output file.
+
+    Returns
+    -------
+    Void.
+    """
     fp = zopen(fn, "wt")
     cp = dat.get_all()
     for i in range(len(cp["chrom"])):

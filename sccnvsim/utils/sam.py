@@ -9,6 +9,24 @@ from logging import error
 
 
 def check_read(read, conf):
+    """Check whether read is valid.
+
+    This function checks whether a read is valid.
+    If invalid, it will be filtered.
+    
+    Parameters
+    ----------
+    read : pysam.AlignedSegment
+        One alignment read.
+    conf : object
+        Configuration object whose attributes will be used as filtering
+        criterias.
+        
+    Returns
+    -------
+    int
+        Return code. 0 if read is valid, negative otherwise.
+    """
     if read.mapq < conf.min_mapq:
         return(-2)
     if conf.excl_flag and read.flag & conf.excl_flag:
@@ -32,16 +50,16 @@ def get_query_bases(read, full_length = False):
 
     Parameters
     ----------
-    read : pysam::AlignedSegment object
-        The alignment to be queried.
-    full_length : bool
-        If full_length is set, `None` values will be included for any 
+    read : pysam.AlignedSegment
+        One alignment read.
+    full_length : bool, default False
+        If full_length is True, `None` values will be included for any
         soft-clipped or unaligned positions within the read. 
-        The returned list will thus be of the same length as the read.
+        The returned list will thus be of the same length as the `read`.
     
     Returns
     -------
-    list
+    list of str
         A list of bases in qurey sequence that are within the alignment.
     """
     cigar_tuples = read.cigartuples
@@ -66,22 +84,22 @@ def get_query_bases(read, full_length = False):
     return result
 
 
-def get_query_qualities(read, full_length=False):
+def get_query_qualities(read, full_length = False):
     """Qurey qualities that are within the alignment.
 
     Parameters
     ----------
-    read : pysam::AlignedSegment object
-        The alignment to be queried.
-    full_length : bool
-        If full_length is set, `None` values will be included for any 
+    read : pysam.AlignedSegment
+        One alignment read.
+    full_length : bool, default False
+        If full_length is True, `None` values will be included for any 
         soft-clipped or unaligned positions within the read. 
-        The returned list will thus be of the same length as the read.
+        The returned list will thus be of the same length as the `read`.
     
     Returns
     -------
-    list
-        A list of bases in qurey sequence that are within the alignment.
+    list of int
+        A list of qualities of bases that are within the alignment.
         Note that the returned qual values are not ASCII-encoded values 
         typically seen in FASTQ or SAM formatted files, no need to 
         substract 33.
@@ -109,24 +127,24 @@ def get_query_qualities(read, full_length=False):
 
 
 def sam_fetch(sam, chrom, start = None, end = None):
-    """Provide a wrapper for sam-fetch method that could automatically
-       handle chrom with or without "chr" prefix.
+    """Wrapper for pysam.fetch method that could automatically handle 
+    chromosome names with or without the "chr" prefix.
 
     Parameters
     ----------
-    sam : pysam.AlignmentFile object.
+    sam : pysam.AlignmentFile
         The BAM file object.
     chrom : str
         Chromosome name.
-    start : int
+    start : int or None, default None
         1-based, inclusive. `None` means minimum possible value.
-    end : int
+    end : int or None, default None
         1-based, inclusive. `None` means maximum possible value.
 
     Returns
     -------
     Iterator
-        Iterator if success, `None` otherwise.
+        Iterator of reads/alignments if success, `None` otherwise.
     """
     # sam.fetch(): start and stop denote 0-based, half-open intervals.
     if start is not None:
@@ -149,6 +167,20 @@ def sam_fetch(sam, chrom, start = None, end = None):
     
 
 def sam_index(sam_fn_list, ncores = 1):
+    """Index BAM file(s).
+    
+    Parameters
+    ----------
+    sam_fn_list : list of str
+        A list of BAM files to be indexed.
+    ncores : int, default 1
+        Number of cores.
+    
+    Returns
+    -------
+    int
+        Return code. 0 if success, negative otherwise.
+    """
     if ncores == 1:
         for sam_fn in sam_fn_list:
             pysam.index(sam_fn)
@@ -167,10 +199,46 @@ def sam_index(sam_fn_list, ncores = 1):
 
 
 def sam_merge(in_fn_list, out_fn):
+    """Merge BAM files.
+
+    Parameters
+    ----------
+    in_fn_list : list of str
+        A list of BAM files to be merged.
+    out_fn : str
+        Path to the output merged BAM file.
+    
+    Returns
+    -------
+    Void.
+    """
     pysam.merge("-f", "-o", out_fn, *in_fn_list)
 
 
 def sam_sort_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
+    """Sort BAM file by specific tag.
+
+    Parameters
+    ----------
+    in_bam : str
+        The BAM file to be sorted.
+    tag : str
+        The tag by which the BAM alignments will be sorted, e.g., "CB" to sort
+        by cell barcodes.
+    out_bam : str or None, default None
+        The output BAM file.
+        If `None`, sort in place.
+    max_mem : str
+        The maximum memory to be used.
+        This value will be passed to the "-m" option of "samtools sort".
+    nthreads : int, default 1
+        Number of threads to be used in the "-@" option of "samtools sort".
+    
+    Returns
+    -------
+    int
+        Return code. 0 if success, negative otherwise.
+    """
     inplace = False
     if out_bam is None or out_bam == in_bam:
         inplace = True
@@ -195,6 +263,7 @@ def sam_sort_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
     if inplace:
         os.replace(out_bam, in_bam)
     return(0)  
+
 
 
 BAM_FPAIRED = 1

@@ -637,7 +637,7 @@ def prepare_config(conf):
     Parameters
     ----------
     conf : rs.config.Config
-        Configuration object.
+        Global configuration object.
 
     Returns
     -------

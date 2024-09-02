@@ -27,14 +27,23 @@ from statsmodels.tools.sm_exceptions import ConvergenceWarning, HessianInversion
 #    - the model related statistics or results (dict)
 
 def estimate_dist_nb(x, s = None):
-    """Estimator for Negative Binomial.
+    """Estimator for parameters of the Negative Binomial distribution.
 
     Parameters
     ----------
-    x : np.array (1d)
-        The vector containing sample values.
-    s : float
+    x : numpy.ndarray
+        The (1d) vector containing sample values.
+    s : float or None, default None
         The size factor, typically library size.
+        None means that library size is not used.
+
+    Returns
+    -------
+    dict of {str : float}
+        The estimator of the parameters, including three:
+        * "infl" : inflation rate.
+        * "disp" : dispersion.
+        * "mu" : mean.
     """
     m_s, par = None, None
     m = np.mean(x)
@@ -56,7 +65,7 @@ def estimate_dist_nb(x, s = None):
 
 
 def estimate_dist_normal(x):
-    """Estimator for normal distribution."""
+    """Estimator for parameters of the normal distribution."""
     par = {
         "mu": np.mean(x) + 0.0,
         "sigma": np.std(x) + 0.0
@@ -65,14 +74,23 @@ def estimate_dist_normal(x):
 
 
 def estimate_dist_poi(x, s = None):
-    """Estimator for Poisson.
+    """Estimator for parameters of the Poisson distribution.
 
     Parameters
     ----------
-    x : np.array (1d)
-        The vector containing sample values.
-    s : float
+    x : numpy.ndarray
+        The (1d) vector containing sample values.
+    s : float or None, default None
         The size factor, typically library size.
+        None means that library size is not used.
+
+    Returns
+    -------
+    dict of {str : float}
+        The estimator of the parameters, including three:
+        * "infl" : inflation rate.
+        * "disp" : dispersion.
+        * "mu" : mean.
     """
     m_s, par = None, None
     m = np.mean(x)
@@ -95,9 +113,9 @@ def __fit_dist_wrapper(
 
     Parameters
     ----------
-    x : np.array (1d)
-        The vector containing sample values.
-    model_func : object
+    x : numpy.ndarray
+        The (1d) vector containing sample values.
+    model_func
         The model function / class.
     model_name : str
         The model name.
@@ -113,10 +131,13 @@ def __fit_dist_wrapper(
     Returns
     -------
     int
-        Return code:
-            0 if success; negative if error; positive if modelling failed.
-    dict
-        Model parameters.
+        Return code.
+        0 if success; negative if error; positive if modelling failed.
+    dict of {str : float}
+        The estimator of the parameters, including three:
+        * "infl" : inflation rate.
+        * "disp" : dispersion.
+        * "mu" : mean.
     dict
         Model fitting result.
         It includes several keys, including "loglik", "converged", "warns", 
@@ -124,8 +145,9 @@ def __fit_dist_wrapper(
 
     See Also
     --------
-    statsmodel fitting results
-        https://www.statsmodels.org/dev/dev/generated/statsmodels.base.model.LikelihoodModelResults.html
+    The statsmodel fitting results
+    https://www.statsmodels.org/dev/dev/generated/statsmodels.base.model.LikelihoodModelResults.html
+    for details.
     """
     model = model_func(x, **model_kwargs)
 
@@ -200,6 +222,35 @@ def __fit_dist_wrapper(
 
 
 def fit_dist_nb(x, s = None, max_iter = 100, verbose = False):
+    """Fit the Negative Bionomial distribution.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        The (1d) vector containing sample values.
+    s : float or None, default None
+        The size factor, typically library size.
+        None means that library size is not used.
+    max_iter : int, default 100
+        Maximum iterations during optimization.
+    verbose : bool, default False
+        Whether to show detailed logging information.
+
+    Returns
+    -------
+    int
+        Return code.
+        0 if success; negative if error; positive if modelling failed.
+    dict of {str : float}
+        The estimator of the parameters, including three:
+        * "infl" : inflation rate.
+        * "disp" : dispersion.
+        * "mu" : mean.
+    dict
+        Model fitting result.
+        It includes several keys, including "loglik", "converged", "warns", 
+        "model", and "fit" etc.
+    """
     return(__fit_dist_wrapper(
         x = x,
         model_func = NegativeBinomial,
@@ -223,6 +274,35 @@ def fit_dist_nb(x, s = None, max_iter = 100, verbose = False):
 
 
 def fit_dist_poi(x, s = None, max_iter = 100, verbose = False):
+    """Fit the Poisson distribution.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        The (1d) vector containing sample values.
+    s : float or None, default None
+        The size factor, typically library size.
+        None means that library size is not used.
+    max_iter : int, default 100
+        Maximum iterations during optimization.
+    verbose : bool, default False
+        Whether to show detailed logging information.
+
+    Returns
+    -------
+    int
+        Return code.
+        0 if success; negative if error; positive if modelling failed.
+    dict of {str : float}
+        The estimator of the parameters, including three:
+        * "infl" : inflation rate.
+        * "disp" : dispersion.
+        * "mu" : mean.
+    dict
+        Model fitting result.
+        It includes several keys, including "loglik", "converged", "warns", 
+        "model", and "fit" etc.
+    """
     return(__fit_dist_wrapper(
         x = x,
         model_func = Poisson,
@@ -244,8 +324,36 @@ def fit_dist_poi(x, s = None, max_iter = 100, verbose = False):
     ))
     
 
-# Zero-Inflated Negative Binomial
 def fit_dist_zinb(x, s = None, max_iter = 100, verbose = False):
+    """Fit the Zero-Inflated Negative Binomial distribution.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        The (1d) vector containing sample values.
+    s : float or None, default None
+        The size factor, typically library size.
+        None means that library size is not used.
+    max_iter : int, default 100
+        Maximum iterations during optimization.
+    verbose : bool, default False
+        Whether to show detailed logging information.
+
+    Returns
+    -------
+    int
+        Return code.
+        0 if success; negative if error; positive if modelling failed.
+    dict of {str : float}
+        The estimator of the parameters, including three:
+        * "infl" : inflation rate.
+        * "disp" : dispersion.
+        * "mu" : mean.
+    dict
+        Model fitting result.
+        It includes several keys, including "loglik", "converged", "warns", 
+        "model", and "fit" etc.
+    """
     return(__fit_dist_wrapper(
         x = x,
         model_func = ZeroInflatedNegativeBinomialP,
@@ -271,6 +379,35 @@ def fit_dist_zinb(x, s = None, max_iter = 100, verbose = False):
 
 # Zero-Inflated Poisson
 def fit_dist_zip(x, s = None, max_iter = 100, verbose = False):
+    """Fit the Zero-Inflated Poisson distribution.
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        The (1d) vector containing sample values.
+    s : float or None, default None
+        The size factor, typically library size.
+        None means that library size is not used.
+    max_iter : int, default 100
+        Maximum iterations during optimization.
+    verbose : bool, default False
+        Whether to show detailed logging information.
+
+    Returns
+    -------
+    int
+        Return code.
+        0 if success; negative if error; positive if modelling failed.
+    dict of {str : float}
+        The estimator of the parameters, including three:
+        * "infl" : inflation rate.
+        * "disp" : dispersion.
+        * "mu" : mean.
+    dict
+        Model fitting result.
+        It includes several keys, including "loglik", "converged", "warns", 
+        "model", and "fit" etc.
+    """
     return(__fit_dist_wrapper(
         x = x,
         model_func = ZeroInflatedPoisson,
@@ -294,7 +431,26 @@ def fit_dist_zip(x, s = None, max_iter = 100, verbose = False):
 
 
 def fit_dist_bb(k, n):
-    """Fit BetaBinomial distribution."""
+    """Fit the BetaBinomial distribution.
+    
+    Parameters
+    ----------
+    k : int
+        Number of success.
+    n : int
+        Total number of trials.
+
+    Returns
+    -------
+    int
+        Return code.
+        0 if success; negative if error; positive if modelling failed.
+    dict of {str : float}
+        The estimator of the parameters, including "alpha" and "beta".
+    dict
+        Model fitting result.
+        It includes several keys, including "fit".
+    """
 
     # 1. The `bbll` function is modified from
     #    https://andrewpwheeler.com/2023/10/18/fitting-beta-binomial-in-python-poisson-scan-stat-in-r/
@@ -320,7 +476,27 @@ def fit_dist_bb(k, n):
 
 
 def fit_dist_t(x):
-    """Fit t distribution."""
+    """Fit the t distribution.
+    
+    Parameters
+    ----------
+    x : numpy.ndarray
+        The (1d) vector containing sample values.
+
+    Returns
+    -------
+    int
+        Return code.
+        0 if success; negative if error; positive if modelling failed.
+    dict of {str : float}
+        The estimator of the parameters, including three:
+        * "df" : degree of freedom.
+        * "loc" : shifted location.
+        * "scale" : scale coefficient.
+    dict
+        Model fitting result.
+        It includes several keys, including "fit".
+    """
     res = sp.stats.t.fit(x)
     par, mres = None, {"fit": res}
     if res is None or len(res) < 3:
@@ -334,6 +510,26 @@ def fit_dist_t(x):
 
 
 def nb2_to_nb1(mu, alpha):
+    """Convert NB2 to NB1 parameterization of Negative Binomial.
+
+    This function converts NB2 parameterization to the ones supported by
+    :func:`~scipy.stats.nbinom`.
+    
+    Parameters
+    ----------
+    mu : float
+        The mean.
+    alpha : float
+        The dispersion rate.
+        Note the whole variance is then `mu + alpha * mu ^ 2`.
+
+    Returns
+    -------
+    float
+        The "n" parameter in :func:`~scipy.stats.nbinom`.
+    float
+        The "p" parameter in :func:`~scipy.stats.nbinom`.
+    """
     v = mu + alpha * mu ** 2     # variance
     p = mu / v
     n = 1 / alpha        # n = mu ** 2 / (v - mu)
@@ -341,7 +537,24 @@ def nb2_to_nb1(mu, alpha):
 
 
 def rand_zinb(mu, alpha, infl, size):
-    """Generate a random sample from zinb distribution."""
+    """Generate a random sample from zinb distribution.
+    
+    Parameters
+    ----------
+    mu : float
+        The mean of the ZINB distribution.
+    alpha : float
+        The dispersion.
+    infl : float
+        The inflation rate.
+    size : int
+        The sample size.
+
+    Returns
+    -------
+    numpy.ndarray
+        The sampled values of length `size`.    
+    """
     dat = None
     if alpha > 0.0:
         n, p = nb2_to_nb1(mu, alpha)

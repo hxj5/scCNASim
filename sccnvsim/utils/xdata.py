@@ -16,17 +16,20 @@ def add_cell_type_anno(xdata, anno):
 
     Parameters
     ----------
-    xdata : `xdata` object
-        Its `.obs` should contain a column `cell`.
-    anno : DataFrame
-        It has at least two columns: `cell` and `cell_type`.
+    xdata : anndata.AnnData
+        The adata object.
+        Its ".obs" should contain a column "cell".
+    anno : pandas.DataFrame
+        The cell type annotation.
+        It has at least two columns: "cell" and "cell_type".
 
     Returns
     -------
     int
         Return code. 0 if success, negative if error.
-    xdata
-        The updated xdata with `cell_type` annotaion in its `.obs`.
+    anndata.AnnData
+        The updated xdata with cell type annotaion (column "cell_type")
+        in its `.obs`.
     """
     if "cell_type" in xdata.obs.columns:
         warn("cell_type already exist. Quit the function.")
@@ -43,6 +46,22 @@ def add_cell_type_anno(xdata, anno):
 
 
 def check_sanity_layer(xdata, layer = None):
+    """Sanity check for specific layer of adata.
+    
+    Parameters
+    ----------
+    xdata : anndata.AnnData
+        The adata object.
+    layer : str or None, default None
+        The name of the layer in `xdata`.
+        If None, the "{xdata}.X" will be used.
+    
+    Returns
+    -------
+    int
+        Return code. 0 if success, other values if there are warnings during
+        sanity check.
+    """
     state = 0
 
     xdata, mtx = sparse_to_array(xdata, layer)
@@ -66,6 +85,26 @@ def check_unanno_cells(
     remove_unanno = True, alt_cell_type = "unannotated", 
     verbose = True
 ):
+    """Check and process cells without annotation.
+
+    Parameters
+    ----------
+    xdata : anndata.AnnData
+        The adata object.
+        Its ".obs" should contain a column "cell_type".
+    remove_unanno : bool, default True
+        Whether to remove unannotated cells from `xdata`.
+    alt_cell_type : str, default "unannotated"
+        Alternative cell type string for unannotated cells.
+        It only works when `remove_unanno` is False.
+    verbose : bool, default True
+        Whether to output detailed logging information.
+
+    Returns
+    -------
+    anndata.AnnData
+        The updated adata object.
+    """
     cell_anno_key = "cell_type"
     n, p = xdata.shape
     if remove_unanno:
@@ -81,11 +120,41 @@ def check_unanno_cells(
 
 
 def remove_XY(xdata):
+    """Remove chromosome X and Y from adata.
+
+    Parameters
+    ----------
+    xdata : anndata.AnnData
+        The adata object.
+        Its ".var" should contain a column "chrom".
+
+    Returns
+    -------
+    anndata.AnnData
+        The updated adata object.
+    """
     flag = xdata.var["chrom"].isin(["X", "Y"])
     return xdata[:, ~flag].copy()
 
 
 def set_ref_cell_types(xdata, ref_cell_types = None, inplace = False):
+    """Set reference cell types in adata.
+
+    Parameters
+    ----------
+    xdata : anndata.AnnData
+        The adata object.
+    ref_cell_types : str, list of str or None, default None
+        The reference cell types, which will be stored in the 
+        ".uns['ref_cell_types']" of `xdata`.
+    inplace : bool, default False
+        Whether to modify the `xdata` inplace.
+    
+    Returns
+    -------
+    xdata : anndata.AnnData
+        The updated adata object.
+    """
     if ref_cell_types is not None:
         if isinstance(ref_cell_types, list) or isinstance(ref_cell_types, tuple):
             ref_cell_types = list(ref_cell_types)
@@ -109,6 +178,26 @@ def set_ref_cell_types(xdata, ref_cell_types = None, inplace = False):
     
 
 def sparse_to_array(xdata, layer = None, inplace = False):
+    """Convert sparse matrix in specific layer to numpy array.
+
+    Parameters
+    ----------
+    xdata : anndata.AnnData
+        The adata object.
+    layer : str or None, default None
+        Name of the layer in `xdata`, whose sparse matrix will be converted
+        into numpy array.
+        If None, the "{xdata}.X" will be used.    
+    inplace : bool, default False
+        Whether to modify the `xdata` inplace.
+    
+    Returns
+    -------
+    xdata : anndata.AnnData
+        The updated adata object.
+    numpy.ndarray
+        The converted numpy array.
+    """
     if not inplace:
         xdata = xdata.copy()
     if layer is None:

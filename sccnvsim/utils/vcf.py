@@ -15,22 +15,22 @@ from .base import assert_e, assert_n
 
 
 def vcf_load(fn):
-    """Load VCF file
+    """Load VCF file.
     
     Load the header and variants part of the VCF file.
 
     Parameters
     ----------
     fn : str
-        The VCF file.
+        Path to the VCF file.
 
     Returns
     -------
-    variants : pandas DataFrame object
+    variants : pandas.DataFrame
         The variants part of the VCF. 
         Its column names are determined by the last line of the 
         `header` part.
-    header : list
+    header : list of str
         The header part of the VCF.
         One line (without tailing line separator) per element in the list.
     """
@@ -66,33 +66,35 @@ def vcf_load(fn):
 
 
 def vcf_save(variants, header, fn, is_gzip = None):
-    """Save VCF file
+    """Save data into VCF file.
 
-    Save the header and variants into VCF file, in either plain VCF or 
-    BGZF compressed format.
+    This function saves the header and variants into VCF file, in either
+    plain VCF or BGZF compressed format.
     When saving in BGZF format, it will use the `pysam` python package (if 
     available) or call the `bgzip` command-line tool (otherwise).
 
     Parameters
     ----------
-    variants : pandas DataFrame
-        The variants part of the VCF file. A pandas DataFrame object inherited
-        from the one returned by `vcf_load()`.
-    header : list
+    variants : pandas.DataFrame
+        The variants part of the VCF file.
+        A pandas DataFrame object inherited from the one returned by 
+        :func:`~utils.vcf.vcf_load()`.
+    header : list of str
         The header part of the VCF file.
         One VCF header line (without tailing line separator) per element in
         the list.
     fn : str
-        The output VCF file.
-    is_gzip : bool
-        Whether to output in BGZF format. If `None`, the value will be 
-        determined by checking the file name suffix of `fn`. 
-        Specifically, `True` if `fn` ends with ".gz" or ".GZ", 
-        otherwise `False`.
+        Path to the output VCF file.
+    is_gzip : bool or None, default None
+        Whether to output in BGZF format.
+        If `None`, the value will be determined by checking the file name 
+        suffix of `fn`.
+        Specifically, `True` if `fn` ends with ".gz" or ".GZ", otherwise
+        `False`.
 
     Returns
     -------
-    None
+    Void.
     """
     if is_gzip is None:
         is_gzip = fn.lower().endswith(".gz")
@@ -119,6 +121,25 @@ def vcf_save(variants, header, fn, is_gzip = None):
 
 
 def vcf_bgzip(in_fn, out_fn = None, is_in_gzip = False):
+    """Convert the VCF file into BGZF format.
+
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input VCF file.
+    out_fn : str or None, default None
+        Path to the output VCF file in BGZF format.
+        If None, it will use the value that replaces the suffix of `in_fn`
+        to ".vcf_bgzip.gz" (if `in_fn` has suffix ".gz") or adds ".gz" suffix
+        to `in_fn` (otherwise).
+    is_in_gzip : bool, default False
+        Whether the `in_fn` is in GZIP format.
+
+    Returns
+    -------
+    str
+        Path to the output file.    
+    """
     assert_e(in_fn)
     if not out_fn:
         if in_fn.lower().endswith(".gz"):
@@ -160,6 +181,27 @@ def vcf_bgzip(in_fn, out_fn = None, is_in_gzip = False):
 
 
 def vcf_index(fn, idx_fn = None, idx_type = None, ncores = 1):
+    """Index VCF file.
+    
+    Parameters
+    ----------
+    fn : str
+        Path to the VCF file to be indexed.
+    idx_fn : str or None, default None
+        Path to the VCF index file.
+        If None, it will be set as "{fn}.{idx_type}".
+    idx_type : str or None, default None
+        The format of index file, one of {"csi", "tbi"}.
+        If None, it will be set as "csi" if `idx_fn` endswith ".csi",
+        otherwise, set as "tbi".
+    ncores : int, default 1
+        Number of cores.
+
+    Returns
+    -------
+    str
+        Path to the generated VCF index file.
+    """
     assert_e(fn)
     if idx_type is None:
         if idx_fn and idx_fn.endswith(".tbi"):
@@ -206,6 +248,21 @@ def vcf_index(fn, idx_fn = None, idx_type = None, ncores = 1):
 
 
 def vcf_merge(in_fn_list, out_fn, sort = False):
+    """Merge VCF files.
+
+    Parameters
+    ----------
+    in_fn_list : list of str
+        A list of input VCF files to be merged.
+    out_fn : str
+        Path to the output merged VCF file.
+    sort : bool, default False
+        Whether to sort the SNPs by "CHROM", "POS", "REF", "ALT".
+
+    Returns
+    -------
+    Void. 
+    """
     assert len(in_fn_list) > 0
     header = None
     all_vars = None
@@ -229,12 +286,48 @@ def vcf_merge(in_fn_list, out_fn, sort = False):
 # 3. bcftools; https://alkesgroup.broadinstitute.org/Eagle/
 
 def vcf_add_chr_prefix(in_fn, out_fn):
+    """Add prefix "chr" to chromosome names in VCF file.
+    
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input VCF file.
+    out_fn : str
+        Path to the output VCF file where the prefix "chr" has been added
+        to the chromosome names.
+
+    Returns
+    -------
+    Void.
+    """
     variants, header = vcf_load(in_fn)
     variants, header = vcf_add_chr_prefix_core(variants, header)
     vcf_save(variants, header, out_fn)
 
 
 def vcf_add_chr_prefix_core(variants, header, inplace = False):
+    """Core part of adding "chr" prefix to chromosome names.
+    
+    Parameters
+    ----------
+    variants : pandas.DataFrame
+        The variants part of the VCF file.
+        A pandas DataFrame object inherited from the one returned by 
+        :func:`~utils.vcf.vcf_load()`.
+    header : list of str
+        The header part of the VCF file.
+        One VCF header line (without tailing line separator) per element in
+        the list.
+    inplace : bool, default False
+        Whether to modify the VCF file inplace.
+    
+    Returns
+    -------
+    variants : pandas.DataFrame
+        The updated `variants`.
+    header : list of str
+        The updated `header`.
+    """
     if not inplace:
         variants = variants.copy()
         header = header.copy()
@@ -251,12 +344,48 @@ def vcf_add_chr_prefix_core(variants, header, inplace = False):
 
 
 def vcf_remove_chr_prefix(in_fn, out_fn):
+    """Remove prefix "chr" from chromosome names in VCF file.
+    
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input VCF file.
+    out_fn : str
+        Path to the output VCF file where the prefix "chr" has been removed
+        from the chromosome names.
+
+    Returns
+    -------
+    Void.
+    """
     variants, header = vcf_load(in_fn)
     variants, header = vcf_remove_chr_prefix_core(variants, header)
     vcf_save(variants, header, out_fn)
 
 
 def vcf_remove_chr_prefix_core(variants, header, inplace = False):
+    """Core part of removing "chr" prefix from chromosome names.
+    
+    Parameters
+    ----------
+    variants : pandas.DataFrame
+        The variants part of the VCF file.
+        A pandas DataFrame object inherited from the one returned by 
+        :func:`~utils.vcf.vcf_load()`.
+    header : list of str
+        The header part of the VCF file.
+        One VCF header line (without tailing line separator) per element in
+        the list.
+    inplace : bool, default False
+        Whether to modify the VCF file inplace.
+
+    Returns
+    -------
+    variants : pandas.DataFrame
+        The updated `variants`.
+    header : list of str
+        The updated `header`.
+    """
     if not inplace:
         variants = variants.copy()
         header = header.copy()
@@ -269,6 +398,24 @@ def vcf_remove_chr_prefix_core(variants, header, inplace = False):
 
 
 def vcf_hdr_check_contig(in_fn, out_fn = None):
+    """Check the contigs in the VCF header.
+    
+    This function checks the contigs in the VCF header to make sure every 
+    chromosome in the VCF "CHROM" column has a corresponding contig record
+    in the header.
+    If one contig record is missing for specific chromosome, then add it.
+    
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input VCF file.
+    out_fn : str
+        Path to the output VCF file whose contig records have been updated.
+
+    Returns
+    -------
+    Void.   
+    """
     assert_e(in_fn)
     if out_fn is None:
         out_fn = in_fn
@@ -278,6 +425,28 @@ def vcf_hdr_check_contig(in_fn, out_fn = None):
 
 
 def vcf_hdr_check_contig_core(variants, header, inplace = False):
+    """Core part of checking contigs in the VCF header.
+    
+    Parameters
+    ----------
+    variants : pandas.DataFrame
+        The variants part of the VCF file.
+        A pandas DataFrame object inherited from the one returned by 
+        :func:`~utils.vcf.vcf_load()`.
+    header : list of str
+        The header part of the VCF file.
+        One VCF header line (without tailing line separator) per element in
+        the list.
+    inplace : bool, default False
+        Whether to modify the VCF file inplace.
+
+    Returns
+    -------
+    variants : pandas.DataFrame
+        The updated `variants`.
+    header : list of str
+        The updated `header`.
+    """
     if not inplace:
         variants = variants.copy()
         header = header.copy()
@@ -320,45 +489,40 @@ def vcf_split_chrom(
     out_prefix_list = None,
     verbose = False
 ):
-    """Split VCF file by chromosomes
+    """Split VCF file by chromosomes.
 
     Split VCF file by chromosomes, one output VCF per chromosome.
 
     Parameters
     ----------
     fn : str
-        The input VCF file.
+        Path to the input VCF file.
     out_dir : str
         The output dir to store the output chromosome-specific VCF files.
-    label : str
-        The task label. It not `None`, it will be part of the prefix of output
-        files (e.g., <out_dir>/<label>_chr<chrom>.vcf.gz).
-        Otherwise, the `output_prefix_list` will be used (e.g., 
-        <out_dir/<out_prefix_list[0]>.vcf.gz).
-    chrom_list : list
-        The list of chromosomes in each output VCF file.
-        If `None`, it will use all unique chromosomes in the input VCF file.
-    out_prefix_list : list
-        The list of prefix of the output VCF files. If not `None`, its length
-        should be the same with `chrom_list`. See `label` for details.
-    verbose: bool
+    label : str or None, default None
+        A label that will be used as part of the prefix of output files, e.g.,
+        "{out_dir}/{label}_chr{chrom}.vcf.gz".
+        Otherwise, the `output_prefix_list` will be used, e.g., 
+        "{out_dir}/{out_prefix_list[0]}.vcf.gz".
+    chrom_list : list of str or None, default None
+        The list of chromosomes by which the input VCF `fn` will be splitted.
+        If `None`, it will use all unique chromosomes in the input VCF `fn`.
+    out_prefix_list : list of str or None, default None
+        The list of prefixes to output VCF files.
+        If not `None`, its length should be the same with `chrom_list`.
+    verbose: bool, default False
         Whether to show detailed logging information.
     
     Returns
     -------
     list
-        A list of tuples. Each tuple has three elements: 
-        (1) chrom : str;
+        A list of tuples. Each tuple contains chromosome-specific data:
+        chrom : str
             Chromosome name.
-        (2) n_variants : int;
+        n_variants : int
             Number of variants on the chromosome.
-        (3) vcf_fn : str;
-            The output VCF file.
-
-    Raises
-    ------
-    AssertionError
-        When some arguments are invalid.
+        vcf_fn : str
+            Path to the output VCF file.
     """
     assert_e(fn)
     assert_n(out_dir)
@@ -399,6 +563,25 @@ def vcf_split_chrom(
 
 
 def __gen_tmp_filename(fn, func = None, suffix = None):
+    """Generate temporary file name.
+
+    This function generates temporary file name in the format of
+    "{fn}_{func}_{time}_{random_int}_{suffix}.tmp".
+    
+    Parameters
+    ----------
+    fn : str
+        File name.
+    func : str or None, default None
+        Function name.
+    suffix : str or None, default None
+        Suffix of the generated temporary file name.
+    
+    Returns
+    -------
+    str
+        The generated temporary file name.
+    """
     items = [fn]
     if func:
         items.append(func)

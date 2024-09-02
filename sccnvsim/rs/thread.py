@@ -24,13 +24,13 @@ class ThreadData:
         chrom : str
             The chromosome name.
         reg_obj_fn : str
-            The file storing chrom-specific regions, a list of 
+            Path to the file storing chrom-specific regions, a list of 
             :class:`~afc.gfeature.BlockRegion` objects.
         reg_idx0 : int
             The 0-based feature index within transcriptomics scale.
         cumi_fn : str
-            The file storing a chrom-specific :class:`~rs.cumi.MergedSampler`
-            object.
+            Path to the file storing a chrom-specific CUMI sampler (i.e., 
+            a :class:`~rs.cumi.MergedSampler` object).
         out_samples : list of str
             Output cell barcodes (droplet-based platform) or sample IDs (
             well-based platform).
