@@ -259,7 +259,7 @@ def afc_core(conf):
     if prepare_config(conf) < 0:
         error("preparing configuration failed.")
         raise ValueError
-    info("program configuration:")
+    info("configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
 
 

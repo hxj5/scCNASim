@@ -155,7 +155,7 @@ def rs_wrapper(
     incl_flag = 0, excl_flag = None,
     no_orphan = True
 ):
-    """Wrapper for running the rs (read sampling) module.
+    """Wrapper for running the rs (read simulation) module.
     
     Parameters
     ----------
@@ -265,7 +265,7 @@ def rs_core(conf):
     if prepare_config(conf) < 0:
         error("preparing configuration failed.")
         raise ValueError
-    info("program configuration:")
+    info("configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
 
 
@@ -546,7 +546,7 @@ def rs_core_chrom(thdata):
     debug("[chrom-%s] CUMI multi-sampler loaded." % thdata.chrom)
 
 
-    # core part of read sampling.
+    # core part of read simulation (sampling).
     info("[chrom-%s] start to iterate reads ..." % thdata.chrom)
     while True:
         read_dat = in_sam.fetch()   # get one read (after internal filtering).

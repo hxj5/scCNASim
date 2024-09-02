@@ -7,6 +7,21 @@ from ..utils.grange import reg2str
 
 
 def __cmp_two_intervals(x1, x2):
+    """Compare two intervals.
+    
+    Parameters
+    ----------
+    x1 : list of (int, int)
+        The begin and end coordinates of the first interval.
+    x2 : list of (int, int)
+        The begin and end coordinates of the second interval.
+
+    Returns
+    -------
+    int
+        The return code.
+        0 if equal; positive if `x1` is larger; negative if `x2` is larger.
+    """
     s1, e1 = x1[:2]
     s2, e2 = x2[:2]
     if s1 == s2:
@@ -19,7 +34,7 @@ def __cmp_two_intervals(x1, x2):
     
 
 def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
-    """Merge adjacent regions with the same CNV profiles
+    """Merge adjacent regions with the same CNV profiles.
 
     Merge adjacent regions with the same allele-specific copy number
     profile in each CNV clone.
@@ -30,7 +45,7 @@ def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
         Path to input file.
     out_fn : str
         Path to output file.
-    max_gap : int
+    max_gap : int, default 1
         The maximum gap length that is allowed between two adjacent regions.
         `1` for strict adjacence.
 
@@ -137,12 +152,12 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
         Path to the input file.
     out_fn : str
         Path to the output file.
-    max_gap : int
-        The maximum gap length that is allowed between two adjacent regions. 
+    max_gap : int, default 1
+        The maximum gap length that is allowed between two adjacent regions.
         `1` for strict adjacence.
-    new_name_how : str
-        How to name the merged features. `join`: join the names of the two 
-        features with string "__".
+    new_name_how : str, default "join"
+        How to name the merged features.
+        "join": join the names of the two features with string "__".
     
     Returns
     -------
@@ -157,6 +172,7 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
     max_fn_len = 127
     n_old, n_new = -1, -1
 
+
     # load data
     dat = {}
     df = load_features(in_fn, sep = sep)
@@ -167,6 +183,7 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
         if chrom not in dat:
             dat[chrom] = []
         dat[chrom].append((rec["start"], rec["end"], rec["feature"]))
+
 
     # merge adjacent features
     for chrom, ch_dat in dat.items():
@@ -187,6 +204,7 @@ def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
                 s1, e1, f1 = s2, e2, f2
         new_list.append((s1, e1, f1))
         dat[chrom] = new_list
+
 
     # save features
     n_new = 0

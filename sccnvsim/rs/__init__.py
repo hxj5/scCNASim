@@ -1,4 +1,4 @@
-# read sampling/simulation in single cells.
+# read simulation/sampling in single cells.
 
 from . import config
 from . import cumi

@@ -4,41 +4,73 @@ import sys
 
 
 class Config:
-    """Configuration of preprocessing.
+    """Configuration of preprocessing."""
 
-    Attributes
-    ----------
-    cell_anno_fn : str
-        The cell annotation file. It is header-free and its first two columns
-        are `cell` and `cell_type`.
-    feature_fn : str
-        A TSV file listing target features. It is header-free and its first 
-        4 columns shoud be: `chrom`, `start`, `end` (both start and end are
-        1-based and inclusive), and `feature_name`.
-    snp_fn : str
-        A TSV or VCF file listing phased SNPs (i.e., containing phased GT).
-    cnv_profile_fn : str
-        A TSV file listing clonal CNV profiles. It is header-free and its first
-        7 columns are "chrom" (str), "start" (int), "end" (int), 
-        "reg_id" (str), "clone_id" (str), "cn_ale0" (int), "cn_ale1" (int).
-        Note that both "start" and "end" are 1-based and inclusive.
-    clone_meta_fn : str
-        A TSV file listing clonal meta information. It is header-free and its
-        first 3 columns are "clone_id" (str), "ref_cell_type" (str),
-        "n_cells" (int). If "n_cells" is negative, then it will be set as
-        the number of cells in "ref_cell_type".
-    out_dir : str
-        The output folder.
-    """
     def __init__(self):
+        # cell_anno_fn : str
+        #   The cell annotation file. 
+        #   It is header-free and its first two columns are:
+        #   - "cell" (str): cell barcodes.
+        #   - "cell_type" (str): cell type.
         self.cell_anno_fn = None
+
+        # feature_fn : str
+        #   A TSV file listing target features. 
+        #   It is header-free and its first 4 columns shoud be: 
+        #   - "chrom" (str): chromosome name of the feature.
+        #   - "start" (int): start genomic position of the feature, 1-based
+        #     and inclusive.
+        #   - "end" (int): end genomic position of the feature, 1-based and
+        #     inclusive.
+        #   - "feature" (str): feature name.
         self.feature_fn = None
+
+        # snp_fn : str
+        #   A TSV or VCF file listing phased SNPs.
+        #   If TSV, it is a header-free file containing SNP annotations, whose
+        #   first six columns should be:
+        #   - "chrom" (str): chromosome name of the SNP.
+        #   - "pos" (int): genomic position of the SNP, 1-based.
+        #   - "ref" (str): the reference allele of the SNP.
+        #   - "alt" (str): the alternative allele of the SNP.
+        #   - "ref_hap" (int): the haplotype index of `ref`, one of {0, 1}.
+        #   - "alt_hap" (int): the haplotype index of `alt`, one of {1, 0}.
+        #   If VCF, it should contain "GT" in its "FORMAT" field.
         self.snp_fn = None
+
+        # cnv_profile_fn : str
+        #   A TSV file listing clonal CNV profiles. 
+        #   It is header-free and its first 7 columns are:
+        #   - "chrom" (str): chromosome name of the CNV region.
+        #   - "start" (int): start genomic position of the CNV region, 1-based
+        #     and inclusive.
+        #   - "end" (int): end genomic position of the CNV region, 1-based and
+        #     inclusive.
+        #   - "region" (str): ID of the CNV region.
+        #   - "clone" (str): clone ID.
+        #   - "cn_ale0" (int): copy number of the first allele.
+        #   - "cn_ale1" (int): copy number of the second allele.
         self.cnv_profile_fn = None
+
+        # clone_meta_fn : str
+        #   A TSV file listing clonal meta information.
+        #   It is header-free and its first 3 columns are:
+        #   - "clone" (str): clone ID.
+        #   - "ref_cell_type" (str): the reference cell type for `clone`.
+        #   - "n_cell" (int): number of cells in the `clone`. If negative, 
+        #     then it will be set as the number of cells in `ref_cell_type`.
         self.clone_meta_fn = None
+
+        # out_dir : str
+        #   The output folder.
         self.out_dir = None
 
+        # out_prefix_raw : str
+        #   Prefix to the output raw files.
         self.out_prefix_raw = "raw."
+
+        # out_prefix_pp : str
+        #   Prefix to the output preprocess-ed files.
         self.out_prefix_pp = "pp."
 
     def show(self, fp = None, prefix = ""):

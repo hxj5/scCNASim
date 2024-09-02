@@ -205,9 +205,9 @@ def load_clones(fn, sep = "\t"):
         Path to a a header-free file containing clone annotations, whose 
         first three columns should be:
         - "clone" (str): clone ID.
-        - "cell_type" (str): the cell type in `clone`. 
-          One clone may contain multiple cell types.
-        - "n_cell" (int): number of cells of the `cell_type` in the `clone`.
+        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "n_cell" (int): number of cells in the `clone`. If negative, then 
+          it will be set as the number of cells in `ref_cell_type`.
     sep : str, default "\t"
         File delimiter.
 
