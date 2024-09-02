@@ -54,7 +54,7 @@ def check_sanity_layer(xdata, layer = None):
         The adata object.
     layer : str or None, default None
         The name of the layer in `xdata`.
-        If None, the "{xdata}.X" will be used.
+        If None, the `xdata.X` will be used.
     
     Returns
     -------
@@ -187,7 +187,7 @@ def sparse_to_array(xdata, layer = None, inplace = False):
     layer : str or None, default None
         Name of the layer in `xdata`, whose sparse matrix will be converted
         into numpy array.
-        If None, the "{xdata}.X" will be used.    
+        If None, the `xdata.X` will be used.    
     inplace : bool, default False
         Whether to modify the `xdata` inplace.
     

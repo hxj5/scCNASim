@@ -9,19 +9,19 @@ class SCount:
     haplotype A and B.
 
     The haplotype state of one UMI/read pair is listed below:
-    * A (Haplotype-A; internal index: 0)
+    - A (Haplotype-A; internal index: 0)
         Haplotype A has supporting SNPs but haplotype B does not.
-    * B (Haplotype-B; internal index: 1)
+    - B (Haplotype-B; internal index: 1)
         Haplotype B has supporting SNPs but haplotype A does not.
-    * D (Duplicate; internal index: 2)
+    - D (Duplicate; internal index: 2)
         Both haplotype A and B have supporting SNPs.
-    * O (Others; internal index: -1)
+    - O (Others; internal index: -1)
         Neither haplotype A nor B has supporting SNPs, but other alleles 
         (bases) in SNP level are fetched.
-    * U (Unknown; internal index: -2)
+    - U (Unknown; internal index: -2)
         The UMI/read pair is fetched by some SNPs, but no any alleles are
         fetched.
-    * U (Unknown; internal index: -3)
+    - U (Unknown; internal index: -3)
         The UMI/read pair is not fetched by any SNPs.
     """
     def __init__(self, mcnt, conf):

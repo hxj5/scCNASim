@@ -41,9 +41,9 @@ def estimate_dist_nb(x, s = None):
     -------
     dict of {str : float}
         The estimator of the parameters, including three:
-        * "infl" : inflation rate.
-        * "disp" : dispersion.
-        * "mu" : mean.
+        - "infl" : inflation rate.
+        - "disp" : dispersion.
+        - "mu" : mean.
     """
     m_s, par = None, None
     m = np.mean(x)
@@ -88,9 +88,9 @@ def estimate_dist_poi(x, s = None):
     -------
     dict of {str : float}
         The estimator of the parameters, including three:
-        * "infl" : inflation rate.
-        * "disp" : dispersion.
-        * "mu" : mean.
+        - "infl" : inflation rate.
+        - "disp" : dispersion.
+        - "mu" : mean.
     """
     m_s, par = None, None
     m = np.mean(x)
@@ -135,9 +135,9 @@ def __fit_dist_wrapper(
         0 if success; negative if error; positive if modelling failed.
     dict of {str : float}
         The estimator of the parameters, including three:
-        * "infl" : inflation rate.
-        * "disp" : dispersion.
-        * "mu" : mean.
+        - "infl" : inflation rate.
+        - "disp" : dispersion.
+        - "mu" : mean.
     dict
         Model fitting result.
         It includes several keys, including "loglik", "converged", "warns", 
@@ -243,9 +243,9 @@ def fit_dist_nb(x, s = None, max_iter = 100, verbose = False):
         0 if success; negative if error; positive if modelling failed.
     dict of {str : float}
         The estimator of the parameters, including three:
-        * "infl" : inflation rate.
-        * "disp" : dispersion.
-        * "mu" : mean.
+        - "infl" : inflation rate.
+        - "disp" : dispersion.
+        - "mu" : mean.
     dict
         Model fitting result.
         It includes several keys, including "loglik", "converged", "warns", 
@@ -295,9 +295,9 @@ def fit_dist_poi(x, s = None, max_iter = 100, verbose = False):
         0 if success; negative if error; positive if modelling failed.
     dict of {str : float}
         The estimator of the parameters, including three:
-        * "infl" : inflation rate.
-        * "disp" : dispersion.
-        * "mu" : mean.
+        - "infl" : inflation rate.
+        - "disp" : dispersion.
+        - "mu" : mean.
     dict
         Model fitting result.
         It includes several keys, including "loglik", "converged", "warns", 
@@ -346,9 +346,9 @@ def fit_dist_zinb(x, s = None, max_iter = 100, verbose = False):
         0 if success; negative if error; positive if modelling failed.
     dict of {str : float}
         The estimator of the parameters, including three:
-        * "infl" : inflation rate.
-        * "disp" : dispersion.
-        * "mu" : mean.
+        - "infl" : inflation rate.
+        - "disp" : dispersion.
+        - "mu" : mean.
     dict
         Model fitting result.
         It includes several keys, including "loglik", "converged", "warns", 
@@ -400,9 +400,9 @@ def fit_dist_zip(x, s = None, max_iter = 100, verbose = False):
         0 if success; negative if error; positive if modelling failed.
     dict of {str : float}
         The estimator of the parameters, including three:
-        * "infl" : inflation rate.
-        * "disp" : dispersion.
-        * "mu" : mean.
+        - "infl" : inflation rate.
+        - "disp" : dispersion.
+        - "mu" : mean.
     dict
         Model fitting result.
         It includes several keys, including "loglik", "converged", "warns", 
@@ -490,9 +490,9 @@ def fit_dist_t(x):
         0 if success; negative if error; positive if modelling failed.
     dict of {str : float}
         The estimator of the parameters, including three:
-        * "df" : degree of freedom.
-        * "loc" : shifted location.
-        * "scale" : scale coefficient.
+        - "df" : degree of freedom.
+        - "loc" : shifted location.
+        - "scale" : scale coefficient.
     dict
         Model fitting result.
         It includes several keys, including "fit".

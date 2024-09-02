@@ -91,11 +91,11 @@ class CNVProfile:
         list
             A list of tuples of CNV profiles. Each tuple contains the 
             region-specific CNV profile:
-            * int
+            - int
                 Copy numbers of the first allele.
-            * int
+            - int
                 Copy numbers  of the first allele.
-            * str
+            - str
                 The region ID.
         """
         hits = self.rs.fetch(chrom, start, end)
@@ -138,11 +138,11 @@ class CNVProfile:
         list
             A list of tuples of CNV profiles. Each tuple contains the 
             region-specific CNV profile:
-            * int
+            - int
                 Copy numbers of the first allele.
-            * int
+            - int
                 Copy numbers  of the first allele.
-            * str
+            - str
                 The region ID.
         """
         hits = self.rs.query(name)
@@ -215,11 +215,11 @@ class CloneCNVProfile:
         list
             A list of tuples of CNV profiles. Each tuple contains the 
             region-specific CNV profile:
-            * int
+            - int
                 Copy numbers of the first allele.
-            * int
+            - int
                 Copy numbers  of the first allele.
-            * str
+            - str
                 The region ID.
         """
         if clone_id in self.dat:
@@ -244,7 +244,7 @@ class CloneCNVProfile:
             cp = self.dat[clone_id]
             cp_dat = cp.get_all()
             n = len(cp_dat["chrom"])
-            dat_list["clone"].extend([clone_id] * n)
+            dat_list["clone"].extend([clone_id] - n)
             dat_list["chrom"].extend(cp_dat["chrom"])
             dat_list["start"].extend(cp_dat["start"])
             dat_list["end"].extend(cp_dat["end"])
@@ -278,11 +278,11 @@ class CloneCNVProfile:
         list
             A list of tuples of CNV profiles. Each tuple contains the 
             region-specific CNV profile:
-            * int
+            - int
                 Copy numbers of the first allele.
-            * int
+            - int
                 Copy numbers  of the first allele.
-            * str
+            - str
                 The region ID.        
         """
         if clone_id in self.dat:

@@ -10,11 +10,11 @@ class RegPos(int):
     
     This class inherits from the `int` class, but is compatible with 
     "infinite" value:
-    * Any value is capped as `REG_MAX_POS`.
-    * The infinite value will be set as `REG_MAX_POS`.
-    * In type conversion, the string starts with "inf" will be recognized
+    - Any value is capped as `REG_MAX_POS`.
+    - The infinite value will be set as `REG_MAX_POS`.
+    - In type conversion, the string starts with "inf" will be recognized
       as infinite.
-    * The string format of value no less than `REG_MAX_POS` is "Inf".
+    - The string format of value no less than `REG_MAX_POS` is "Inf".
     """
 
     # note that ``int`` is immutable, hence __new__() should be used

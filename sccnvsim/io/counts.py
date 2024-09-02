@@ -21,35 +21,35 @@ def load_10x_data(
     ----------
     data_dir : str
         Path to the folder storing 10x scRNA-seq data.
-    mtx_fn : str
+    mtx_fn : str or None, default None
         Path to the sparse matrix file.
-        If `None`, it will be set as default `<data_dir>/matrix.mtx`.
-    cell_fn : str
+        If `None`, it will be set as default "<data_dir>/matrix.mtx".
+    cell_fn : str or None, default None
         Path to the header-free cell annotation file.
-        If `None`, it will be set as default `<data_dir>/barcodes.tsv`, 
-        and `cell_columns` set to `["cell"]`, `cell_sep` set to `'\t'`.
-    feature_fn : str
+        If `None`, it will be set as default "<data_dir>/barcodes.tsv", 
+        and `cell_columns` set to ["cell"], `cell_sep` set to '\t'.
+    feature_fn : str or None, default None
         Path to the header-free feature annotation file.
-        If `None`, it will be set as default `<data_dir>/genes.tsv`,
-        and `feature_columns` set to `["feature_id", "feature_name"]`,
-        `feature_sep` set to `'\t'`.
-    cell_columns : list
+        If `None`, it will be set as default "<data_dir>/genes.tsv",
+        and `feature_columns` set to ["feature_id", "feature_name"],
+        `feature_sep` set to '\t'.
+    cell_columns : list of str or None, default None
         Column names (str) for the `cell_fn`.
         If it is `None` and `cell_fn` is not `None`, it will be set as
-        `["cell", "cell_type"]`.
-    feature_column : list
+        ["cell", "cell_type"].
+    feature_column : list of str or None, default None
         Column names (str) for the `feature_fn`.
         If it is `None` and `feature_fn` is not `None`, it will be set as
-        `["chrom", "start", "end", "feature", "arm", "band"]`.
-    cell_sep : str
+        ["chrom", "start", "end", "feature", "arm", "band"].
+    cell_sep : str, default "\t"
         The delimiter of the `cell_fn`.
-    feature_sep : str
+    feature_sep : str, default "\t"
         The delimiter of the `feature_fn`.
 
     Returns
     -------
-    xdata object
-        An `anndata` object containing *cell x feature* matrices.
+    anndata.AnnData
+        An anndata object containing *cell x feature* matrices.
     """
     if mtx_fn is None:
         mtx_fn = os.path.join(data_dir, "matrix.mtx")
@@ -95,38 +95,38 @@ def save_10x_data(
 
     Parameters
     ----------
-    xdata : anndata object
-        An `anndata` object.
+    xdata : anndata.AnnData
+        An anndata object.
     out_dir : str
         Path to the output folder.
-    layer : str
+    layer : str or None, default None
         Name of the layer in `xdata` to be outputted.
         If `None`, then `xdata.X` will be outputted.
-    row_is_cell : bool
+    row_is_cell : bool, default True
         Whether the rows of the matrix in `xdata` are cells.
-    cell_columns : list
+    cell_columns : list of str or None, default None
         Selected columns of cell annotations in `xdata`, to be outputted
-        to `<out_dir>/cell_anno.tsv`.
+        to "<out_dir>/cell_anno.tsv".
         If `None`, use all columns.
-    feature_columns : list
+    feature_columns : list of str or None, default None
         Selected columns of feature annotations in `xdata`, to be outputted
-        to `<out_dir>/genes.tsv`.
+        to "<out_dir>/genes.tsv".
         If `None`, use all columns.
-    barcode_columns : list
+    barcode_columns : list of str or None, default None
         Selected columns of cell annotations in `xdata`, to be outputted
-        to `<out_dir>/barcodes.tsv`.
+        to "<out_dir>/barcodes.tsv".
         If `None`, use the first column of `cell_columns` (when `cell_columns`
         is not `None`) or the first column of cell annotation (otherwise).
-    cell_sep : str
+    cell_sep : str, default "\t"
         The delimiter of the `cell_fn`.
-    feature_sep : str
+    feature_sep : str, default "\t"
         The delimiter of the `feature_fn`.
-    barcode_sep : str
+    barcode_sep : str, default "\t"
         The delimiter of the `barcode_fn`.
 
     Returns
     -------
-    Void    
+    Void.
     """
     if not os.path.exists(out_dir):
         os.makedirs(out_dir, exist_ok = True)
@@ -162,35 +162,35 @@ def load_xcltk_data(
     ----------
     data_dir : str
         Path to the folder storing xcltk RDR data.
-    mtx_fn : str
+    mtx_fn : str or None, default None
         Path to the sparse matrix file.
-        If `None`, it will be set as default `<data_dir>/matrix.mtx`.
-    cell_fn : str
+        If `None`, it will be set as default "<data_dir>/matrix.mtx".
+    cell_fn : str or None, default None
         Path to the header-free cell annotation file.
-        If `None`, it will be set as default `<data_dir>/barcodes.tsv`, 
-        and `cell_columns` set to `["cell"]`, `cell_sep` set to `'\t'`.
-    feature_fn : str
+        If `None`, it will be set as default "<data_dir>/barcodes.tsv", 
+        and `cell_columns` set to ["cell"], `cell_sep` set to '\t'.
+    feature_fn : str or None, default None
         Path to the header-free feature annotation file.
-        If `None`, it will be set as default `<data_dir>/features.tsv`,
-        and `feature_columns` set to `["chrom", "start", "end", "feature"]`,
-        `feature_sep` set to `'\t'`.
-    cell_columns : list
+        If `None`, it will be set as default "<data_dir>/features.tsv",
+        and `feature_columns` set to ["chrom", "start", "end", "feature"],
+        `feature_sep` set to '\t'.
+    cell_columns : list of str or None, default None
         Column names (str) for the `cell_fn`.
         If it is `None` and `cell_fn` is not `None`, it will be set as
-        `["cell", "cell_type"]`.
-    feature_column : list
+        ["cell", "cell_type"].
+    feature_column : list of str or None, default None
         Column names (str) for the `feature_fn`.
         If it is `None` and `feature_fn` is not `None`, it will be set as
-        `["chrom", "start", "end", "feature", "arm", "band"]`.
-    cell_sep : str
+        ["chrom", "start", "end", "feature", "arm", "band"].
+    cell_sep : str, default "\t"
         The delimiter of the `cell_fn`.
-    feature_sep : str
+    feature_sep : str, default "\t"
         The delimiter of the `feature_fn`.
 
     Returns
     -------
-    xdata object
-        An `anndata` object containing *cell x feature* matrices.
+    anndata.AnnData
+        An anndata object containing *cell x feature* matrices.
     """
     if mtx_fn is None:
         mtx_fn = os.path.join(data_dir, "matrix.mtx")
@@ -236,38 +236,38 @@ def save_xcltk_data(
 
     Parameters
     ----------
-    xdata : anndata object
-        An `anndata` object.
+    xdata : anndata.AnnData
+        An anndata object.
     out_dir : str
         Path to the output folder.
-    layer : str
+    layer : str or None, default None
         Name of the layer in `xdata` to be outputted.
         If `None`, then `xdata.X` will be outputted.
-    row_is_cell : bool
+    row_is_cell : bool, default True
         Whether the rows of the matrix in `xdata` are cells.
-    cell_columns : list
+    cell_columns : list of str or None, default None
         Selected columns of cell annotations in `xdata`, to be outputted
-        to `<out_dir>/cell_anno.tsv`.
+        to "<out_dir>/cell_anno.tsv".
         If `None`, use all columns.
-    feature_columns : list
+    feature_columns : list of str or None, default None
         Selected columns of feature annotations in `xdata`, to be outputted
-        to `<out_dir>/features.tsv`.
+        to "<out_dir>/features.tsv".
         If `None`, use all columns.
-    barcode_columns : list
+    barcode_columns : list of str or None, default None
         Selected columns of cell annotations in `xdata`, to be outputted
-        to `<out_dir>/barcodes.tsv`.
+        to "<out_dir>/barcodes.tsv".
         If `None`, use the first column of `cell_columns` (when `cell_columns`
         is not `None`) or the first column of cell annotation (otherwise).
-    cell_sep : str
+    cell_sep : str, default "\t"
         The delimiter of the `cell_fn`.
-    feature_sep : str
+    feature_sep : str, default "\t"
         The delimiter of the `feature_fn`.
-    barcode_sep : str
+    barcode_sep : str, default "\t"
         The delimiter of the `barcode_fn`.
 
     Returns
     -------
-    Void    
+    Void.
     """
     if not os.path.exists(out_dir):
         os.makedirs(out_dir, exist_ok = True)
@@ -296,7 +296,7 @@ def load_xdata(mtx_fn, cell_fn, feature_fn,
     cell_sep = "\t", feature_sep = "\t",
     row_is_cell = True
 ):
-    """Load xdata.
+    """Load adata from files.
 
     Parameters
     ----------
@@ -306,21 +306,21 @@ def load_xdata(mtx_fn, cell_fn, feature_fn,
         Path to the input cell annotation file.
     feature_fn : str
         Path to the input feature annotation file.
-    cell_columns : list
+    cell_columns : list of str
         Column names for `cell_fn`.
-    feature_columns : list
+    feature_columns : list of str
         Column names for `feature_fn`.
-    cell_sep : str
+    cell_sep : str, default "\t"
         The delimiter of the `cell_fn`.
-    feature_sep : str
+    feature_sep : str, default "\t"
         The delimiter of the `feature_fn`.
-    row_is_cell : bool
+    row_is_cell : bool, default True
         Whether the rows of `mtx_fn` are cells.
 
     Returns
     -------
-    xdata object
-        An `xdata` object.
+    anndata.AnnData
+        An adata object.
     """
     mtx = load_matrix(mtx_fn)
     cells = load_cells(cell_fn, cell_columns, sep = cell_sep)
@@ -347,49 +347,49 @@ def save_xdata(
     cell_columns = None, feature_columns = None, barcode_columns = None,
     cell_sep = "\t", feature_sep = "\t", barcode_sep = "\t"
 ):
-    """Save xdata into a folder.
+    """Save adata into a folder.
 
     Parameters
     ----------
-    xdata : anndata object
-        An `anndata` object.
+    xdata : anndata.AnnData
+        An anndata object.
     mtx_fn : str
         Path to the output sparse matrix file.
     cell_fn : str
         Path to the output cell annotation file.
     feature_fn : str
         Path to the output feature annotation file.
-    barcode_fn : str
+    barcode_fn : str or None, default None
         Path to the output barcode file.
         If `None`, do not output this file.
-    layer : str
+    layer : str or None, default None
         Name of the layer in `xdata` to be outputted.
         If `None`, then `xdata.X` will be outputted.
-    row_is_cell : bool
+    row_is_cell : bool, default True
         Whether the rows of `xdata` are cells.
-    cell_columns : list
+    cell_columns : list of str or None, default None
         Selected columns of cell annotations in `xdata`, to be outputted
         to `cell_fn`.
         If `None`, use all columns.
-    feature_columns : list
+    feature_columns : list of str or None, default None
         Selected columns of feature annotations in `xdata`, to be outputted
         to `feature_fn`.
         If `None`, use all columns.
-    barcode_columns : list
+    barcode_columns : list of str or None, default None
         Selected columns of cell annotations in `xdata`, to be outputted
         to `barcode_fn`.
         If `None`, use the first column of `cell_columns` (when `cell_columns`
         is not `None`) or the first column of cell annotation (otherwise).
-    cell_sep : str
+    cell_sep : str, default "\t"
         The delimiter of the `cell_fn`.
-    feature_sep : str
+    feature_sep : str, default "\t"
         The delimiter of the `feature_fn`.
-    barcode_sep : str
+    barcode_sep : str, default "\t"
         The delimiter of the `barcode_fn`.
 
     Returns
     -------
-    Void
+    Void.
     """
     if layer is None:
         mtx = xdata.X
@@ -430,22 +430,22 @@ def save_xdata(
 
 
 def load_cells(fn, columns, sep = "\t"):
-    """Load cell annotations.
+    """Load cell annotations from file.
 
     Parameters
     ----------
     fn : str
         Path to the input file.
-    columns : list
+    columns : list of str
         Column names.
         The first several columns of `fn` will be renamed to the first several
         names in `columns` in a greedy manner.
-    sep : str
+    sep : str, default "\t"
         The delimiter of `fn`.
 
     Returns
     -------
-    pandas.DataFrame object
+    pandas.DataFrame
         A `pandas.DataFrame` object containing cell annotations.
     """
     df = pd.read_csv(fn, header = None, sep = sep)
@@ -462,37 +462,37 @@ def save_cells(df, fn, sep = "\t"):
 
     Parameters
     ----------
-    df : pandas.DataFrame object
+    df : pandas.DataFrame
         A `pandas.DataFrame` object containing cell annotations.
     fn : str
         Path to the output file.
-    sep : str
+    sep : str, default "\t"
         The delimiter of `fn`.
 
     Returns
     -------
-    Void
+    Void.
     """
     df.to_csv(fn, sep = sep, header = False, index = False)
 
 
 def load_features(fn, columns, sep = "\t"):
-    """Load feature annotations.
+    """Load feature annotations from file.
 
     Parameters
     ----------
     fn : str
         Path to the input file.
-    columns : list
+    columns : list of str
         Column names.
         The first several columns of `fn` will be renamed to the first several
         names in `columns` in a greedy manner.
-    sep : str
+    sep : str, default "\t"
         The delimiter of `fn`.
 
     Returns
     -------
-    pandas.DataFrame object
+    pandas.DataFrame
         A `pandas.DataFrame` object containing feature annotations.       
     """
     df = pd.read_csv(fn, header = None, sep = sep)
@@ -509,22 +509,22 @@ def save_features(df, fn, sep = "\t"):
 
     Parameters
     ----------
-    df : pandas.DataFrame object
+    df : pandas.DataFrame
         A `pandas.DataFrame` object containing feature annotations.
     fn : str
         Path to the output file.
-    sep : str
+    sep : str, default "\t"
         The delimiter of `fn`.
 
     Returns
     -------
-    Void
+    Void.
     """
     df.to_csv(fn, sep = sep, header = False, index = False)
 
 
 def load_matrix(fn):
-    """Load sparse matrix.
+    """Load sparse matrix from file.
 
     Parameters
     ----------
@@ -534,7 +534,7 @@ def load_matrix(fn):
     Returns
     -------
     numpy.ndarray
-        An `numpy.ndarray`.
+        The loaded matrix.
     """
     mtx = None
     try:
@@ -546,7 +546,7 @@ def load_matrix(fn):
 
 
 def save_matrix(mtx, fn):
-    """Save sparse matrix
+    """Save sparse matrix into file.
 
     Parameters
     ----------
@@ -557,7 +557,7 @@ def save_matrix(mtx, fn):
 
     Returns
     -------
-    Void
+    Void.
     """
     mtx = sparse.csr_matrix(mtx)   # convert from ndarray to sparse matrix to be fully compatible with .mtx format.
     io.mmwrite(fn, mtx)
