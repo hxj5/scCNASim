@@ -6,6 +6,7 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
+import sys
 import time
 
 from logging import info, error
@@ -22,27 +23,33 @@ def cs_core(conf):
     if ret < 0:
         error("prepare config failed (%d)." % ret)
         raise ValueError
+    info("configuration:")
+    conf.show(fp = sys.stdout, prefix = "\t")
 
+
+    # check args.
     cnv_clones = np.unique(conf.cnv_profile["clone"])
     all_clones = np.unique(conf.clone_meta["clone"])
     assert np.all(np.isin(cnv_clones, all_clones))
     info("there are %d CNV clones in all %d clones." % (
         len(cnv_clones), len(all_clones)))
 
-
+    # subset adata (count matrices) by cell types.
+    # only keep cell types listed in clone annotations.
     clone_cell_types = np.unique(conf.clone_meta["cell_type"])
     all_cell_types = np.unique(conf.adata.obs["cell_type"])
     assert np.all(np.isin(clone_cell_types, all_cell_types))
-    info("subset %d cell types from all %d ones." % \
+    info("adata: subset %d cell types from all %d ones." % \
             (len(clone_cell_types), len(all_cell_types)))
     adata = conf.adata[  \
         conf.adata.obs["cell_type"].isin(clone_cell_types), :]
-    info("adata shape change from %s to %s." % (conf.adata.shape, adata.shape))
+    info("adata: shape change from %s to %s." % \
+        (conf.adata.shape, adata.shape))
     conf.adata = adata.copy()
     adata = None
 
 
-    # get CNV features.
+    # get overlapping features for each CNV profile record.
     cnv_fet = dict()
     feature_idx = None
     for i in range(conf.cnv_profile.shape[0]):
@@ -63,10 +70,11 @@ def cs_core(conf):
                 (conf.adata.var["start"] <= end) &      \
                 (conf.adata.var["end"] >= start))[0]
             cnv_fet[c_region] = feature_idx
-    info("extract CNV features from %d records." % conf.cnv_profile.shape[0])
+    info("extract overlapping features for %d CNV records." % \
+        conf.cnv_profile.shape[0])
 
 
-    # n cells in each clone.
+    # number of cells in each clone.
     n_cell_each = None
     if np.all(conf.clone_meta["n_cell"] > 0):
         n_cell_each = conf.clone_meta["n_cell"].to_numpy()
@@ -83,7 +91,7 @@ def cs_core(conf):
     info("#cells in each clone: %s." % str(n_cell_each))
 
 
-    # get size factors.
+    # get cell-wise size factors.
     size_factors_train = None
     size_factors_simu = None
     if conf.size_factor is None:
@@ -111,7 +119,7 @@ def cs_core(conf):
     info("size factors calculated.")
 
 
-    # processing allele A, B, U separately.
+    # process allele A, B, U separately.
     adata_new = None
     allele_params = {}
     for idx, allele in enumerate(("A", "B", "U")):
@@ -151,19 +159,58 @@ def cs_core(conf):
         suffix = "-1",
         sort = True
     )
+    info("new adata constructed.")
+
 
     # save results.
     cs_params = dict(
+        # clones : pandas.Series
+        #   The ID of CNV clones.
         clones = conf.clone_meta["clone"],
+
+        # cell_types : pandas.Series
+        #   The reference cell types used by `clones`.
         cell_types = conf.clone_meta["cell_type"],
+
+        # n_cell_each : list of int
+        #   Number of cells in each of `clones`.
         n_cell_each = n_cell_each,
+
+        # cnv_profile : pandas.DataFrame
+        #   The clonal CNV profile.
         cnv_profile = conf.cnv_profile,
+
+        # cnv_features : dict of {str : numpy.ndarray of int}
+        #   The overlapping features of each CNV region.
+        #   Keys are ID of CNV region, values are the (transcriptomics scale)
+        #   indexes of their overlapping features.
         cnv_features = cnv_fet,
+
+        # size_factors_type : str or None
+        #   The type of size factors, e.g., "libsize".
+        #   None means that size factors are not used.
         size_factors_type = conf.size_factor,
+
+        # size_factors_train : numpy.ndarray of float
+        #   The cell-wise size factors from trainning data.
         size_factors_train = size_factors_train,
+
+        # size_factors_simu : list of float
+        #   The cell-wise simulated size factors.
         size_factors_simu = size_factors_simu,
-        marginal = conf.marginal, 
+
+        # marginal : {"auto", "poisson", "nb", "zinb"}
+        #   Type of marginal distribution.
+        marginal = conf.marginal,
+
+        # kwargs_fit_rd : dict
+        #   The additional kwargs passed to function 
+        #   :func:`~marginal.fit_RD_wrapper` for fitting read depth.
         kwargs_fit_rd = conf.kwargs_fit_rd,
+
+        # allele_params : dict of {str : dict}
+        #   The allele-specific parameters returned by count fitting and
+        #   simulation functions.
         allele_params = allele_params
     )
     params_fn = os.path.join(conf.out_dir, conf.out_prefix + "params.pickle")
@@ -215,6 +262,87 @@ def cs_wrapper(
     ncores = 1, verbose = False,
     kwargs_fit_sf = None, kwargs_fit_rd = None
 ):
+    """Wrapper for running the cs (count simulation) module.
+
+    Parameters
+    ----------
+    count_fn : str
+        A h5ad file storing the *cell x feature* count matrices for allele
+        A, B, U in three layers "A", "B", "U", respectively.
+        Its `.obs` should contain columns:
+        - "cell" (str): cell barcodes.
+        - "cell_type" (str): cell type.
+        Its `.var` should contain columns:
+        - "chrom" (str): chromosome name of the feature.
+        - "start" (int): start genomic position of the feature, 1-based
+          and inclusive.
+        - "end" (int): end genomic position of the feature, 1-based and
+          inclusive.
+        - "feature" (str): feature name.
+    cnv_profile_fn : str
+        A TSV file listing clonal CNV profiles.
+        It is header-free and its first 7 columns are:
+        - "chrom" (str): chromosome name of the CNV region.
+        - "start" (int): start genomic position of the CNV region, 1-based
+          and inclusive.
+        - "end" (int): end genomic position of the CNV region, 1-based and
+          inclusive.
+        - "region" (str): ID of the CNV region.
+        - "clone" (str): clone ID.
+        - "cn_ale0" (int): copy number of the first allele.
+        - "cn_ale1" (int): copy number of the second allele.
+    clone_meta_fn : str
+        A TSV file listing clonal meta information.
+        It is header-free and its first 3 columns are:
+        - "clone" (str): clone ID.
+        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "n_cell" (int): number of cells in the `clone`. If negative, 
+          then it will be set as the number of cells in `ref_cell_type`.
+    out_dir : str
+        The output folder.
+    size_factor : str or None, default "libsize"
+        The type of size factor.
+        Currently, only support "libsize" (library size).
+        Set to `None` if do not use size factors for model fitting.
+    marginal : {"auto", "poisson", "nb", "zinb"}
+        Type of marginal distribution.
+        One of
+        - "auto" (auto select).
+        - "poisson" (Poisson).
+        - "nb" (Negative Binomial).
+        - "zinb" (Zero-Inflated Negative Binomial).
+    ncores : int, default 1
+        The number of cores/sub-processes.
+    verbose : bool, default False
+        Whether to show detailed logging information.
+    kwargs_fit_sf : dict or None, default None
+        The additional kwargs passed to function 
+        :func:`~marginal.fit_libsize_wrapper` for fitting size factors.
+        The available arguments are:
+        - dist : {"normal", "t"}
+            Type of distribution.
+        If None, set as `{}`.
+    kwargs_fit_rd : dcit or None, default None
+        The additional kwargs passed to function 
+        :func:`~marginal.fit_RD_wrapper` for fitting read depth.
+        The available arguments are:
+        - min_nonzero_num : int, default 3
+            The minimum number of cells that have non-zeros for one feature.
+            If smaller than the cutoff, then the feature will not be fitted
+            (i.e., its mean will be directly treated as 0).
+        - max_iter : int, default 1000
+            Number of maximum iterations in model fitting.
+        - pval_cutoff : float, default 0.05
+            The p-value cutoff for model selection with GLR test.
+        If None, set as `{}`.
+
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative otherwise.
+    dict
+        The returned data and parameters to be used by downstream analysis.
+    """
     conf = Config()
     conf.count_fn = count_fn
     conf.cnv_profile_fn = cnv_profile_fn
@@ -234,6 +362,20 @@ def cs_wrapper(
 
 
 def prepare_config(conf):
+    """Prepare configures for downstream analysis.
+
+    This function should be called after cmdline is parsed.
+
+    Parameters
+    ----------
+    conf : cs.config.Config
+        Global configuration object.
+
+    Returns
+    -------
+    int
+        Return code. 0 if success, -1 otherwise.
+    """
     ret = -1
 
     assert os.path.exists(conf.count_fn)
@@ -245,11 +387,9 @@ def prepare_config(conf):
 
     assert os.path.exists(conf.cnv_profile_fn)
     conf.cnv_profile = load_cnvs(conf.cnv_profile_fn, sep = "\t")
-    # check duplicate or invalid (e.g., overlapping) records.
 
     assert os.path.exists(conf.clone_meta_fn)
     conf.clone_meta = load_clones(conf.clone_meta_fn, sep = "\t")
-    # check duplicate records.
 
     os.makedirs(conf.out_dir, exist_ok = True)
 
@@ -282,24 +422,54 @@ def gen_clone_core(
     
     Parameters
     ----------
-    adata : AnnData object
-        The adata storing *cell x feature* matrices. It contains three layers
-        "A", "B", "U".
-    allele : str
-        One of "A", "B", "U".
-    ...
+    adata : anndata.AnnData
+        The adata object storing *cell x feature* matrices.
+        It contains three layers "A", "B", "U".
+    allele : {"A", "B", "U"}
+        The allele whose data is to be generated.
+    clones : pandas.Series
+        The ID of CNV clones.
+    cell_types : pandas.Series
+        The reference cell types used by `clones`.
+    n_cell_each : list of int
+        Number of cells in each of `clones`.
+    cnv_profile : pandas.DataFrame
+        The clonal CNV profile.
+    cnv_features : dict of {str : numpy.ndarray of int}
+        The overlapping features of each CNV region.
+        Keys are ID of CNV region, values are the (transcriptomics scale)
+        indexes of their overlapping features.
+    size_factors_type : str or None
+        The type of size factors, e.g., "libsize".
+        None means that size factors are not used.
+    size_factors_train : numpy.ndarray of float
+        The cell-wise size factors from trainning data.
+    size_factors_simu : list of float
+        The cell-wise simulated size factors.
+    marginal : {"auto", "poisson", "nb", "zinb"}
+        Type of marginal distribution.
+    kwargs_fit_rd : dict
+        The additional kwargs passed to function 
+        :func:`~marginal.fit_RD_wrapper` for fitting read depth.
+    ncores : int
+        Number of cores.
+    verbose : bool
+        Whether to show detailed logging information.
 
     Returns
     -------
-    adata object
-        Simulated RD values of *cell x feature*. It has one column "cell_type"
-        in ".obs" and one column "feature" in ".var".
+    anndata.AnnData
+        Simulated RD values of *cell x feature*.
+        It has one column "cell_type" in `.obs` and one column "feature"
+        in `.var`.
+    dict
+        Parameters of fitting and simulation.
     """
     n, p = adata.shape
     assert allele in ("A", "B", "U")
     layer = allele
 
-    cn_fold = {}
+    cn_fold = {}      # clone x feature copy number fold.
     min_allele_freq = 0.01      # mimic overall error rate.
     for i in range(cnv_profile.shape[0]):
         rec = cnv_profile.iloc[i, ]

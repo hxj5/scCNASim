@@ -7,70 +7,80 @@ COMMAND = "cs"
 
 
 class Config:
-    """Configuration of count simulation.
+    """Configuration of the `cs` (count simulation) module.
 
     Attributes
     ----------
     count_fn : str
         A h5ad file storing the *cell x feature* count matrices for allele
         A, B, U in three layers "A", "B", "U", respectively.
-        It should contain columns "cell", "cell_type" in its `.obs`; and 
-        contain columns "chrom", "start", "end", "feature" in its `.var`.
+        Its `.obs` should contain columns:
+        - "cell" (str): cell barcodes.
+        - "cell_type" (str): cell type.
+        Its `.var` should contain columns:
+        - "chrom" (str): chromosome name of the feature.
+        - "start" (int): start genomic position of the feature, 1-based
+          and inclusive.
+        - "end" (int): end genomic position of the feature, 1-based and
+          inclusive.
+        - "feature" (str): feature name.
     cnv_profile_fn : str
-        A TSV file listing clonal CNV profiles. It is header-free and its first
-        7 columns are "chrom" (str), "start" (int), "end" (int), 
-        "reg_id" (str), "clone_id" (str), "cn_ale0" (int), "cn_ale1" (int).
-        Note that both "start" and "end" are 1-based and inclusive.
+        A TSV file listing clonal CNV profiles.
+        It is header-free and its first 7 columns are:
+        - "chrom" (str): chromosome name of the CNV region.
+        - "start" (int): start genomic position of the CNV region, 1-based
+          and inclusive.
+        - "end" (int): end genomic position of the CNV region, 1-based and
+          inclusive.
+        - "region" (str): ID of the CNV region.
+        - "clone" (str): clone ID.
+        - "cn_ale0" (int): copy number of the first allele.
+        - "cn_ale1" (int): copy number of the second allele.
     clone_meta_fn : str
-        A TSV file listing clonal meta information. It is header-free and its
-        first 3 columns are "clone_id" (str), "ref_cell_type" (str),
-        "n_cells" (int). If "n_cells" is negative, then it will be set as
-        the number of cells in "ref_cell_type".
+        A TSV file listing clonal meta information.
+        It is header-free and its first 3 columns are:
+        - "clone" (str): clone ID.
+        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "n_cell" (int): number of cells in the `clone`. If negative, 
+          then it will be set as the number of cells in `ref_cell_type`.
     out_dir : str
         The output folder.
-    size_factor : str
+    size_factor : str or None, default "libsize"
         The type of size factor.
         Currently, only support "libsize" (library size).
         Set to `None` if do not use size factors for model fitting.
-        Default is `"libsize"`.
-    marginal : str
+    marginal : {"auto", "poisson", "nb", "zinb"}
         Type of marginal distribution.
-        One of "auto" (auto select), "poisson" (Poisson), 
-        "nb" (Negative Binomial),
-        and "zinb" (Zero-Inflated Negative Binomial).
-        Default is `"auto"`.
-    ncores : int
+        One of
+        - "auto" (auto select).
+        - "poisson" (Poisson).
+        - "nb" (Negative Binomial).
+        - "zinb" (Zero-Inflated Negative Binomial).
+    ncores : int, default 1
         The number of cores/sub-processes.
-        Default is `1`.
-    verbose : bool
+    verbose : bool, default False
         Whether to show detailed logging information.
-        Default is `False`.
     kwargs_fit_sf : dict
         The additional kwargs passed to function 
         :func:`~marginal.fit_libsize_wrapper` for fitting size factors.
-        Default is `{}`.
         The available arguments are:
-        dist : str
-            Type of distribution. One of "normal" (normal) and "t" (t).
-            Default is `"normal"`.
-    kwargs_fit_rd : dcit
+        - dist : {"normal", "t"}
+            Type of distribution.
+    kwargs_fit_rd : dict
         The additional kwargs passed to function 
         :func:`~marginal.fit_RD_wrapper` for fitting read depth.
-        Default is `{}`.
         The available arguments are:
-        min_nonzero_num : int
+        - min_nonzero_num : int, default 3
             The minimum number of cells that have non-zeros for one feature.
             If smaller than the cutoff, then the feature will not be fitted
             (i.e., its mean will be directly treated as 0).
-            Default is `3`.
-        max_iter : int
+        - max_iter : int, default 1000
             Number of maximum iterations in model fitting.
-            Default is `1000`.
-        pval_cutoff : float
+        - pval_cutoff : float, default 0.05
             The p-value cutoff for model selection with GLR test.
-            Default is `0.05`.
     """
     def __init__(self):
+        # command-line arguments/parameters.
         self.count_fn = None
         self.cnv_profile_fn = None
         self.clone_meta_fn = None
@@ -84,16 +94,29 @@ class Config:
         self.kwargs_fit_sf = dict()
         self.kwargs_fit_rd = dict()
 
+        # derived parameters.
+
+        # adata : anndata.AnnData
+        #   The loaded allele-specific count matrices.
         self.adata = None
+
+        # cnv_profile : pandas.DataFrame
+        #   The loaded clonal CNV profile.
         self.cnv_profile = None
+
+        # clone_meta : pandas.DataFrame
+        #   The loaded clone annotations.
         self.clone_meta = None
 
+        # out_prefix : str
+        #   Prefix to the output files.
         self.out_prefix = COMMAND + "."
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
             fp = sys.stdout
         
+        # command-line arguments/parameters.
         s =  "%s\n" % prefix
         s += "%scount_fn = %s\n" % (prefix, self.count_fn)
         s += "%scnv_profile_fn = %s\n" % (prefix, self.cnv_profile_fn)
@@ -108,6 +131,7 @@ class Config:
         s += "%skwargs_fit_sf = %s\n" % (prefix, self.kwargs_fit_sf)
         s += "%skwargs_fit_rd = %s\n" % (prefix, self.kwargs_fit_rd)
 
+        # derived parameters.
         s += "%sout_prefix = %s\n" % (prefix, self.out_prefix)
         s += "%s\n" % prefix
 

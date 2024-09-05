@@ -8,33 +8,37 @@ import pandas as pd
 import seaborn as sns
 
 from logging import error
+from logging import warning as warn
 from ..utils.base import is_function, is_vector
 from ..utils.xmatrix import sparse2array
 
 
 ### Cell-wise metrics
 
+
 def __get_metrics(mtype, X, metrics = None, out_fmt = "df"):
     """Wrapper function for metrics calculation.
 
     Parameters
     ----------
-    mtype : str
-        One of "cw" (cell-wise) or "gw" (gene-wise).
-    X : matrix-like object
+    mtype : {"cw", "gw"}
+        Metric type. One of "cw" (cell-wise) or "gw" (gene-wise).
+    X : matrix-like
         The *cell x feature* matrix.
-    metrics : list
+    metrics : list of str or None, default None
         A list of metrics to be calculated, each of which should be among
         "lib_size" (library size), "zero_prop" (zero proportion) if cell-wise;
         or "mean" (mean), "var" (variance), "cv" (coefficient of variation),
         "zero_prop" (zero proportion) if gene-wise.
-    out_fmt : str
+        If None, all available metrics will be used.
+    out_fmt : {"df", "dict", "list"}
         Format of the returned result. 
         One of "df" (pandas.DataFrame), "dict" (dict), and "list" (list).
 
     Returns
     -------
-    An object in the format specified by `out_fmt`.
+    object
+        An object in the format specified by `out_fmt`.
     """
     assert mtype in ("cw", "gw")
 
@@ -101,24 +105,27 @@ def __get_metrics_group(mtype, X_lst, X_names = None, metrics = None):
 
     Parameters
     ----------
-    mtype : str
-        One of "cw" (cell-wise) or "gw" (gene-wise).
-    X_lst : list
+    mtype : {"cw", "gw"}
+        Metric type. One of "cw" (cell-wise) or "gw" (gene-wise).
+    X_lst : list of matrix-like
         A list of *cell x feature* matrices (matrix-like objects).
-    X_names : list
+    X_names : list of str or None, default None
         A list of group names (str).
+        Its length and order should match `X_lst`.
         If `None`, the default ["X0", "X1", ..., "Xn"] will be used.
-    metrics : list
+    metrics : list of str or None, default None
         A list of metrics to be calculated, each of which should be among
         "lib_size" (library size), "zero_prop" (zero proportion) if cell-wise;
         or "mean" (mean), "var" (variance), "cv" (coefficient of variation),
         "zero_prop" (zero proportion) if gene-wise.
+        If None, all available metrics will be used.
 
     Returns
     -------
     pandas.DataFrame
-        A `pandas.DataFrame` object whose first several column names are 
-        the `metrics` and the last column is "X_name" storing the group names.
+        A `pandas.DataFrame` object containing calculated metrics, whose
+        first several column names are the `metrics` and the last column is 
+        "X_name" storing the group names.
     """
     assert mtype in ("cw", "gw")
 
@@ -190,15 +197,19 @@ def get_gw_metrics(X, metrics = None, out_fmt = "df"):
   
 
 def get_gw_cv(X):
+    """Get gene-wise coefficient of variation (CV)."""
     return np.std(X, axis = 0) / np.mean(X, axis = 0)
 
 def get_gw_mean(X):
+    """Get gene-wise mean."""
     return np.mean(X, axis = 0)
 
 def get_gw_var(X):
+    """Get gene-wise variance."""
     return np.var(X, axis = 0)
 
 def get_gw_zero_prop(X):
+    """Get gene-wise zero proportion."""
     return np.mean(X <= 0.0, axis = 0)
 
 
@@ -213,11 +224,11 @@ def __plot_metrics(mtype, mv, metrics = None):
 
     Parameters
     ----------
-    mtype : str
-        One of "cw" (cell-wise) or "gw" (gene-wise).
+    mtype : {"cw", "gw"}
+        Metric type. One of "cw" (cell-wise) or "gw" (gene-wise).
     mv : pandas.DataFrame
         A `pandas.DataFrame` object containing the metrics values.
-    metrics : list
+    metrics : list of str or None, default None
         A list of metrics to be visualized.
         If `None`, all columns of `mv` will be treated as metrics.
 
@@ -245,6 +256,26 @@ def __plot_metrics(mtype, mv, metrics = None):
 
 
 def __plot_metrics_calc_shape(n, nrows, ncols):
+    """Calculate the shape of the figure of metrics.
+    
+    Parameters
+    ----------
+    n : int
+        Number of sub-figures.
+    nrows : int or None
+        Number of rows.
+        If None, set as minimum required value.
+    ncols : int or None
+        Number of columns.
+        If None, set as minimum required value.
+
+    Returns
+    -------
+    int
+        The calculated number of rows of the figure.
+    int
+        The calculated number of columns of the figure.
+    """
     if nrows is None and ncols is None:
         ncols = min(n, 3)
     if nrows is None:
@@ -272,23 +303,25 @@ def __plot_metrics_group(
 
     Parameters
     ----------
-    mtype : str
-        One of "cw" (cell-wise) or "gw" (gene-wise).
+    mtype : {"cw", "gw"}
+        Metric type. One of "cw" (cell-wise) or "gw" (gene-wise).
     mv : pandas.DataFrame
         A `pandas.DataFrame` object containing the metrics values.
     group : str
         The name of the column storing group names.
-    metrics : list
+    metrics : list of str or None, default None
         A list of metrics to be visualized.
         If `None`, all columns of `mv` except `group` will be treated 
         as metrics.
-    nrows : int
-        Number of rows of the figure. If `None`, use default value returned 
-        by :func:`~__plot_metrics_calc_shape`.
-    ncols : int
-        Number of columns of the figure. If `None`, use default value returned
-        by :func:`~__plot_metrics_calc_shape`.
-    copy_mv : bool
+    nrows : int or None, default None
+        Number of rows of the figure.
+        If `None`, use default value returned by
+        :func:`~cs.metric.__plot_metrics_calc_shape`.
+    ncols : int or None, default None
+        Number of columns of the figure.
+        If `None`, use default value returned
+        by :func:`~cs.metric.__plot_metrics_calc_shape`.
+    copy_mv : bool, default True
         Whether to copy the `mv` to avoid unintended modification.
 
     Returns
@@ -323,6 +356,23 @@ def __plot_metrics_group(
 
 
 def __plot_metrics_group_format_metrics(metrics, mv, group):
+    """Format metrics.
+    
+    Parameters
+    ----------
+    metrics : str, list of str or None
+        The metric types.
+        If None, use all column names in `mv` except `group` as metrics.
+    mv : pandas.DataFrame
+        The calculated metric values.
+    group : str
+        The name of column in `mv` storing group names.
+
+    Returns
+    -------
+    list of str
+        The formatted metrics.
+    """
     if metrics is None:
         metrics = [m for m in mv.columns if m != group]
     elif not is_vector(metrics):
@@ -348,40 +398,43 @@ def __plot_metrics_tran(
 
     Parameters
     ----------
-    mtype : str
-        One of "cw" (cell-wise) or "gw" (gene-wise).
+    mtype : {"cw", "gw"}
+        Metric type. One of "cw" (cell-wise) or "gw" (gene-wise).
     mv : pandas.DataFrame
         A `pandas.DataFrame` object containing the metrics values.
     group : str
-        The name of the column storing group names.
-    metrics : list
+        The name of the column in `mv` storing group names.
+    metrics : list of str or None, default None
         A list of metrics to be visualized.
         If `None`, all columns of `mv` except `group` will be treated 
         as metrics.
-    transform : str | list | dict
+    transform : str, list of str, dict or None, default None
         If it is a str or list, then each transformation will be applied on
-        every metrics;
-        If it is a dict, it should be pair <metric(str) : transformation(str)>
-        or <metric(str) : transformations(list)>, then only the specified
+        every `metrics`;
+        If it is a dict, it should be pair {metric(str) : transformation(str)}
+        or {metric(str) : transformations(list)}, then only the specified
         transformation(s) will be applied on their target metrics.
         Note that generally every transformation should be a function
-        compatible with `apply` in pandas.
+        compatible with :func:`~pandas.apply`.
         However, for quick usage, a few bulit-in keywords have been available,
         including "log1p" and "log10_1p".
         Set to `None` if no transformation.
-    tran_inplace : bool
+    tran_inplace : bool, default False
         Whether the transformation should modify the metrics inplace.
-    tran_position : str
-        One of "append" or "end". If "append", the transformed metrics will
-        be appended right after the raw metric columns;
+    tran_position : {"append", "end"}
+        Where the transformed metrics will be placed in `mv`.
+        If "append", the transformed metrics will be appended right after 
+        the raw metric columns;
         if "end", the transformed metrics will be put at the end of all 
         raw metric columns.
-    nrows : int
-        Number of rows of the figure. If `None`, use default value returned 
-        by :func:`~__plot_metrics_calc_shape`.
-    ncols : int
-        Number of columns of the figure. If `None`, use default value returned
-        by :func:`~__plot_metrics_calc_shape`.
+    nrows : int or None, default None
+        Number of rows of the figure.
+        If `None`, use default value returned by
+        :func:`~cs.metric.__plot_metrics_calc_shape`.
+    ncols : int or None, default None
+        Number of columns of the figure.
+        If `None`, use default value returned by
+        :func:`~cs.metric.__plot_metrics_calc_shape`.
 
     Returns
     -------
@@ -452,6 +505,25 @@ def __plot_metrics_tran(
 
 
 def __plot_metrics_tran_format_transform(transform, metrics):
+    """Format transformation.
+    
+    Parameters
+    ----------
+    transform : str, function, list or dict
+        The transformation to be applied on metrics for visualiztion.
+        If list, each element should be a string or function.
+        If dict, keys are metrics and values are transformation to be applied
+        on that metric, in the format of str, function or list.
+    metrics : list of str
+        All available metrics.
+
+    Returns
+    -------
+    dict of {str : list}
+        The formatted transformation.
+        Keys are metrics, values are a list of transformations to be applied
+        on that metric.
+    """
     # format `transform`
     if isinstance(transform, str) or is_function(transform):
         transform = {m:[transform] for m in metrics}
@@ -482,6 +554,22 @@ def __plot_metrics_tran_format_transform(transform, metrics):
 
 
 def __plot_metrics_tran_transform(x, t):
+    """Apply a transformation.
+    
+    Parameters
+    ----------
+    x : pandas.Series
+        The metric values to be transformed.
+    t : str or function
+        The transformation.
+
+    Returns
+    -------
+    pandas.Series
+        The transformed metric values.
+    str
+        The formatted transformation name.
+    """
     v = None
     t_name = str(t).replace(".", "_")
     if isinstance(t, str):
@@ -497,7 +585,7 @@ def __plot_metrics_tran_transform(x, t):
         if hasattr(t, "__name__"):
             t_name = t.__name__.replace(".", "_")
         else:
-            logging.warning("func '%s' does not have __name__." % str(t))
+            warn("func '%s' does not have __name__." % str(t))
     return((v, t_name))
     
 
@@ -577,14 +665,14 @@ def __plot_mpairs(mtype, mv, mpairs = None):
 
     Parameters
     ----------
-    mtype : str
-        One of "cw" (cell-wise) or "gw" (gene-wise).
+    mtype : {"cw", "gw"}
+        Metric type. One of "cw" (cell-wise) or "gw" (gene-wise).
     mv : pandas.DataFrame
         A `pandas.DataFrame` object containing the metrics values.
-    mpairs : list
+    mpairs : tuple, list of tuple or None, default None
         A list of metric pairs to be visualized.
-        It should be a list of tuples or one single tuple (each tuple is a
-        pair of 2 elements).
+        It should be a list of tuples or one single tuple.
+        Each tuple is a pair of 2 metrics (str, str).
         If `None`, all combinations of columns in `mv` will be treated 
         as metric pairs.
 
@@ -622,25 +710,27 @@ def __plot_mpairs_group(
 
     Parameters
     ----------
-    mtype : str
-        One of "cw" (cell-wise) or "gw" (gene-wise).
+    mtype : {"cw", "gw"}
+        Metric type. One of "cw" (cell-wise) or "gw" (gene-wise).
     mv : pandas.DataFrame
         A `pandas.DataFrame` object containing the metrics values.
     group : str
-        The name of the column storing group names.
-    mpairs : list
+        The name of the column in `mv` storing group names.
+    mpairs : tuple, list of tuple or None, default None
         A list of metric pairs to be visualized.
-        It should be a list of tuples or one single tuple (each tuple is a
-        pair of 2 elements).
+        It should be a list of tuples or one single tuple.
+        Each tuple is a pair of 2 metrics (str, str).
         If `None`, all combinations of columns in `mv` will be treated 
         as metric pairs.
-    nrows : int
-        Number of rows of the figure. If `None`, use default value returned 
-        by :func:`~__plot_metrics_calc_shape`.
-    ncols : int
-        Number of columns of the figure. If `None`, use default value returned
-        by :func:`~__plot_metrics_calc_shape`.
-    copy_mv : bool
+    nrows : int or None, default None
+        Number of rows of the figure.
+        If `None`, use default value returned by
+        :func:`~cs.metric.__plot_metrics_calc_shape`.
+    ncols : int or None, default None
+        Number of columns of the figure.
+        If `None`, use default value returned by
+        :func:`~cs.metric.__plot_metrics_calc_shape`.
+    copy_mv : bool, default True
         Whether to copy the `mv` to avoid unintended modification.
 
     Returns
@@ -711,11 +801,32 @@ def __plot_mpairs_group(
 
 
 def __plot_mpairs_group_format_mpairs(mpairs, mv, group):
+    """Format metric pair.
+
+    Parameters
+    ----------
+    mpairs : tuple, list of tuple or None
+        A list of metric pairs to be visualized.
+        It should be a list of tuples or one single tuple.
+        Each tuple is a pair of 2 metrics (str, str).
+        If `None`, all combinations of columns in `mv` will be treated 
+        as metric pairs.
+    mv : pandas.DataFrame
+        A `pandas.DataFrame` object containing the metrics values.
+    group : str
+        The name of the column in `mv` storing group names.
+
+    Returns
+    -------
+    list of tuple
+        Formatted metric pairs.
+        It is a list of tuple (str, str).         
+    """
     if mpairs is None:
         mpairs = []
         metrics = [m for m in mv.columns if m != group]
         if len(metrics) <= 0:
-            logging.warning("there are no any valid metrics.")
+            warn("there are no any valid metrics.")
             return((None, mv))
         for i in range(len(metrics) - 1):
             for j in range(i + 1, len(metrics)):
@@ -745,6 +856,32 @@ def __plot_mpairs_group_format_mpairs(mpairs, mv, group):
 # copied from https://stackoverflow.com/questions/33049884/how-to-plot-2-seaborn-lmplots-side-by-side
 # modified on 2024-04-17
 def __plot_mpairs_group_hue_regplot(data, x, y, hue, palette = None, **kwargs):
+    """Multi-group regression plot.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        Data to plot.
+    x : str
+        The x variable. It should be name of one column in `data`.
+    y : str
+        The y variable. It should be name of one column in `data`.
+    hue : str
+        The column in `data` that contains the group names.
+    palette : default None
+        Palette definition.
+        Should be something :func:`~seaborn.color_palette()` can process.
+        If None, the `matplotlib.cm.get_cmap('tab10')` will be used.
+    kwargs : dict
+        Other parameters passed to :func:`~seaborn.regplot()`.
+    
+    Returns
+    -------
+    matplotlib.Axes
+        The Axes object containing the plot.
+    numpy.ndarray of str
+        The unique groups.
+    """
     from matplotlib.cm import get_cmap
     levels = data[hue].unique()
     if palette is None:
@@ -784,44 +921,45 @@ def __plot_mpairs_tran(
 
     Parameters
     ----------
-    mtype : str
-        One of "cw" (cell-wise) or "gw" (gene-wise).
+    mtype : {"cw", "gw"}
+        Metric type. One of "cw" (cell-wise) or "gw" (gene-wise).
     mv : pandas.DataFrame
         A `pandas.DataFrame` object containing the metrics values.
     group : str
-        The name of the column storing group names.
-    mpairs : list
+        The name of the column in `mv` storing group names.
+    mpairs : tuple, list of tuple or None, default None
         A list of metric pairs to be visualized.
-        It should be a list of tuples or one single tuple (each tuple is a
-        pair of 2 elements).
+        It should be a list of tuples or one single tuple.
+        Each tuple is a pair of 2 metrics (str, str).
         If `None`, all combinations of columns in `mv` will be treated 
         as metric pairs.
-    transform : str | list | dict
+    transform : str, function, list, dict or None, default None
         If it is a str or list, then each transformation will be applied on
         every metrics;
-        If it is a dict, it should be pair <metric(str) : transformation(str)>
-        or <metric(str) : transformations(list)>, then only the specified
+        If it is a dict, it should be pair {metric(str) : transformation(str)}
+        or {metric(str) : transformations(list)}, then only the specified
         transformation(s) will be applied on their target metrics.
         Note that generally every transformation should be a function
-        compatible with `apply` in pandas.
+        compatible with :func:`~pandas.apply()`.
         However, for quick usage, a few bulit-in keywords have been available,
         including "log1p" and "log10_1p".
         Set to `None` if no transformation.
-    tran_inplace : bool
+    tran_inplace : bool, default False
         Whether the transformation should modify the metrics inplace.
-    tran_position : str
-        One of "append" or "end". If "append", the transformed metrics will
-        be appended right after the raw metric columns;
+    tran_position : {"append", "end"}
+        Where to place the transformed metric values.
+        If "append", the transformed metrics will be appended right after 
+        the raw metric columns;
         if "end", the transformed metrics will be put at the end of all 
         raw metric columns.
-    nrows : int
-        Number of rows of the figure. If `None`, use default value returned 
-        by :func:`~__plot_metrics_calc_shape`.
-    ncols : int
-        Number of columns of the figure. If `None`, use default value returned
-        by :func:`~__plot_metrics_calc_shape`.
-    copy_mv : bool
-        Whether to copy the `mv` to avoid unintended modification.
+    nrows : int or None, default None
+        Number of rows of the figure.
+        If `None`, use default value returned by
+        :func:`~cs.metric.__plot_metrics_calc_shape`.
+    ncols : int or None, default None
+        Number of columns of the figure.
+        If `None`, use default value returned by
+        :func:`~cs.metric.__plot_metrics_calc_shape`.
 
     Returns
     -------

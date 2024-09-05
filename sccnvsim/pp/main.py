@@ -20,6 +20,7 @@ def pp_core(conf):
 
 
     # process feature file.
+    # merge overlapping features.
     shutil.copy(conf.feature_fn,
         os.path.join(conf.out_dir, conf.out_prefix_raw + "features.tsv"))
     merged_feature_fn = os.path.join(conf.out_dir, 
@@ -51,6 +52,7 @@ def pp_core(conf):
 
 
     # process clone meta information file.
+    # check duplicate records.
     shutil.copy(conf.clone_meta_fn,
         os.path.join(conf.out_dir, conf.out_prefix_raw + "clone_meta.tsv"))
     clone_meta = load_clones(conf.clone_meta_fn)
@@ -63,6 +65,7 @@ def pp_core(conf):
     
 
     # process CNV profile file.
+    # merge CNV profiles.
     shutil.copy(conf.cnv_profile_fn,
         os.path.join(conf.out_dir, conf.out_prefix_raw + "cnv_profile.tsv"))
     merged_cnv_profile_fn = os.path.join(conf.out_dir, 
@@ -88,6 +91,7 @@ def pp_core(conf):
 
 
     # process cell annotation file.
+    # subset cell annotations by cell type.
     shutil.copy(conf.cell_anno_fn,
         os.path.join(conf.out_dir, conf.out_prefix_raw + "cell_anno.tsv"))
     cell_anno = load_cells(conf.cell_anno_fn)
@@ -107,11 +111,30 @@ def pp_core(conf):
 
     # construct return values
     res = {
+        # barcode_fn_new : str
+        #   Path to the file storing the subset cell barcodes (subset by
+        #   cell type).
         "barcode_fn_new": barcode_fn_new,
+
+        # cell_anno_fn_new : str
+        #   Path to the file storing the subset cell annotations (subset by
+        #   cell type).
         "cell_anno_fn_new": cell_anno_fn_new,
+
+        # clone_meta_fn_new : str
+        #   Path to the file storing the clone annotations.
         "clone_meta_fn_new": conf.clone_meta_fn,
+
+        # cnv_profile_fn_new : str
+        #   Path to the file storing the merged CNV profiles.
         "cnv_profile_fn_new": merged_cnv_profile_fn,
+
+        # feature_fn_new : str
+        #   Path to the file storing the merged (overlapping) features.
         "feature_fn_new": merged_feature_fn,
+
+        # clone_meta_fn_new : str
+        #   Path to the file storing the annotations of (phased) SNPs.
         "snp_fn_new": conf.snp_fn
     }
     return(res)
@@ -206,7 +229,7 @@ def pp_wrapper(
     int
         The return code. 0 if success, negative otherwise.
     dict
-        The returned meta information.      
+        The returned data and parameters to be used by downstream analysis.
     """
     conf = Config()
     conf.cell_anno_fn = cell_anno_fn

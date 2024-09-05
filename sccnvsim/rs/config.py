@@ -7,7 +7,7 @@ COMMAND = "rs"
 
 
 class Config:
-    """Configuration for the `rs` module.
+    """Configuration of the `rs` (read simulation) module.
 
     Attributes
     ----------

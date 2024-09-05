@@ -227,7 +227,7 @@ def rs_wrapper(
     int
         The return code. 0 if success, negative otherwise.
     dict
-        The returned meta information.
+        The returned data and parameters to be used by downstream analysis.
     """
     conf = Config()
     #init_logging(stream = sys.stdout)
@@ -491,9 +491,22 @@ def rs_core(conf):
     # TODO: delete tmp dir.
 
     res = {
+        # out_sample_fn : str
+        #   Path to the file storing cell barcodes or sample IDs of the
+        #   simulated BAM file(s).
         "out_sample_fn": out_sample_fn,
+
+        # out_cell_anno_fn : str
+        #   Path to the file storing cell annotations of the simulated
+        #   BAM file(s).
         "out_cell_anno_fn": out_cell_anno_fn,
+
+        # out_sam_dir : str
+        #   Output folder for SAM/BAM file(s).
         "out_sam_dir": conf.out_sam_dir,
+
+        # out_sam_fn_list : list of str
+        #   Path to each output BAM file.
         "out_sam_fn_list": out_sam_fn_list
     }
     return(res)
@@ -634,6 +647,8 @@ def rs_run(conf):
 def prepare_config(conf):
     """Prepare configures for downstream analysis.
 
+    This function should be called after cmdline is parsed.
+
     Parameters
     ----------
     conf : rs.config.Config
@@ -643,10 +658,6 @@ def prepare_config(conf):
     -------
     int
         Return code. 0 if success, -1 otherwise.
-
-    Notes
-    -----
-    This function should be called after cmdline is parsed.
     """
     if conf.sam_fn:
         if conf.sam_list_fn:

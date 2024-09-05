@@ -28,10 +28,10 @@ def fit_libsize_cell_type(
 
     Parameters
     ----------
-    X : np.array (2d)
+    X : numpy.ndarray
         The *cell x feature* matrix containing sample values.
-    dist : str
-        Type of distribution. One of "normal" (normal) and "t" (t).
+    dist : {"normal", "t"}
+        Type of distribution.
 
     Returns
     -------
@@ -73,24 +73,25 @@ def fit_libsize(
 
     Parameters
     ----------
-    X : np.array (2d)
+    X : numpy.ndarray
         It contains the *cell x feature* matrix of sample values.
-    cell_types : list
-        The cell types. Its length and order should match the rows of `X`.
-    cell_type_fit : list
+    cell_types : list of str
+        The cell types.
+        Its length and order should match the rows of `X`.
+    cell_type_fit : list of str
         The cell types to be fitted.
-    dist : str
-        Type of distribution. One of "normal" (normal) and "t" (t).
-    verbose : bool
+    dist : {"normal", "t"}
+        Type of distribution.
+    verbose : bool, default True
         Whether to show detailed logging information.
 
     Returns
     -------
-    OrderedDict object
+    OrderedDict
         The fitted parameters, will be used by downstream simulation.
         In each item (pair), the key is the cell type (str) and the value
         is the cell-type-specific parameters returned by 
-        :func:`fit_libsize_cell_type`.
+        :func:`~cs.marginal.fit_libsize_cell_type`.
     """
     # check args
     cell_types = np.array(cell_types)
@@ -130,24 +131,24 @@ def fit_libsize_wrapper(
 
     Parameters
     ----------
-    xdata : anndata object
+    xdata : anndata.AnnData
         It contains the *cell x feature* matrix of sample values.
         It should have a column "cell_type" in `xdata.obs`.
-    cell_type_fit : list
+    cell_type_fit : list of str or None, default None
         A list of cell types (str) whose features will be fitted.
         If `None`, use all unique cell types in `xdata`.
-    dist : str
-        Type of distribution. One of "normal" (normal) and "t" (t).
-    verbose : bool
+    dist : {"normal", "t"}
+        Type of distribution.
+    verbose : bool, default True
         Whether to show detailed logging information.
 
     Returns
     -------
-    OrderedDict object
+    OrderedDict
         The fitted parameters, will be used by downstream simulation.
         In each item (pair), the key is the cell type (str) and the value
         is the cell-type-specific parameters returned by 
-        :func:`fit_libsize_cell_type`.
+        :func:`~cs.marginal.fit_libsize_cell_type`.
     """
     if verbose:
         info("start ...")
@@ -179,19 +180,20 @@ def simu_libsize_cell_type(params, n, low = None, high = None):
     Parameters
     ----------
     params : dict
-        The fitted parameters returned by :func:`fit_libsize_cell_type`.
+        The fitted parameters returned by 
+        :func:`~cs.marginal.fit_libsize_cell_type`.
     n : int
         Number of cells.
-    low : int
+    low : int or None, default None
         The lowest simulated value allowed.
         If `None`, use distribution-specific default action.
-    high : int
+    high : int or None, default None
         The highest simulated value allowed.
         If `None`, use distribution-specific default action.        
     
     Returns
     -------
-    np.array (1d)
+    numpy.ndarray of float
         A vector of simulated library sizes.
     """
     par, dist = params["par"], params["dist"]
@@ -224,25 +226,26 @@ def simu_libsize(
     
     Parameters
     ----------
-    params : OrderedDict object
+    params : OrderedDict
         The fitted parameters of each cell type, returned by 
-        :func:`fit_libsize`.
-    cell_types : list
+        :func:`~cs.marginal.fit_libsize`.
+    cell_types : list of str or None, default None
         Cell type names for newly simulated cell clusters.
         Set to `None` to use all the old cell types (in training data).
-    n_cell_each : list
+    n_cell_each : list of int or None, default None
         Number of cells in each cell type to be simulated.
         Its length and order should match `cell_types`.
         Set to `None` to use #cells of old cell types (in training data).
-    verbose : bool
+    verbose : bool, default False
         Whether to show detailed logging information.
     
     Returns
     -------
-    list
-        The simulated library sizes. Its elements are vectors of simulated 
-        library sizes (np.array) for each of `cell_types`.
-    params : OrderedDict object
+    list of numpy.ndarray
+        The simulated library sizes.
+        Its elements are vectors of simulated library sizes (np.array) for
+        each of `cell_types`.
+    params : OrderedDict
         Updated parameters.
     """
     if verbose:
@@ -322,18 +325,18 @@ def fit_RD_feature(
 
     Parameters
     ----------
-    x : np.array (1d)
+    x : numpy.ndarray
         The vector containing sample values.
-    s : float
+    s : float or None, default None
         The size factor, typically library size.
         Set to `None` if do not use it.
-    marginal : str
+    marginal : {"auto", "poisson", "nb", "zinb"}
         One of "auto" (auto select), "poisson" (Poisson), 
         "nb" (Negative Binomial),
         and "zinb" (Zero-Inflated Negative Binomial).
-    max_iter : int
+    max_iter : int, default 1000
         Number of maximum iterations in model fitting.
-    pval_cutoff : float
+    pval_cutoff : float, default 0.05
         The p-value cutoff for model selection with GLR test.
 
     Returns
@@ -536,30 +539,32 @@ def fit_RD_cell_type(
 
     Parameters
     ----------
-    X : np.array (2d)
+    X : numpy.ndarray
         The *cell x feature* matrix containing sample values.
-    s : list-like
-        Size factors. Its length and order should match rows of `X`.
+    s : list of float or None
+        Size factors. 
+        Its length and order should match rows of `X`.
         Set to `None` if do not use size factors for fitting.
-    s_type : str
-        The type of size factors. Currently only "libsize" is supported.
+    s_type : str or None
+        The type of size factors.
+        Currently only "libsize" is supported.
         Set to `None` if do not use size factors for fitting.
-    marginal : str
+    marginal : {"auto", "poisson", "nb", "zinb"}
         Type of marginal distribution.
         One of "auto" (auto select), "poisson" (Poisson), 
         "nb" (Negative Binomial),
         and "zinb" (Zero-Inflated Negative Binomial).
-    min_nonzero_num : int
+    min_nonzero_num : int, default 3
         The minimum number of cells that have non-zeros for one feature.
         If smaller than the cutoff, then the feature will not be fitted
         (i.e., its mean will be directly treated as 0).
-    ncores : int
+    ncores : int, default 1
         The number of cores/sub-processes.
-    max_iter : int
+    max_iter : int, default 100
         Number of maximum iterations in model fitting.
-    pval_cutoff : float
+    pval_cutoff : float, default 0.05
         The p-value cutoff for model selection with GLR test.
-    verbose : bool
+    verbose : bool, default True
         Whether to show detailed logging information.
 
     Returns
@@ -685,43 +690,46 @@ def fit_RD(
 
     Parameters
     ----------
-    X : np.array (2d)
+    X : numpy.ndarray
         It contains the *cell x feature* matrix of sample values.
-    s : list-like
-        Size factors. Its length and order should match rows of `X`.
+    s : list of float or None
+        Size factors.
+        Its length and order should match rows of `X`.
         Set to `None` if do not use size factors for fitting.
-    s_type : str
-        The type of size factors. Currently only "libsize" is supported.
+    s_type : str or None
+        The type of size factors.
+        Currently only "libsize" is supported.
         Set to `None` if do not use size factors for fitting.
-    cell_types : list
-        The cell types. Its length and order should match the rows of `X`.
-    cell_type_fit : list
+    cell_types : list of str
+        The cell types.
+        Its length and order should match the rows of `X`.
+    cell_type_fit : list of str
         The cell types to be fitted.
-    marginal : str
+    marginal : {"auto", "poisson", "nb", "zinb"}
         Type of marginal distribution.
         One of "auto" (auto select), "poisson" (Poisson), 
         "nb" (Negative Binomial),
         and "zinb" (Zero-Inflated Negative Binomial).
-    min_nonzero_num : int
+    min_nonzero_num : int, default 3
         The minimum number of cells that have non-zeros for one feature.
         If smaller than the cutoff, then the feature will not be fitted
         (i.e., its mean will be directly treated as 0).
-    ncores : int
+    ncores : int, default 1
         The number of cores/sub-processes.
-    max_iter : int
+    max_iter : int, default 100
         Number of maximum iterations in model fitting.
-    pval_cutoff : float
+    pval_cutoff : float, default 0.05
         The p-value cutoff for model selection with GLR test.
-    verbose : bool
+    verbose : bool, default True
         Whether to show detailed logging information.
 
     Returns
     -------
-    OrderedDict object
+    OrderedDict
         The fitted parameters, will be used by downstream simulation.
         In each item (pair), the key is the cell type (str) and the value
         is the cell-type-specific parameters returned by 
-        :func:`fit_RD_cell_type`.
+        :func:`~cs.marginal.fit_RD_cell_type`.
     """
     # check args
     n, p = X.shape
@@ -793,44 +801,45 @@ def fit_RD_wrapper(
 
     Parameters
     ----------
-    xdata : anndata object
+    xdata : anndata.AnnData
         It contains the *cell x feature* matrix of sample values.
         It should have a column `cell_type` in `xdata.obs`, and a column
         `feature` in `xdata.var`.
-    cell_type_fit : list
+    cell_type_fit : list of str or None, default None
         A list of cell types (str) whose features will be fitted.
         If `None`, use all unique cell types in `xdata`.
-    size_factor : str
+    size_factor : str or None, default "libsize"
         The type of size factor. 
         Currently, only support "libsize" (library size).
         Set to `None` if do not use size factors for model fitting.
-    marginal : str
+    marginal : {"auto", "poisson", "nb", "zinb"}
         Type of marginal distribution.
         One of "auto" (auto select), "poisson" (Poisson), 
         "nb" (Negative Binomial),
         and "zinb" (Zero-Inflated Negative Binomial).
-    min_nonzero_num : int
+    min_nonzero_num : int, default 3
         The minimum number of cells that have non-zeros for one feature.
         If smaller than the cutoff, then the feature will not be fitted
         (i.e., its mean will be directly treated as 0).
-    ncores : int
+    ncores : int, default 1
         The number of cores/sub-processes.
-    max_iter : int
+    max_iter : int, default 100
         Number of maximum iterations in model fitting.
-    pval_cutoff : float
+    pval_cutoff : float, default 0.05
         The p-value cutoff for model selection with GLR test.
-    verbose : bool
+    verbose : bool, default True
         Whether to show detailed logging information.
 
     Returns
     -------
-    OrderedDict object
+    OrderedDict
         The fitted parameters, will be used by downstream simulation.
         In each item (pair), the key is the cell type (str) and the value
         is the cell-type-specific parameters returned by 
-        :func:`fit_RD_cell_type`.
-    np.array (1d)
-        The feature names. Its order matches with the `index`.
+        :func:`~cs.marginal.fit_RD_cell_type`.
+    numpy.ndarray of str
+        The feature names.
+        Its order matches with the `index`.
     """
     if verbose:
         info("start ...")
@@ -885,16 +894,18 @@ def simu_RD_feature(params, n, s = None, s_type = None):
         The distribution parameters.
     n : int
         Number of cells.
-    s : np.array (1d)
-        The size factor. Its length should be `n`.
+    s : numpy.ndarray of float or None, default None
+        The size factor.
+        Its length should be `n`.
         Set to `None` if do not use it.
-    s_type : str
-        The type of size factors. Currently only "libsize" is supported.
+    s_type : str or None, default None
+        The type of size factors.
+        Currently only "libsize" is supported.
         Set to `None` if do not use it.
     
     Returns
     -------
-    np.array (1d)
+    numpy.ndarray of int
         Simulated RD values of length `n`.
     """
     mu, disp, infl = [params[k] for k in ("mu", "dispersion", "inflation")]
@@ -929,19 +940,20 @@ def simu_RD_cell_type(
         The cell-type-specific parameters fitted in :func:`fit_RD`.
     n : int
         Number of cells to be simulated in this cell type.
-    s : np.array (1d)
-        The size factor. Its length should be `n`.
+    s : numpy.ndarray of float or None, default None
+        The size factor.
+        Its length should be `n`.
         Set to `None` if do not use it.
-    dtype : object
+    dtype
         The dtype of the simulated matrix.
-    ncores : int
-        Number of cores/sub-processes.
-    verbose : bool
+    ncores : int, default 1
+        Number of cores.
+    verbose : bool, default False
         Whether to show detailed logging information.
     
     Returns
     -------
-    np.array (2d)
+    numpy.ndarray of int
         Simulated RD values of *cell x feature*.
     """
     if verbose:
@@ -1015,49 +1027,50 @@ def simu_RD(
     Parameters
     ----------
     params : dict
-        The fitted parameters returned by :func:`fit_RD`.
-    cell_type_new : list
+        The fitted parameters returned by :func:`~cs.marginal.fit_RD`.
+    cell_type_new : list of str or None, default None
         Cell type names for newly simulated cell clusters.
         Set to `None` to use all the old cell types (in training data).
-    cell_type_old : list
+    cell_type_old : list of str or None, default None
         The old cell types whose parameters (in `params`) will be used by 
         `cell_type_new`.
         Its length and order should match `cell_type_new`.
         Set to `None` to use all the old cell types (in training data).
         Note that when `cell_type_new` is not None, `cell_type_old` must be 
         specified with valid values.
-    n_cell_each : list
+    n_cell_each : list of int or None, default None
         Number of cells in each new cell type (`cell_type_new`).
         Its length and order should match `cell_type_new`.
         Set to `None` to use #cells of old cell types (in training data).
-    s : list
+    s : list of float or None, default None
         Cell-type-specific size factors.
         Its length and order should match `cell_type_new`.
         Its elements are vectors whose lengths matching elements of 
         `n_cell_each`.
         Set to `None` if do not use it.
-    cn_fold : list
+    cn_fold : list or None, default None
         The copy number (CN) fold, e.g., 1.0 for copy neutral; >1.0 for copy
         gain; and <1.0 for copy loss.
-        Its length and order should match `cell_type_new`. Each elements is a
-        vector of CN fold, length and order matching `feature`.
+        Its length and order should match `cell_type_new`.
+        Each elements is a vector of CN fold, length and order matching
+        `feature`.
         Set to `None` to use fold 1.0 on all features in all cell types.
-    total_count_new : int | list
+    total_count_new : int, list of int or None, default None
         The total read counts to be simulated.
         If a int, it is the total libray size of all simulated cells; 
         If a list, it is a list of cell-type-specific total read counts whose 
         length and order should match `cell_type_new`.
         Set to `None` to set the scaling factor of total library size to 1.
-    dtype : object
+    dtype
         The dtype of the simulated matrix.
-    ncores : int
+    ncores : int, default 1
         Number of cores/sub-processes.
-    verbose : bool
+    verbose : bool, default False
         Whether to show detailed logging information.
     
     Returns
     -------
-    np.array (2d)
+    numpy.ndarray of int
         Simulated RD values of *cell x feature*.
     dict
         The updated `params` incorporating CN-folds, the same length 
@@ -1196,30 +1209,33 @@ def simu_RD_wrapper(
     ----------
     params : dict
         The fitted parameters returned by :func:`fit_RD_wrapper`.
-    features : list
+    features : list of str
         A list of feature names. 
-        Its order should match the `index` in `params`.
-        Typically use the value returned by :func:`fit_RD_wrapper`.
-    cell_type_new : list
+        Its order should match the index in `params`.
+        Typically use the value returned by
+        :func:`~cs.marginal.fit_RD_wrapper`.
+    cell_type_new : list of str or None, default None
         Cell type names for newly simulated cell clusters.
         Set to `None` to use all the old cell types (in training data).
-    cell_type_old : list
+    cell_type_old : list of str or None, default None
         The old cell types whose parameters (in `params`) will be used by 
         `cell_type_new`.
         Its length and order should match `cell_type_new`.
         Set to `None` to use all the old cell types (in training data).
         Note that when `cell_type_new` is not None, `cell_type_old` must be
         specified with valid values.
-    n_cell_each : list
+    n_cell_each : list of int or None, default None
         Number of cells in each new cell type (`cell_type_new`).
         Its length and order should match `cell_type_new`.
         Set to `None` to use #cells of old cell types (in training data).
-    size_factor_par : dict
-        The parameters of size factors, e.g., returned by 
-        :func:`fit_libsize`, used for simulating new size factors.
+    size_factor_par : dict or None, default None
+        The parameters of size factors, used for simulating new size factors.
+        The key is the cell type (str) and the value is the cell-type-specific
+        parameters.
+        Typically, use the value returned by :func:`~cs.marginal.fit_libsize`.
         Set to `None` to use size factors of old cell types (in training data),
         could be `None`s when not used during training.
-    cn_fold : dict
+    cn_fold : dict or None, default None
         The copy number (CN) fold, e.g., 1.0 for copy neutral; >1.0 for copy
         gain; and <1.0 for copy loss.
         Its keys are new cell types (str) and values are vectors of CN folds.
@@ -1228,24 +1244,25 @@ def simu_RD_wrapper(
         Note that you can specify cell types with copy number variations only,
         since all features are assumed have fold 1.0 unless specified.
         Set to `None` to use fold 1.0 on all features in all cell types.
-    total_count_new : int | list
+    total_count_new : int, list of int or None, default None
         The total read counts to be simulated.
         If a int, it is the total libray size of all simulated cells; 
         If a list, it is a list of cell-type-specific total read counts whose 
         length and order should match `cell_type_new`.
         Set to `None` to set the scaling factor of total library size to 1.
-    dtype : object
+    dtype
         The dtype of the simulated matrix.
-    ncores : int
+    ncores : int, default 1
         Number of cores/sub-processes.
-    verbose : bool
+    verbose : bool, default False
         Whether to show detailed logging information.
     
     Returns
     -------
-    xdata object
-        Simulated RD values of *cell x feature*. It has one column "cell_type"
-        in ".obs" and one column "feature" in ".var".
+    anndata.AnnData
+        Simulated RD values of *cell x feature*. 
+        It has one column "cell_type" in `.obs` and one column "feature" 
+        in `.var`.
     dict
         The updated `params` incorporating CN-folds, the same length 
         as `cell_type_new`, while keep the input `params` unchanged.

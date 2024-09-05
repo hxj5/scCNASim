@@ -155,7 +155,8 @@ def afc_wrapper(
     incl_flag = 0, excl_flag = None,
     no_orphan = True
 ):
-    """
+    """Wrapper for running the afc (allele-specific counting) module.
+
     Parameters
     ----------
     sam_fn : str or None
@@ -224,7 +225,7 @@ def afc_wrapper(
     int
         The return code. 0 if success, negative otherwise.
     dict
-        The returned meta information.
+        The returned data and parameters to be used by downstream analysis.
     """
     conf = Config()
     #init_logging(stream = sys.stdout)
@@ -403,7 +404,15 @@ def afc_core(conf):
     info("clean ...")
 
     res = {
+        # feature_meta_fn : str
+        #   Path to a python pickle file storing the `reg_list`.
+        #   It will be re-loaded for read sampling.
         "feature_meta_fn": conf.out_feature_meta_fn,
+
+        # out_adata_fn : str
+        #   Path to a ".adata" file storing a :class:`~anndata.Anndata`
+        #   object, which contains all allele-specific *feature x cell* count
+        #   matrices.
         "adata_fn": conf.out_adata_fn
     }
     return(res)
@@ -448,6 +457,8 @@ def afc_run(conf):
 def prepare_config(conf):
     """Prepare configures for downstream analysis.
 
+    This function should be called after cmdline is parsed.
+
     Parameters
     ----------
     conf : afc.config.Config
@@ -457,10 +468,6 @@ def prepare_config(conf):
     -------
     int
         Return code. 0 if success, -1 otherwise.
-
-    Notes
-    -----
-    This function should be called after cmdline is parsed.
     """
     if conf.sam_fn:
         if conf.sam_list_fn:

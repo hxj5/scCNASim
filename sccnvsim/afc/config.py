@@ -6,7 +6,7 @@ COMMAND = "afc"
 
 
 class Config:
-    """Configuration for the `rs` module.
+    """Configuration of the `afc` (allele-specific counting) module.
 
     Attributes
     ----------
