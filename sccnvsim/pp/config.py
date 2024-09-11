@@ -33,6 +33,13 @@ class Config:
         - "ref_hap" (int): the haplotype index of `ref`, one of {0, 1}.
         - "alt_hap" (int): the haplotype index of `alt`, one of {1, 0}.
         If VCF, it should contain "GT" in its "FORMAT" field.
+    clone_meta_fn : str
+        A TSV file listing clonal meta information.
+        It is header-free and its first 3 columns are:
+        - "clone" (str): clone ID.
+        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "n_cell" (int): number of cells in the `clone`. If negative, 
+          then it will be set as the number of cells in `ref_cell_type`.
     cnv_profile_fn : str
         A TSV file listing clonal CNV profiles. 
         It is header-free and its first 7 columns are:
@@ -45,13 +52,6 @@ class Config:
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
-    clone_meta_fn : str
-        A TSV file listing clonal meta information.
-        It is header-free and its first 3 columns are:
-        - "clone" (str): clone ID.
-        - "ref_cell_type" (str): the reference cell type for `clone`.
-        - "n_cell" (int): number of cells in the `clone`. If negative, 
-          then it will be set as the number of cells in `ref_cell_type`.
     out_dir : str
         The output folder.
     """
@@ -60,8 +60,8 @@ class Config:
         self.cell_anno_fn = None
         self.feature_fn = None
         self.snp_fn = None
-        self.cnv_profile_fn = None
         self.clone_meta_fn = None
+        self.cnv_profile_fn = None
         self.out_dir = None
 
         # derived parameters.
@@ -83,8 +83,8 @@ class Config:
         s += "%scell_anno_fn = %s\n" % (prefix, self.cell_anno_fn)
         s += "%sfeature_fn = %s\n" % (prefix, self.feature_fn)
         s += "%ssnp_fn = %s\n" % (prefix, self.snp_fn)
-        s += "%scnv_profile_fn = %s\n" % (prefix, self.cnv_profile_fn)
         s += "%sclone_meta_fn = %s\n" % (prefix, self.clone_meta_fn)
+        s += "%scnv_profile_fn = %s\n" % (prefix, self.cnv_profile_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
         s += "%s\n" % prefix
 

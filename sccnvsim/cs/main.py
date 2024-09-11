@@ -256,7 +256,8 @@ def cs_run(conf):
 
 
 def cs_wrapper(
-    count_fn, cnv_profile_fn, clone_meta_fn,
+    count_fn,
+    clone_meta_fn, cnv_profile_fn,
     out_dir,
     size_factor = "libsize", marginal = "auto",
     ncores = 1, verbose = False,
@@ -279,6 +280,13 @@ def cs_wrapper(
         - "end" (int): end genomic position of the feature, 1-based and
           inclusive.
         - "feature" (str): feature name.
+    clone_meta_fn : str
+        A TSV file listing clonal meta information.
+        It is header-free and its first 3 columns are:
+        - "clone" (str): clone ID.
+        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "n_cell" (int): number of cells in the `clone`. If negative, 
+          then it will be set as the number of cells in `ref_cell_type`.
     cnv_profile_fn : str
         A TSV file listing clonal CNV profiles.
         It is header-free and its first 7 columns are:
@@ -291,13 +299,6 @@ def cs_wrapper(
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
-    clone_meta_fn : str
-        A TSV file listing clonal meta information.
-        It is header-free and its first 3 columns are:
-        - "clone" (str): clone ID.
-        - "ref_cell_type" (str): the reference cell type for `clone`.
-        - "n_cell" (int): number of cells in the `clone`. If negative, 
-          then it will be set as the number of cells in `ref_cell_type`.
     out_dir : str
         The output folder.
     size_factor : str or None, default "libsize"
@@ -345,8 +346,8 @@ def cs_wrapper(
     """
     conf = Config()
     conf.count_fn = count_fn
-    conf.cnv_profile_fn = cnv_profile_fn
     conf.clone_meta_fn = clone_meta_fn
+    conf.cnv_profile_fn = cnv_profile_fn
     conf.out_dir = out_dir
 
     conf.size_factor = size_factor

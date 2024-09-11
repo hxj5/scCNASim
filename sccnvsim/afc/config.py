@@ -19,12 +19,12 @@ class Config:
     barcode_fn : str or None, default None
         A plain file listing all effective cell barcode.
         It should be specified for droplet-based data.
-    sample_id_str : str or None, default None
+    sample_ids : str or None, default None
         Comma separated sample IDs.
         It should be specified for well-based or bulk data.
         When `barcode_fn` is not specified, the default value will be
         "SampleX", where "X" is the 0-based index of the BAM file(s).
-        Note that `sample_id_str` and `sample_id_fn` should not be specified
+        Note that `sample_ids` and `sample_id_fn` should not be specified
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
@@ -54,12 +54,8 @@ class Config:
         Tag for cell barcodes, set to None when using sample IDs.
     umi_tag : str or None, default "UB"
         Tag for UMI, set to None when reads only.
-    nproc : int, default 1
-        Number of processes.
-    min_count : int, default 1
-        Minimum UMI/read count aggregated from all cells/samples for SNP.
-    min_maf : float, default 0
-        Minimum minor allele fraction for SNP.
+    ncores : int, default 1
+        Number of cores.
     min_mapq : int, default 20
         Minimum MAPQ for read filtering.
     min_len : int, default 30
@@ -85,7 +81,7 @@ class Config:
         self.sam_fn = None
         self.sam_list_fn = None
         self.barcode_fn = None
-        self.sample_id_str = None
+        self.sample_ids = None
         self.sample_id_fn = None
         self.feature_fn = None
         self.snp_fn = None
@@ -94,7 +90,7 @@ class Config:
 
         self.cell_tag = self.defaults.CELL_TAG
         self.umi_tag = self.defaults.UMI_TAG
-        self.nproc = self.defaults.NPROC
+        self.ncores = self.defaults.NCORES
         self.min_count = self.defaults.MIN_COUNT
         self.min_maf = self.defaults.MIN_MAF
 
@@ -188,7 +184,7 @@ class Config:
         s += "%ssam_file = %s\n" % (prefix, self.sam_fn)
         s += "%ssam_list_file = %s\n" % (prefix, self.sam_list_fn)
         s += "%sbarcode_file = %s\n" % (prefix, self.barcode_fn)
-        s += "%ssample_id_str = %s\n" % (prefix, self.sample_id_str)
+        s += "%ssample_ids = %s\n" % (prefix, self.sample_ids)
         s += "%ssample_id_file = %s\n" % (prefix, self.sample_id_fn)
         s += "%sfeature_file = %s\n" % (prefix, self.feature_fn)
         s += "%ssnp_file = %s\n" % (prefix, self.snp_fn)
@@ -198,7 +194,7 @@ class Config:
 
         s += "%scell_tag = %s\n" % (prefix, self.cell_tag)
         s += "%sumi_tag = %s\n" % (prefix, self.umi_tag)
-        s += "%snumber_of_processes = %d\n" % (prefix, self.nproc)
+        s += "%snumber_of_cores = %d\n" % (prefix, self.ncores)
         s += "%smin_count = %d\n" % (prefix, self.min_count)
         s += "%smin_maf = %f\n" % (prefix, self.min_maf)
         s += "%s\n" % prefix
@@ -257,7 +253,7 @@ class DefaultConfig:
         self.CELL_TAG = "CB"
         self.UMI_TAG = "UB"
         self.UMI_TAG_BC = "UB"    # the default umi tag for 10x data.
-        self.NPROC = 1
+        self.NCORES = 1
         self.MIN_COUNT = 1 
         self.MIN_MAF = 0
 

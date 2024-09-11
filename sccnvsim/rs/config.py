@@ -20,12 +20,12 @@ class Config:
     barcode_fn : str or None, default None
         A plain file listing all effective cell barcode.
         It should be specified for droplet-based data.
-    sample_id_str : str or None, default None
+    sample_ids : str or None, default None
         Comma separated sample IDs.
         It should be specified for well-based or bulk data.
         When `barcode_fn` is not specified, the default value will be
         "SampleX", where "X" is the 0-based index of the BAM file(s).
-        Note that `sample_id_str` and `sample_id_fn` should not be specified
+        Note that `sample_ids` and `sample_id_fn` should not be specified
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
@@ -56,8 +56,8 @@ class Config:
         Tag for UMI, set to None when reads only.
     umi_len : int, default 10
         Length of output UMI barcode.
-    nproc : int, default 1
-        Number of processes.
+    ncores : int, default 1
+        Number of cores.
     min_mapq : int, default 20
         Minimum MAPQ for read filtering.
     min_len : int, default 30
@@ -83,7 +83,7 @@ class Config:
         self.sam_fn = None
         self.sam_list_fn = None
         self.barcode_fn = None
-        self.sample_id_str = None
+        self.sample_ids = None
         self.sample_id_fn = None
         self.count_fn = None
         self.feature_fn = None
@@ -95,7 +95,7 @@ class Config:
         self.cell_tag = self.defaults.CELL_TAG
         self.umi_tag = self.defaults.UMI_TAG
         self.umi_len = self.defaults.UMI_LEN
-        self.nproc = self.defaults.NPROC
+        self.ncores = self.defaults.NCORES
 
         self.min_mapq = self.defaults.MIN_MAPQ
         self.min_len = self.defaults.MIN_LEN
@@ -175,7 +175,7 @@ class Config:
         s += "%ssam_file = %s\n" % (prefix, self.sam_fn)
         s += "%ssam_list_file = %s\n" % (prefix, self.sam_list_fn)
         s += "%sbarcode_file = %s\n" % (prefix, self.barcode_fn)
-        s += "%ssample_id_str = %s\n" % (prefix, self.sample_id_str)
+        s += "%ssample_ids = %s\n" % (prefix, self.sample_ids)
         s += "%ssample_id_file = %s\n" % (prefix, self.sample_id_fn)
         s += "%scount_file = %s\n" % (prefix, self.count_fn)
         s += "%sfeature_file = %s\n" % (prefix, self.feature_fn)
@@ -188,7 +188,7 @@ class Config:
         s += "%scell_tag = %s\n" % (prefix, self.cell_tag)
         s += "%sumi_tag = %s\n" % (prefix, self.umi_tag)
         s += "%sumi_len = %s\n" % (prefix, self.umi_len)
-        s += "%snumber_of_processes = %d\n" % (prefix, self.nproc)
+        s += "%snumber_of_processes = %d\n" % (prefix, self.ncores)
         s += "%s\n" % prefix
 
         s += "%smin_mapq = %d\n" % (prefix, self.min_mapq)

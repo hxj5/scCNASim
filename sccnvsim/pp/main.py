@@ -170,7 +170,7 @@ def pp_run(conf):
 
 def pp_wrapper(
     cell_anno_fn, feature_fn, snp_fn,
-    cnv_profile_fn, clone_meta_fn,
+    clone_meta_fn, cnv_profile_fn,
     out_dir
 ):
     """Wrapper for running the pp (preprocessing) module.
@@ -202,6 +202,13 @@ def pp_wrapper(
         - "ref_hap" (int): the haplotype index of `ref`, one of {0, 1}.
         - "alt_hap" (int): the haplotype index of `alt`, one of {1, 0}.
         If VCF, it should contain "GT" in its "FORMAT" field.
+    clone_meta_fn : str
+        A TSV file listing clonal meta information.
+        It is header-free and its first 3 columns are:
+        - "clone" (str): clone ID.
+        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "n_cell" (int): number of cells in the `clone`. If negative, 
+          then it will be set as the number of cells in `ref_cell_type`.
     cnv_profile_fn : str
         A TSV file listing clonal CNV profiles. 
         It is header-free and its first 7 columns are:
@@ -214,13 +221,6 @@ def pp_wrapper(
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
-    clone_meta_fn : str
-        A TSV file listing clonal meta information.
-        It is header-free and its first 3 columns are:
-        - "clone" (str): clone ID.
-        - "ref_cell_type" (str): the reference cell type for `clone`.
-        - "n_cell" (int): number of cells in the `clone`. If negative, 
-          then it will be set as the number of cells in `ref_cell_type`.
     out_dir : str
         The output folder.
 
@@ -235,8 +235,8 @@ def pp_wrapper(
     conf.cell_anno_fn = cell_anno_fn
     conf.feature_fn = feature_fn
     conf.snp_fn = snp_fn
-    conf.cnv_profile_fn = cnv_profile_fn
     conf.clone_meta_fn = clone_meta_fn
+    conf.cnv_profile_fn = cnv_profile_fn
     conf.out_dir = out_dir
     
     ret, res = pp_run(conf)

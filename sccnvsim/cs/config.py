@@ -24,6 +24,13 @@ class Config:
         - "end" (int): end genomic position of the feature, 1-based and
           inclusive.
         - "feature" (str): feature name.
+    clone_meta_fn : str
+        A TSV file listing clonal meta information.
+        It is header-free and its first 3 columns are:
+        - "clone" (str): clone ID.
+        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "n_cell" (int): number of cells in the `clone`. If negative, 
+          then it will be set as the number of cells in `ref_cell_type`.
     cnv_profile_fn : str
         A TSV file listing clonal CNV profiles.
         It is header-free and its first 7 columns are:
@@ -36,13 +43,6 @@ class Config:
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
-    clone_meta_fn : str
-        A TSV file listing clonal meta information.
-        It is header-free and its first 3 columns are:
-        - "clone" (str): clone ID.
-        - "ref_cell_type" (str): the reference cell type for `clone`.
-        - "n_cell" (int): number of cells in the `clone`. If negative, 
-          then it will be set as the number of cells in `ref_cell_type`.
     out_dir : str
         The output folder.
     size_factor : str or None, default "libsize"
@@ -82,8 +82,8 @@ class Config:
     def __init__(self):
         # command-line arguments/parameters.
         self.count_fn = None
-        self.cnv_profile_fn = None
         self.clone_meta_fn = None
+        self.cnv_profile_fn = None
         self.out_dir = None
 
         self.size_factor = "libsize"
@@ -100,13 +100,13 @@ class Config:
         #   The loaded allele-specific count matrices.
         self.adata = None
 
-        # cnv_profile : pandas.DataFrame
-        #   The loaded clonal CNV profile.
-        self.cnv_profile = None
-
         # clone_meta : pandas.DataFrame
         #   The loaded clone annotations.
         self.clone_meta = None
+
+        # cnv_profile : pandas.DataFrame
+        #   The loaded clonal CNV profile.
+        self.cnv_profile = None
 
         # out_prefix : str
         #   Prefix to the output files.
@@ -119,8 +119,8 @@ class Config:
         # command-line arguments/parameters.
         s =  "%s\n" % prefix
         s += "%scount_fn = %s\n" % (prefix, self.count_fn)
-        s += "%scnv_profile_fn = %s\n" % (prefix, self.cnv_profile_fn)
         s += "%sclone_meta_fn = %s\n" % (prefix, self.clone_meta_fn)
+        s += "%scnv_profile_fn = %s\n" % (prefix, self.cnv_profile_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
 
         s += "%ssize_factor = %s\n" % (prefix, self.size_factor)

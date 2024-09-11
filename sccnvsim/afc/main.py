@@ -48,7 +48,7 @@ def usage(fp = sys.stdout, conf = None):
     s += "  -h, --help             Print this message and exit.\n"
     s += "\n"
     s += "Optional arguments:\n"
-    s += "  -p, --nproc INT        Number of processes [%d]\n" % conf.NPROC
+    s += "  -p, --ncores INT       Number of processes [%d]\n" % conf.NCORES
     s += "      --cellTAG STR      Tag for cell barcodes, set to None when using sample IDs [%s]\n" % conf.CELL_TAG
     s += "      --UMItag STR       Tag for UMI, set to None when reads only [%s]\n" % conf.UMI_TAG
     #s += "      --minCOUNT INT     Minimum aggragated count for SNP [%d]\n" % conf.MIN_COUNT
@@ -99,7 +99,7 @@ def afc_main(argv):
             "outdir=",
             "help",
 
-            "nproc=", 
+            "ncores=", 
             "cellTAG=", "UMItag=", 
             #"minCOUNT=", "minMAF=",
             "debug=",
@@ -116,11 +116,11 @@ def afc_main(argv):
         elif op in ("-R", "--region"): conf.feature_fn = val
         elif op in ("-P", "--phasedsnp"): conf.snp_fn = val
         elif op in ("-i", "--samplelist"): conf.sample_id_fn = val
-        elif op in ("-I", "--sampleids"): conf.sample_id_str = val
+        elif op in ("-I", "--sampleids"): conf.sample_ids = val
         elif op in ("-O", "--outdir"): conf.out_dir = val
         elif op in ("-h", "--help"): usage(sys.stdout, conf.defaults); sys.exit(0)
 
-        elif op in ("-p", "--nproc"): conf.nproc = int(val)
+        elif op in ("-p", "--ncores"): conf.ncores = int(val)
         elif op in (      "--celltag"): conf.cell_tag = val
         elif op in (      "--umitag"): conf.umi_tag = val
         #elif op in (      "--mincount"): conf.min_count = int(val)
@@ -152,7 +152,7 @@ def afc_wrapper(
     cell_tag = "CB", umi_tag = "UB",
     #min_count = 1, min_maf = 0,
     min_mapq = 20, min_len = 30,
-    incl_flag = 0, excl_flag = None,
+    incl_flag = 0, excl_flag = -1,
     no_orphan = True
 ):
     """Wrapper for running the afc (allele-specific counting) module.
@@ -195,7 +195,7 @@ def afc_wrapper(
         It should be specified for well-based or bulk data.
         When `barcode_fn` is not specified, the default value will be
         "SampleX", where "X" is the 0-based index of the BAM file(s).
-        Note that `sample_id_str` and `sample_id_fn` should not be specified
+        Note that `sample_ids` and `sample_id_fn` should not be specified
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
@@ -214,9 +214,9 @@ def afc_wrapper(
         Minimum mapped length for read filtering.
     incl_flag : int, default 0
         Required flags: skip reads with all mask bits unset.
-    excl_flag : int or None, default None
+    excl_flag : int, default -1
         Filter flags: skip reads with any mask bits set.
-        Value None means setting it to 772 when using UMI, or 1796 otherwise.
+        Value -1 means setting it to 772 when using UMI, or 1796 otherwise.
     no_orphan : bool, default True
         If `False`, do not skip anomalous read pairs.
 
@@ -235,21 +235,21 @@ def afc_wrapper(
     conf.barcode_fn = barcode_fn
     conf.feature_fn = feature_fn
     conf.snp_fn = phased_snp_fn
-    conf.sample_id_str = sample_ids
+    conf.sample_ids = sample_ids
     conf.sample_id_fn = sample_id_fn
     conf.out_dir = out_dir
     conf.debug = debug_level
 
     conf.cell_tag = cell_tag
     conf.umi_tag = umi_tag
-    conf.nproc = ncores
+    conf.ncores = ncores
     #conf.min_count = min_count
     #conf.min_maf = min_maf
 
     conf.min_mapq = min_mapq
     conf.min_len = min_len
     conf.incl_flag = incl_flag
-    conf.excl_flag = -1 if excl_flag is None else excl_flag
+    conf.excl_flag = excl_flag
     conf.no_orphan = no_orphan
 
     ret, res = afc_run(conf)
@@ -297,7 +297,7 @@ def afc_core(conf):
         pickle.dump(conf.reg_list, fp)
 
     m_reg = len(conf.reg_list)
-    m_thread = min(conf.nproc, m_reg)
+    m_thread = min(conf.ncores, m_reg)
     n_reg = None
     if m_reg % m_thread == 0:
         n_reg = m_reg // m_thread
@@ -487,7 +487,7 @@ def prepare_config(conf):
 
     if conf.barcode_fn:
         conf.sample_ids = None
-        if conf.sample_id_str or conf.sample_id_fn:
+        if conf.sample_ids or conf.sample_id_fn:
             error("should not specify barcodes and sample IDs together.")
             return(-1)
         if os.path.isfile(conf.barcode_fn):
@@ -500,11 +500,11 @@ def prepare_config(conf):
             return(-1)
     else:
         conf.barcodes = None
-        if conf.sample_id_str and conf.sample_id_fn:
-            error("should not specify 'sample_id_str' and 'sample_fn' together.")
+        if conf.sample_ids and conf.sample_id_fn:
+            error("should not specify 'sample_ids' and 'sample_fn' together.")
             return(-1)
-        elif conf.sample_id_str:
-            conf.sample_ids = load_list_from_str(conf.sample_id_str, sep = ",")
+        elif conf.sample_ids:
+            conf.sample_ids = load_list_from_str(conf.sample_ids, sep = ",")
         elif conf.sample_id_fn:
             conf.sample_ids = load_samples(conf.sample_id_fn)
         else:
