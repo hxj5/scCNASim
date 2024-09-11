@@ -209,7 +209,7 @@ def main_wrapper(
 
     # optional arguments.
     if chroms == "human_autosome":
-        conf.chroms = ",".join(range(1, 23))
+        conf.chroms = ",".join([str(c) for c in range(1, 23)])
     else:
         conf.chroms = chroms
     conf.cell_tag = cell_tag

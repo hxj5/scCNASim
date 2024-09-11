@@ -175,11 +175,11 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
     aln_fps = {ale: open(fn, "w") for ale, fn in reg.aln_fns.items()}
     ale_umi = None
     for smp, scnt in mcnt.cell_cnt.items():
-        reg_ale_cnt["A"][smp] = scnt.allele_cnt[0]
-        reg_ale_cnt["B"][smp] = scnt.allele_cnt[1]
-        reg_ale_cnt["D"][smp] = scnt.allele_cnt[2]
-        reg_ale_cnt["O"][smp] = scnt.allele_cnt[-1]
-        reg_ale_cnt["U"][smp] = scnt.allele_cnt[-2] + scnt.allele_cnt[-3]
+        reg_ale_cnt["A"][smp] = scnt.hap_cnt[0]
+        reg_ale_cnt["B"][smp] = scnt.hap_cnt[1]
+        reg_ale_cnt["D"][smp] = scnt.hap_cnt[2]
+        reg_ale_cnt["O"][smp] = scnt.hap_cnt[-1]
+        reg_ale_cnt["U"][smp] = scnt.hap_cnt[-2] + scnt.hap_cnt[-3]
         for ale, fp in aln_fps.items():
             if ale == "A":
                 ale_umi = scnt.umi_cnt[0]

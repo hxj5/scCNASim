@@ -1,6 +1,7 @@
 # config.py - global configuration.
 
 
+import sys
 from .afc.config import DefaultConfig as AFC_DefConf
 
 
@@ -150,7 +151,7 @@ class Config:
         self.kwargs_fit_rd = dict()
 
         # optional arguments.
-        self.chroms = ",".join(range(1, 23))
+        self.chroms = ",".join([str(c) for c in range(1, 23)])
         self.cell_tag = self.afc_def_conf.CELL_TAG
         self.umi_tag = self.afc_def_conf.UMI_TAG
         self.umi_len = 10
