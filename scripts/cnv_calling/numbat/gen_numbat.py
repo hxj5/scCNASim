@@ -50,14 +50,18 @@ def gen_qsub_batch(
     if verbose:
         print("write to qsub scripts ...")
 
+    script_dir_lst = []
     qsub_script_lst = []
     for sid, mtx_dir, cell_anno_fn, ref_cell_type, work_dir, out_dir, \
         bam_fn, barcode_fn in \
         zip(sid_lst, mtx_dir_lst, cell_anno_fn_lst, ref_cell_type_lst, \
             work_dir_lst, out_dir_lst, bam_fn_lst, barcode_fn_lst
         ):
+        script_dir = os.path.join(work_dir, "scripts")
+        os.makedirs(script_dir, exist_ok = True)
+        script_dir_lst.append(script_dir)
         qsub_script_fname = "%s.numbat.qsub.sh" % sid
-        qsub_script_fpath = os.path.join(work_dir, qsub_script_fname)
+        qsub_script_fpath = os.path.join(script_dir, qsub_script_fname)
         s = gen_qsub(
             sid = sid,
             mtx_dir = mtx_dir,
@@ -93,8 +97,8 @@ def gen_qsub_batch(
         print("write to running script %s ..." % run_script)
     s  = "#!/bin/bash\n"
     s += "\n"
-    for work_dir, qsub_script in zip(work_dir_lst, qsub_script_lst):
-        s += "cd %s\n" % work_dir
+    for script_dir, qsub_script in zip(script_dir_lst, qsub_script_lst):
+        s += "cd %s\n" % script_dir
         s += "qsub %s\n" % qsub_script
         s += "\n"
     s += "echo All Done!\n"
@@ -177,6 +181,7 @@ def gen_qsub(
     s += '''if [ -n "$PBS_O_WORKDIR" ]; then\n'''
     s += '''    work_dir=$PBS_O_WORKDIR\n'''
     s += '''fi\n'''
+    s += '''work_dir=`cd $work_dir && cd .. && pwd`\n'''
     s += '''\n'''
 
     if out_dir is None:
@@ -189,10 +194,10 @@ def gen_qsub(
     s += '''\n'''
 
     if module == "combined":
-        s += '''cp  $repo_dir/scripts/cnv_calling/numbat/pileup_and_phase.R  $work_dir\n'''
-        s += '''cp  $repo_dir/scripts/cnv_calling/numbat/numbat.R  $work_dir\n'''
+        s += '''cp  $repo_dir/scripts/cnv_calling/numbat/pileup_and_phase.R  $work_dir/scripts\n'''
+        s += '''cp  $repo_dir/scripts/cnv_calling/numbat/numbat.R  $work_dir/scripts\n'''
     else:
-        s += '''cp  $repo_dir/scripts/cnv_calling/numbat/numbat.rdr.R  $work_dir\n'''
+        s += '''cp  $repo_dir/scripts/cnv_calling/numbat/numbat.rdr.R  $work_dir/scripts\n'''
     s += '''\n'''
 
     s += '''sid=%s\n''' % sid
@@ -266,7 +271,7 @@ def gen_qsub(
         s += '''#  --ncores NCORES      Number of cores\n'''
         s += '''\n'''
 
-        s += '''/usr/bin/time -v Rscript $work_dir/pileup_and_phase.R   \\\n'''
+        s += '''/usr/bin/time -v Rscript $work_dir/scripts/pileup_and_phase.R   \\\n'''
         s += '''    --label  $sid    \\\n'''
         s += '''    --samples  $sid  \\\n'''
         s += '''    --bams  $bams   \\\n'''
@@ -281,7 +286,7 @@ def gen_qsub(
         s += '''\n'''
         s += '''\n'''
 
-        s += '''#Rscript $work_dir/numbat.R  \\\n'''
+        s += '''#Rscript $work_dir/scripts/numbat.R  \\\n'''
         s += '''#  <allele file>       \\\n'''
         s += '''#  <count matrix dir>  \\\n'''
         s += '''#  <cell anno file>   \\\n'''
@@ -293,7 +298,7 @@ def gen_qsub(
         s += '''#  <ncores>\n'''
         s += '''\n'''
 
-        s += '''/usr/bin/time -v Rscript $work_dir/numbat.R  \\\n'''
+        s += '''/usr/bin/time -v Rscript $work_dir/scripts/numbat.R  \\\n'''
         s += '''    $out_dir/allele/${sid}_allele_counts.tsv.gz    \\\n'''
         s += '''    $count_mtx_dir      \\\n'''
         s += '''    $cell_anno_fn    \\\n'''
@@ -305,7 +310,7 @@ def gen_qsub(
         s += '''    $ncores\n'''
 
     else:
-        s += '''#Rscript $work_dir/numbat.rdr.R  \\\n'''
+        s += '''#Rscript $work_dir/scripts/numbat.rdr.R  \\\n'''
         s += '''#  <count matrix dir>  \\\n'''
         s += '''#  <cell anno file>   \\\n'''
         s += '''#  <ref cell type>    \\\n'''
@@ -315,7 +320,7 @@ def gen_qsub(
         s += '''#  <ncores>\n'''
         s += '''\n'''
 
-        s += '''/usr/bin/time -v Rscript $work_dir/numbat.rdr.R  \\\n'''
+        s += '''/usr/bin/time -v Rscript $work_dir/scripts/numbat.rdr.R  \\\n'''
         s += '''    $count_mtx_dir      \\\n'''
         s += '''    $cell_anno_fn    \\\n'''
         s += '''    "$ref_cell_type"       \\\n'''

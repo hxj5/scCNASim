@@ -40,14 +40,18 @@ def gen_qsub_batch(
     if verbose:
         print("write to qsub scripts ...")
 
+    script_dir_lst = []
     qsub_script_lst = []
     for sid, mtx_dir, cell_anno_fn, ref_cell_type, gene_anno_fn, work_dir, \
         out_dir in \
         zip(sid_lst, mtx_dir_lst, cell_anno_fn_lst, ref_cell_type_lst, \
             gene_anno_fn_lst, work_dir_lst, out_dir_lst
         ):
+        script_dir = os.path.join(work_dir, "scripts")
+        os.makedirs(script_dir, exist_ok = True)
+        script_dir_lst.append(script_dir)
         qsub_script_fname = "%s.infercnv.qsub.sh" % sid
-        qsub_script_fpath = os.path.join(work_dir, qsub_script_fname)
+        qsub_script_fpath = os.path.join(script_dir, qsub_script_fname)
         s = gen_qsub(
             sid = sid,
             mtx_dir = mtx_dir,
@@ -79,8 +83,8 @@ def gen_qsub_batch(
         print("write to running script %s ..." % run_script)
     s  = "#!/bin/bash\n"
     s += "\n"
-    for work_dir, qsub_script in zip(work_dir_lst, qsub_script_lst):
-        s += "cd %s\n" % work_dir
+    for script_dir, qsub_script in zip(script_dir_lst, qsub_script_lst):
+        s += "cd %s\n" % script_dir
         s += "qsub %s\n" % qsub_script
         s += "\n"
     s += "echo All Done!\n"
@@ -148,6 +152,7 @@ def gen_qsub(
     s += '''if [ -n "$PBS_O_WORKDIR" ]; then\n'''
     s += '''    work_dir=$PBS_O_WORKDIR\n'''
     s += '''fi\n'''
+    s += '''work_dir=`cd $work_dir && cd .. && pwd`\n'''
     s += '''\n'''
 
     if out_dir is None:
@@ -159,10 +164,10 @@ def gen_qsub(
     s += '''fi\n'''
     s += '''\n'''
 
-    s += '''cp  $repo_dir/scripts/cnv_calling/infercnv/infercnv.R  $work_dir\n'''
+    s += '''cp  $repo_dir/scripts/cnv_calling/infercnv/infercnv.R  $work_dir/scripts\n'''
     s += '''\n'''
 
-    s += '''#Rscript $work_dir/infercnv.R \\\n'''
+    s += '''#Rscript $work_dir/scripts/infercnv.R \\\n'''
     s += '''#  <sample id>       \\\n'''
     s += '''#  <matrix dir>      \\\n'''
     s += '''#  <cell anno file>     \\\n'''
@@ -173,7 +178,7 @@ def gen_qsub(
     s += '''#  <number of threads>\n'''
     s += '''\n'''
 
-    s += '''/usr/bin/time -v Rscript $work_dir/infercnv.R \\\n'''
+    s += '''/usr/bin/time -v Rscript $work_dir/scripts/infercnv.R \\\n'''
     s += '''    "%s"  \\\n''' % sid
     s += '''    %s  \\\n''' % mtx_dir
     s += '''    %s  \\\n''' % cell_anno_fn
