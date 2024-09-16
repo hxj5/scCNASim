@@ -1,6 +1,14 @@
 # cumi.py - cell-specific UMI.
 
 
+# TODO:
+# 1. consider generaing CUMIs (UMIs) by iterating integers from 1 to N, where
+#    N is the total number of CUMIs in the simulated count matrix.
+#    Current strategy of randomly sampling CUMIs is time and memory consuming,
+#    becuase it requires storing all CUMIs, wheras proposed strategy almost
+#    stores only one CUMI and should be much more efficient.
+
+
 import anndata as ad
 import multiprocessing
 import numpy as np

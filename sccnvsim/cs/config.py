@@ -28,9 +28,9 @@ class Config:
         A TSV file listing clonal meta information.
         It is header-free and its first 3 columns are:
         - "clone" (str): clone ID.
-        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "source_cell_type" (str): the source cell type of `clone`.
         - "n_cell" (int): number of cells in the `clone`. If negative, 
-          then it will be set as the number of cells in `ref_cell_type`.
+          then it will be set as the number of cells in `source_cell_type`.
     cnv_profile_fn : str
         A TSV file listing clonal CNV profiles.
         It is header-free and its first 7 columns are:

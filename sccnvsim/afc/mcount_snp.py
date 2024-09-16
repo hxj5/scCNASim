@@ -34,10 +34,10 @@ class UCount:
 
         # hap_idx : int
         #   The haplotype index of `allele`.
-        #   * 0 (ref): the fetched SNP allele is from the reference haplotype.
-        #   * 1 (alt): the fetched SNP allele is from the alternative
+        #   * 0 (ref): the fetched SNP allele is on the reference haplotype.
+        #   * 1 (alt): the fetched SNP allele is on the alternative
         #     haplotype.
-        #   * -1 (oth): some allele is fetched but is from neither the
+        #   * -1 (oth): some allele is fetched but is on neither the
         #     reference nor alternative haplotype.
         #   * -2 (unknown): no allele is fetched (the value is None).
         self.hap_idx = -2

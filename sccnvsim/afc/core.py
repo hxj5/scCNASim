@@ -89,7 +89,7 @@ def fc_features(thdata):
 
         n_reg = reg_idx + 1
         frac_reg = n_reg / m_reg
-        if frac_reg - l_reg >= 0.02 or n_reg == m_reg:
+        if frac_reg - l_reg >= 0.1 or n_reg == m_reg:
             info("[Thread-%d] %d%% genes processed" % 
                 (thdata.idx, math.floor(frac_reg * 100)))
             l_reg = frac_reg

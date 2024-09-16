@@ -43,7 +43,7 @@ def main_wrapper(
     ncores = 1, verbose = False,
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
-    no_orphan = True,
+    no_orphan = True
 ):
     """Wrapper for running the main pipeline.
 
@@ -55,7 +55,7 @@ def main_wrapper(
         specified.
     cell_anno_fn : str
         The cell annotation file. 
-        It is header-free and its first two columns are:
+        It is a header-free TSV file and its first two columns are:
         - "cell" (str): cell barcodes.
         - "cell_type" (str): cell type.
     feature_fn : str
@@ -82,9 +82,9 @@ def main_wrapper(
         A TSV file listing clonal meta information.
         It is header-free and its first 3 columns are:
         - "clone" (str): clone ID.
-        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "source_cell_type" (str): the source cell type of `clone`.
         - "n_cell" (int): number of cells in the `clone`. If negative, 
-          then it will be set as the number of cells in `ref_cell_type`.
+          then it will be set as the number of cells in `source_cell_type`.
     cnv_profile_fn : str
         A TSV file listing clonal CNV profiles. 
         It is header-free and its first 7 columns are:

@@ -169,7 +169,7 @@ def cs_core(conf):
         clones = conf.clone_meta["clone"],
 
         # cell_types : pandas.Series
-        #   The reference cell types used by `clones`.
+        #   The source cell types used by `clones`.
         cell_types = conf.clone_meta["cell_type"],
 
         # n_cell_each : list of int
@@ -284,9 +284,9 @@ def cs_wrapper(
         A TSV file listing clonal meta information.
         It is header-free and its first 3 columns are:
         - "clone" (str): clone ID.
-        - "ref_cell_type" (str): the reference cell type for `clone`.
+        - "source_cell_type" (str): the source cell type of `clone`.
         - "n_cell" (int): number of cells in the `clone`. If negative, 
-          then it will be set as the number of cells in `ref_cell_type`.
+          then it will be set as the number of cells in `source_cell_type`.
     cnv_profile_fn : str
         A TSV file listing clonal CNV profiles.
         It is header-free and its first 7 columns are:
@@ -431,7 +431,7 @@ def gen_clone_core(
     clones : pandas.Series
         The ID of CNV clones.
     cell_types : pandas.Series
-        The reference cell types used by `clones`.
+        The source cell types used by `clones`.
     n_cell_each : list of int
         Number of cells in each of `clones`.
     cnv_profile : pandas.DataFrame
@@ -528,7 +528,7 @@ def gen_clone_core(
 
     params = {
         "clones": clones,
-        "ref_cell_types": cell_types,
+        "source_cell_types": cell_types,
         "cn_fold": cn_fold_list,
         "fit_params": params,
         "simu_params": params_new
