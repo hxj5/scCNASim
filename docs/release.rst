@@ -4,7 +4,7 @@
    =======
 
 
-Release v0.0.1 (16/09/2024)
+Release v0.0.1 (17/09/2024)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Implement a pipeline wrapping four modules:
 
