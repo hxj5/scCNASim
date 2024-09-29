@@ -1,6 +1,7 @@
 # base.py - basic input and output.
 
 import pandas as pd
+from ..utils.base import is_file_empty
 from ..utils.grange import format_chrom, format_start, format_end
 
 
@@ -249,6 +250,10 @@ def load_cnvs(fn, sep = "\t"):
         The loaded clonal CNV profile, whose first seven columns are "chrom",
         "start", "end", "region", "clone", "cn_ale0", and "cn_ale1".       
     """
+    if is_file_empty(fn):
+        df = pd.DataFrame(columns = [
+            "chrom", "start", "end", "region", "clone", "cn_ale0", "cn_ale1"])
+        return(df)
     df = pd.read_csv(fn, sep = sep, header = None, dtype = {0: str})
     df.columns = df.columns.astype(str)
     df.columns.values[:7] = [
