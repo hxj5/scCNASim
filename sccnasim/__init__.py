@@ -1,4 +1,4 @@
-# CNV simulation in single cells.
+# CNA simulation in single cells.
 
 from . import afc
 from . import app

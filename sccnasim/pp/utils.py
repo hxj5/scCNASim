@@ -2,7 +2,7 @@
 
 import functools
 from logging import error
-from ..io.base import load_cnvs, load_features
+from ..io.base import load_cnas, load_features
 from ..utils.grange import reg2str
 
 
@@ -33,11 +33,11 @@ def __cmp_two_intervals(x1, x2):
         return s1 - s2
     
 
-def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
-    """Merge adjacent regions with the same CNV profiles.
+def merge_cna_profile(in_fn, out_fn, max_gap = 1):
+    """Merge adjacent regions with the same CNA profiles.
 
     Merge adjacent regions with the same allele-specific copy number
-    profile in each CNV clone.
+    profile in each CNA clone.
 
     Parameters
     ----------
@@ -63,9 +63,9 @@ def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
 
     # load data
     try:
-        df = load_cnvs(in_fn, sep = sep)
+        df = load_cnas(in_fn, sep = sep)
     except Exception as e:
-        error("load CNV profile file failed '%s'." % str(e))
+        error("load CNA profile file failed '%s'." % str(e))
         return((-3, n_old, n_new))
     n_old = df.shape[0]
 
@@ -84,7 +84,7 @@ def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
         dat[clone_id][chrom][ale_key].append((rec["start"], rec["end"]))
 
 
-    # merge (clone-specific) adjacent CNVs.
+    # merge (clone-specific) adjacent CNAs.
     for clone_id, cl_dat in dat.items():
         for chrom, ch_dat in cl_dat.items():
             for ale_key in ch_dat.keys():
@@ -121,7 +121,7 @@ def merge_cnv_profile(in_fn, out_fn, max_gap = 1):
             for iv in iv_list[1:]:
                 s2, e2 = iv[:2]
                 if s2 <= e1:    # overlap adjacent region
-                    error("distinct CNV profiles '%s', (%d, %d) and (%d, %d)." % 
+                    error("distinct CNA profiles '%s', (%d, %d) and (%d, %d)." % 
                         (chrom, s1, e1, s2, e2))
                     return((-5, n_old, n_new))
             cl_dat[chrom] = iv_list

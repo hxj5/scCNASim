@@ -121,7 +121,7 @@ def gen_qsub(
 
     assert_e("/bin/bash")
     #assert_e("/home/.bashrc")
-    assert_e(os.path.join(repo_dir, "scripts/cnv_calling/infercnv/infercnv.R"))
+    assert_e(os.path.join(repo_dir, "scripts/cna_calling/infercnv/infercnv.R"))
     assert_e("/usr/bin/time")
 
 
@@ -164,7 +164,7 @@ def gen_qsub(
     s += '''fi\n'''
     s += '''\n'''
 
-    s += '''cp  $repo_dir/scripts/cnv_calling/infercnv/infercnv.R  $work_dir/scripts\n'''
+    s += '''cp  $repo_dir/scripts/cna_calling/infercnv/infercnv.R  $work_dir/scripts\n'''
     s += '''\n'''
 
     s += '''#Rscript $work_dir/scripts/infercnv.R \\\n'''
@@ -198,8 +198,8 @@ def gen_qsub(
 if __name__ == "__main__":
     # demo
     work_dir_lst = [
-        "/groups/cgsd/xianjie/debug/test-sccnvsim/test_gen_infercnv/raw_1x",
-        "/groups/cgsd/xianjie/debug/test-sccnvsim/test_gen_infercnv/simu_1x"
+        "/groups/cgsd/xianjie/debug/test-sccnasim/test_gen_infercnv/raw_1x",
+        "/groups/cgsd/xianjie/debug/test-sccnasim/test_gen_infercnv/simu_1x"
     ]
     sid_lst = ["raw_1x", "simu_1x"]
     n = len(work_dir_lst)
@@ -210,8 +210,8 @@ if __name__ == "__main__":
         ref_cell_type_lst = ["immune cells"] * n,
         gene_anno_fn_lst = ["/groups/cgsd/xianjie/data/refapp/infercnv/hg38_gene_note_noheader_unique.txt"] * n,
         work_dir_lst = work_dir_lst,
-        run_script = "/groups/cgsd/xianjie/debug/test-sccnvsim/test_gen_infercnv/run.sh",
-        repo_dir = "/home/xianjie/projects/scCNVSim",
+        run_script = "/groups/cgsd/xianjie/debug/test-sccnasim/test_gen_infercnv/run.sh",
+        repo_dir = "/home/xianjie/projects/scCNASim",
         out_dir_lst = None,
         seq_platform = "10x",      # "10x" or "smartseq"
         n_threads = 10,

@@ -31,15 +31,15 @@ class Config:
         - "source_cell_type" (str): the source cell type of `clone`.
         - "n_cell" (int): number of cells in the `clone`. If negative, 
           then it will be set as the number of cells in `source_cell_type`.
-    cnv_profile_fn : str
-        A TSV file listing clonal CNV profiles.
+    cna_profile_fn : str
+        A TSV file listing clonal CNA profiles.
         It is header-free and its first 7 columns are:
-        - "chrom" (str): chromosome name of the CNV region.
-        - "start" (int): start genomic position of the CNV region, 1-based
+        - "chrom" (str): chromosome name of the CNA region.
+        - "start" (int): start genomic position of the CNA region, 1-based
           and inclusive.
-        - "end" (int): end genomic position of the CNV region, 1-based and
+        - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
-        - "region" (str): ID of the CNV region.
+        - "region" (str): ID of the CNA region.
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
@@ -83,7 +83,7 @@ class Config:
         # command-line arguments/parameters.
         self.count_fn = None
         self.clone_meta_fn = None
-        self.cnv_profile_fn = None
+        self.cna_profile_fn = None
         self.out_dir = None
 
         self.size_factor = "libsize"
@@ -104,9 +104,9 @@ class Config:
         #   The loaded clone annotations.
         self.clone_meta = None
 
-        # cnv_profile : pandas.DataFrame
-        #   The loaded clonal CNV profile.
-        self.cnv_profile = None
+        # cna_profile : pandas.DataFrame
+        #   The loaded clonal CNA profile.
+        self.cna_profile = None
 
         # out_prefix : str
         #   Prefix to the output files.
@@ -120,7 +120,7 @@ class Config:
         s =  "%s\n" % prefix
         s += "%scount_fn = %s\n" % (prefix, self.count_fn)
         s += "%sclone_meta_fn = %s\n" % (prefix, self.clone_meta_fn)
-        s += "%scnv_profile_fn = %s\n" % (prefix, self.cnv_profile_fn)
+        s += "%scna_profile_fn = %s\n" % (prefix, self.cna_profile_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
 
         s += "%ssize_factor = %s\n" % (prefix, self.size_factor)

@@ -11,7 +11,7 @@ conda activate XCLBM
 # run `set` after `source` & `conda activate` as the source file has an unbound variable
 set -eux
 
-repo_dir=~/projects/scCNVSim
+repo_dir=~/projects/scCNASim
 
 work_dir=`cd $(dirname $0) && pwd`
 if [ -n "$PBS_O_WORKDIR" ]; then
@@ -24,7 +24,7 @@ if [ ! -e "$out_dir" ]; then
     mkdir -p $out_dir
 fi
 
-cp  $repo_dir/scripts/cnv_calling/infercnv/infercnv.R  $work_dir
+cp  $repo_dir/scripts/cna_calling/infercnv/infercnv.R  $work_dir
 
 #Rscript $work_dir/infercnv.R \
 #  <sample id>       \

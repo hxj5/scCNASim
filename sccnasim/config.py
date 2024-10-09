@@ -46,15 +46,15 @@ class Config:
         - "source_cell_type" (str): the reference cell type of `clone`.
         - "n_cell" (int): number of cells in the `clone`. If negative, 
           then it will be set as the number of cells in `source_cell_type`.
-    cnv_profile_fn : str
-        A TSV file listing clonal CNV profiles. 
+    cna_profile_fn : str
+        A TSV file listing clonal CNA profiles. 
         It is header-free and its first 7 columns are:
-        - "chrom" (str): chromosome name of the CNV region.
-        - "start" (int): start genomic position of the CNV region, 1-based
+        - "chrom" (str): chromosome name of the CNA region.
+        - "start" (int): start genomic position of the CNA region, 1-based
           and inclusive.
-        - "end" (int): end genomic position of the CNV region, 1-based and
+        - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
-        - "region" (str): ID of the CNV region.
+        - "region" (str): ID of the CNA region.
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
@@ -137,7 +137,7 @@ class Config:
         self.feature_fn = None
         self.snp_fn = None
         self.clone_meta_fn = None
-        self.cnv_profile_fn = None
+        self.cna_profile_fn = None
         self.refseq_fn = None
         self.out_dir = None
         self.sam_list_fn = None
@@ -175,7 +175,7 @@ class Config:
         s += "%sfeature_file = %s\n" % (prefix, self.feature_fn)
         s += "%sphased_snp_file = %s\n" % (prefix, self.snp_fn)
         s += "%sclone_meta_file = %s\n" % (prefix, self.clone_meta_fn)
-        s += "%scnv_profile_file = %s\n" % (prefix, self.cnv_profile_fn)
+        s += "%scna_profile_file = %s\n" % (prefix, self.cna_profile_fn)
         s += "%srefseq_file = %s\n" % (prefix, self.refseq_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
         s += "%ssam_list_file = %s\n" % (prefix, self.sam_list_fn)

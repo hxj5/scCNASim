@@ -147,10 +147,10 @@ def gen_qsub(
     assert_e("/bin/bash")
     #assert_e("/home/.bashrc")
     if module == "combined":
-        assert_e(os.path.join(repo_dir, "scripts/cnv_calling/numbat/pileup_and_phase.R"))
-        assert_e(os.path.join(repo_dir, "scripts/cnv_calling/numbat/numbat.R"))
+        assert_e(os.path.join(repo_dir, "scripts/cna_calling/numbat/pileup_and_phase.R"))
+        assert_e(os.path.join(repo_dir, "scripts/cna_calling/numbat/numbat.R"))
     else:
-        assert_e(os.path.join(repo_dir, "scripts/cnv_calling/numbat/numbat.rdr.R"))
+        assert_e(os.path.join(repo_dir, "scripts/cna_calling/numbat/numbat.rdr.R"))
     assert_e("/usr/bin/time")
 
 
@@ -194,10 +194,10 @@ def gen_qsub(
     s += '''\n'''
 
     if module == "combined":
-        s += '''cp  $repo_dir/scripts/cnv_calling/numbat/pileup_and_phase.R  $work_dir/scripts\n'''
-        s += '''cp  $repo_dir/scripts/cnv_calling/numbat/numbat.R  $work_dir/scripts\n'''
+        s += '''cp  $repo_dir/scripts/cna_calling/numbat/pileup_and_phase.R  $work_dir/scripts\n'''
+        s += '''cp  $repo_dir/scripts/cna_calling/numbat/numbat.R  $work_dir/scripts\n'''
     else:
-        s += '''cp  $repo_dir/scripts/cnv_calling/numbat/numbat.rdr.R  $work_dir/scripts\n'''
+        s += '''cp  $repo_dir/scripts/cna_calling/numbat/numbat.rdr.R  $work_dir/scripts\n'''
     s += '''\n'''
 
     s += '''sid=%s\n''' % sid
@@ -303,7 +303,7 @@ def gen_qsub(
         s += '''    $count_mtx_dir      \\\n'''
         s += '''    $cell_anno_fn    \\\n'''
         s += '''    "$ref_cell_type"       \\\n'''
-        s += '''    $out_dir/cnv    \\\n'''
+        s += '''    $out_dir/cna    \\\n'''
         s += '''    $prefix         \\\n'''
         s += '''    $genome         \\\n'''
         s += '''    $platform       \\\n'''
@@ -340,8 +340,8 @@ def gen_qsub(
 if __name__ == "__main__":
     # demo
     work_dir_lst = [
-        "/groups/cgsd/xianjie/debug/test-sccnvsim/test_gen_numbat/raw_1x",
-        "/groups/cgsd/xianjie/debug/test-sccnvsim/test_gen_numbat/simu_1x"
+        "/groups/cgsd/xianjie/debug/test-sccnasim/test_gen_numbat/raw_1x",
+        "/groups/cgsd/xianjie/debug/test-sccnasim/test_gen_numbat/simu_1x"
     ]
     sid_lst = ["raw_1x", "simu_1x"]
     n = len(work_dir_lst)
@@ -351,8 +351,8 @@ if __name__ == "__main__":
         cell_anno_fn_lst = [os.path.join(d, "data/matrix/cell_anno.tsv") for d in work_dir_lst],
         ref_cell_type_lst = ["immune cells"] * n,
         work_dir_lst = work_dir_lst,
-        run_script = "/groups/cgsd/xianjie/debug/test-sccnvsim/test_gen_numbat/run.sh",
-        repo_dir = "/home/xianjie/projects/scCNVSim",
+        run_script = "/groups/cgsd/xianjie/debug/test-sccnasim/test_gen_numbat/run.sh",
+        repo_dir = "/home/xianjie/projects/scCNASim",
         out_dir_lst = None,
         seq_platform = "10x",      # "10x" or "smartseq"
         genome = "hg38",

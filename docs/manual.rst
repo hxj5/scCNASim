@@ -23,7 +23,7 @@ An example is:
        feature_fn = "hg38.features.tsv",
        phased_snp_fn = "phased.snp.vcf.gz",
        clone_meta_fn = "clone_anno.tsv",
-       cnv_profile_fn = "cnv_profile.tsv", 
+       cna_profile_fn = "cna_profile.tsv", 
        refseq_fn = "hg38.fa",
        out_dir = "./simu_result",
        cell_tag = "CB", 
@@ -49,7 +49,7 @@ The inputs to the simulator include:
 * Feature annotation (TSV file).
 * Phased SNPs (TSV or VCF file).
 * Clone annotation (TSV file).
-* Clonal CNV profile (TSV file).
+* Clonal CNA profile (TSV file).
 
 
 Alignment file (BAM file)
@@ -199,28 +199,28 @@ An example is as follows:
 .. note::
    The simulator is designed for diploid genome.
    Generally, it is recommended to use normal cells as ``source_cell_type``
-   for simulation of somatic CNVs.
+   for simulation of somatic CNAs.
 
 
-Clonal CNV profile (TSV file)
+Clonal CNA profile (TSV file)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The clonal CNV profile stored in a header-free TSV file.
+The clonal CNA profile stored in a header-free TSV file.
 Its first 7 columns should be ``chrom``, ``start``, ``end``, ``region``,
 ``clone``, ``cn_ale0``, and ``cn_ale1``, where
 
 chrom : str
-    The chromosome name of the CNV region.
+    The chromosome name of the CNA region.
 
 start : int
-    The start genomic position of the CNV region, 1-based and inclusive.
+    The start genomic position of the CNA region, 1-based and inclusive.
 
 end : int or "Inf"
-    The end genomic position of the CNV region, 1-based and inclusive.
+    The end genomic position of the CNA region, 1-based and inclusive.
     To specify the end of the whole chromosome, you can use either the actual
     genomic position or simply ``Inf``.
 
 region : str
-    The ID of the CNV region, can be arbitrary string as long as it is unique
+    The ID of the CNA region, can be arbitrary string as long as it is unique
     in each clone.
 
 clone : str
@@ -232,7 +232,7 @@ cn_ale0 : int
 cn_ale1 : int
     The copy number of the second allele (haplotype).
  
-One clone-specific CNV per line.
+One clone-specific CNA per line.
 An example is as follows:
 
 .. code-block::
@@ -245,15 +245,15 @@ An example is as follows:
    chr11    1   Inf c11 clone5_cancer   2   0
 
 
-**Support all three major CNV types**
+**Support all three major CNA types**
 
 By specifying different values for ``cn_ale0`` and ``cn_ale1``, you may
-specify various CNV types, including copy gain (e.g., setting ``1, 2``), 
+specify various CNA types, including copy gain (e.g., setting ``1, 2``), 
 copy loss (e.g., setting ``0, 1``), LOH (e.g., setting ``2, 0``).
 
-**Support allele-specific CNV**
+**Support allele-specific CNA**
 
-This format fully supports allele-specific CNVs.
+This format fully supports allele-specific CNAs.
 For instance, to simulate the scenario that two subclones have copy loss in
 the same region while on distinct alleles, setting ``cn_ale0, cn_ale1``
 to ``0, 1`` and ``1, 0`` in two subclones, respectively, as the example of
@@ -273,8 +273,8 @@ which should not happen on normal diploid genome.
 
 **Notes**
 
-* All CNV clones ``clone`` in this file must be in the clone annotation file.
-* Only the CNV clones are needed to be listed in this file. Do not list normal
+* All CNA clones ``clone`` in this file must be in the clone annotation file.
+* Only the CNA clones are needed to be listed in this file. Do not list normal
   clones in this file.
 
 
@@ -314,7 +314,7 @@ sample ID) only, located at ``{out_dir}/4_rs/rs.samples.tsv``.
 Implementation
 --------------
 The simulator outputs simulated haplotype-aware alignments for clonal single 
-cells based on user-specified CNV profiles, by training on input BAM files.
+cells based on user-specified CNA profiles, by training on input BAM files.
 
 It mainly includes four modules:
 
@@ -332,7 +332,7 @@ The results of this module are stored in the folder ``{out_dir}/1_pp``.
 It preprocesses the inputs, including:
 
 * Check and merge overlapping features in the input feature annotation file.
-* Check and merge overlapping CNV profiles in the input clonal CNV profile 
+* Check and merge overlapping CNA profiles in the input clonal CNA profile 
   file.
 
 
@@ -505,7 +505,7 @@ This module processes the count matrices of haplotypes "A", "B", "U",
 separately, mainly following three steps:
 
 #. Fit feature-specific counts with a specific distribution.
-#. Update the fitted feature-specific parameters based on the CNV profile.
+#. Update the fitted feature-specific parameters based on the CNA profile.
 #. Generate new feature-specific counts based on the updated parameters.
 
 
@@ -519,12 +519,12 @@ of the four distribution: "poi" (Poisson), "nb" (Negative Binomial), "zip"
 speficied by users or using a data-driven auto-selected strategy.
 
 
-Update parameters based on CNV profile
+Update parameters based on CNA profile
 ++++++++++++++++++++++++++++++++++++++
 The fitted feature-specific parameters are updated, multiplying a coefficient
-of copy number fold based on the CNV profile.
+of copy number fold based on the CNA profile.
 For example, if one feature overlaps a copy loss region (e.g., either 1,0 or
-0,1) in certain CNV clone, then the CN fold of this feature in this clone
+0,1) in certain CNA clone, then the CN fold of this feature in this clone
 would be less than 1.0 (e.g., 0.5).
 If the feature overlaps a copy gain region (e.g., 1,2 or 2,1), then the CN
 fold is larger than 1.0 (e.g., 1.5).

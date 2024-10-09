@@ -100,8 +100,8 @@ class PPConfig(PP_Conf):
         1-based and inclusive), and `feature_name`.
     snp_fn : str
         A TSV or VCF file listing phased SNPs (i.e., containing phased GT).
-    cnv_profile_fn : str
-        A TSV file listing clonal CNV profiles. It is header-free and its first
+    cna_profile_fn : str
+        A TSV file listing clonal CNA profiles. It is header-free and its first
         7 columns are "chrom" (str), "start" (int), "end" (int), 
         "reg_id" (str), "clone_id" (str), "cn_ale0" (int), "cn_ale1" (int).
         Note that both "start" and "end" are 1-based and inclusive.
@@ -122,7 +122,7 @@ class PPConfig(PP_Conf):
         s += "%scell_anno_fn = %s\n" % (prefix, self.cell_anno_fn)
         s += "%sfeature_fn = %s\n" % (prefix, self.feature_fn)
         s += "%ssnp_fn = %s\n" % (prefix, self.snp_fn)
-        s += "%scnv_profile_fn = %s\n" % (prefix, self.cnv_profile_fn)
+        s += "%scna_profile_fn = %s\n" % (prefix, self.cna_profile_fn)
         s += "%sclone_meta_fn = %s\n" % (prefix, self.clone_meta_fn)
         s += "%s\n" % prefix
 

@@ -11,7 +11,7 @@ conda activate numbat
 # run `set` after `source` & `conda activate` as the source file has an unbound variable
 set -eux
 
-repo_dir=~/projects/scCNVSim
+repo_dir=~/projects/scCNASim
 
 work_dir=`cd $(dirname $0) && pwd`
 if [ -n "$PBS_O_WORKDIR" ]; then
@@ -20,7 +20,7 @@ fi
 
 out_dir=$work_dir/result
 
-cp  $repo_dir/scripts/cnv_calling/numbat/numbat.rdr.R  $work_dir
+cp  $repo_dir/scripts/cna_calling/numbat/numbat.rdr.R  $work_dir
 
 # settings
 sid=GX109

@@ -8,8 +8,8 @@ import time
 
 from logging import info, error
 from .config import Config
-from .utils import merge_cnv_profile, merge_features
-from ..io.base import load_cells, load_cnvs, load_clones
+from .utils import merge_cna_profile, merge_features
+from ..io.base import load_cells, load_cnas, load_clones
 
 
 def pp_core(conf):
@@ -64,30 +64,30 @@ def pp_core(conf):
     info("%d clones use %d cell types." % (len(clones), len(cell_types)))
     
 
-    # process CNV profile file.
-    # merge CNV profiles.
-    shutil.copy(conf.cnv_profile_fn,
-        os.path.join(conf.out_dir, conf.out_prefix_raw + "cnv_profile.tsv"))
-    merged_cnv_profile_fn = os.path.join(conf.out_dir, 
-        conf.out_prefix_pp + "cnv_profile.tsv")
-    r, n_old, n_new = merge_cnv_profile(
-        in_fn = conf.cnv_profile_fn,
-        out_fn = merged_cnv_profile_fn,
+    # process CNA profile file.
+    # merge CNA profiles.
+    shutil.copy(conf.cna_profile_fn,
+        os.path.join(conf.out_dir, conf.out_prefix_raw + "cna_profile.tsv"))
+    merged_cna_profile_fn = os.path.join(conf.out_dir, 
+        conf.out_prefix_pp + "cna_profile.tsv")
+    r, n_old, n_new = merge_cna_profile(
+        in_fn = conf.cna_profile_fn,
+        out_fn = merged_cna_profile_fn,
         max_gap = 1
     )
     if r < 0:
-        error("merge CNV profile failed (%d)." % r)
+        error("merge CNA profile failed (%d)." % r)
         raise ValueError
-    info("%d CNV records merged from %d old ones." % (n_new, n_old))
+    info("%d CNA records merged from %d old ones." % (n_new, n_old))
 
-    cnv_profile = load_cnvs(merged_cnv_profile_fn, sep = "\t")
-    cnv_clones = cnv_profile["clone"].unique()
-    for c in cnv_clones:
+    cna_profile = load_cnas(merged_cna_profile_fn, sep = "\t")
+    cna_clones = cna_profile["clone"].unique()
+    for c in cna_clones:
         if c not in clones:
-            error("cnv clone '%s' not in meta file '%s'." % \
+            error("cna clone '%s' not in meta file '%s'." % \
                 (c, conf.clone_meta_fn))
             raise ValueError
-    info("there are %d CNV clones." % len(cnv_clones))
+    info("there are %d CNA clones." % len(cna_clones))
 
 
     # process cell annotation file.
@@ -125,9 +125,9 @@ def pp_core(conf):
         #   Path to the file storing the clone annotations.
         "clone_meta_fn_new": conf.clone_meta_fn,
 
-        # cnv_profile_fn_new : str
-        #   Path to the file storing the merged CNV profiles.
-        "cnv_profile_fn_new": merged_cnv_profile_fn,
+        # cna_profile_fn_new : str
+        #   Path to the file storing the merged CNA profiles.
+        "cna_profile_fn_new": merged_cna_profile_fn,
 
         # feature_fn_new : str
         #   Path to the file storing the merged (overlapping) features.
@@ -170,7 +170,7 @@ def pp_run(conf):
 
 def pp_wrapper(
     cell_anno_fn, feature_fn, snp_fn,
-    clone_meta_fn, cnv_profile_fn,
+    clone_meta_fn, cna_profile_fn,
     out_dir
 ):
     """Wrapper for running the pp (preprocessing) module.
@@ -209,15 +209,15 @@ def pp_wrapper(
         - "source_cell_type" (str): the source cell type of `clone`.
         - "n_cell" (int): number of cells in the `clone`. If negative, 
           then it will be set as the number of cells in `source_cell_type`.
-    cnv_profile_fn : str
-        A TSV file listing clonal CNV profiles. 
+    cna_profile_fn : str
+        A TSV file listing clonal CNA profiles. 
         It is header-free and its first 7 columns are:
-        - "chrom" (str): chromosome name of the CNV region.
-        - "start" (int): start genomic position of the CNV region, 1-based
+        - "chrom" (str): chromosome name of the CNA region.
+        - "start" (int): start genomic position of the CNA region, 1-based
           and inclusive.
-        - "end" (int): end genomic position of the CNV region, 1-based and
+        - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
-        - "region" (str): ID of the CNV region.
+        - "region" (str): ID of the CNA region.
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
@@ -236,7 +236,7 @@ def pp_wrapper(
     conf.feature_fn = feature_fn
     conf.snp_fn = snp_fn
     conf.clone_meta_fn = clone_meta_fn
-    conf.cnv_profile_fn = cnv_profile_fn
+    conf.cna_profile_fn = cna_profile_fn
     conf.out_dir = out_dir
     
     ret, res = pp_run(conf)

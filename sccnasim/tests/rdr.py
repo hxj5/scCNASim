@@ -10,9 +10,9 @@ from ..io.counts import save_10x_data
 from ..utils.grange import str2tuple
 
 
-def gen_cnv_wrapper(
+def gen_cna_wrapper(
     xdata,
-    cnv_profile,
+    cna_profile,
     how = "simulate",
     kwargs = None,
     out_format = None,
@@ -21,7 +21,7 @@ def gen_cnv_wrapper(
     ncores = 1,
     verbose = False
 ):
-    """Wrapper of generating CNV data.
+    """Wrapper of generating CNA data.
     
     Parameters
     ----------
@@ -29,17 +29,17 @@ def gen_cnv_wrapper(
         It contains a *cell x feature* matrix.
         It should have columns `cell` and `cell_type` in `xdata.obs`;
         and columns `feature`, "chrom", "start", and "end" in `xdata.var`.
-    cnv_profile : dict
-        The CNV profile. Its keys are tuples of (cell_type, chrom_region), and
+    cna_profile : dict
+        The CNA profile. Its keys are tuples of (cell_type, chrom_region), and
         values are the CN fold (i.e., 1.0 for copy neutral; >1 for copy gain;
         <1 for copy loss).
         You do not need to specify the cell types or regions where are in copy
         neutral state.
     how : str
-        How to generate CNV data.
+        How to generate CNA data.
         One of "simulate" (simulate values for all cell types),
-        "mosaic" (replace CNV cell types with simulated values), and
-        "multiply" (replace CNV cell types with multiplied values).
+        "mosaic" (replace CNA cell types with simulated values), and
+        "multiply" (replace CNA cell types with multiplied values).
     kwargs : dict
         Args passed to functions depending on `how`.
         Set to `None` if do not use it.
@@ -64,10 +64,10 @@ def gen_cnv_wrapper(
         It contains the updated *cell x feature* matrix.
         Note that its rows has been sorted based on "cell_type" and "cell". 
     dict
-        The bool indice of CNV cell types and regions in the `xdata` count 
+        The bool indice of CNA cell types and regions in the `xdata` count 
         matrix. Its keys are tuples of (cell_type, chrom_region), and
         values are *cell_type x chrom_region* bool indices (np.array; 2d).
-        Note that the keys match the ones in `cnv_profile`.
+        Note that the keys match the ones in `cna_profile`.
     """
     # check args
     for obs_key in ("cell", "cell_type"):
@@ -81,7 +81,7 @@ def gen_cnv_wrapper(
         assert "params" in kwargs.keys()
         assert "features" in kwargs.keys()
         assert np.all(xdata.var["feature"] == kwargs["features"])
-    assert isinstance(cnv_profile, dict)
+    assert isinstance(cna_profile, dict)
     if out_format is not None:
         assert out_format in ("h5ad", "10x")
         if out_format == "h5ad":
@@ -90,7 +90,7 @@ def gen_cnv_wrapper(
             assert out_dir is not None
 
     # sort by "cell_type" and "cell"
-    # so that the returned `cnv_idx` can be used by *simulated* count matrix
+    # so that the returned `cna_idx` can be used by *simulated* count matrix
     # for comparison with *multiplied* or *mosaic* matrices.
     
     xdata = xdata.copy()
@@ -108,15 +108,15 @@ def gen_cnv_wrapper(
         info("processing %d cells and %d features in %d cell types ..." % \
             (n, p, len(cell_types)))
 
-    # generate the indices of CNV cells and features.
+    # generate the indices of CNA cells and features.
     if verbose:
-        info("generating CNV indices ...")
+        info("generating CNA indices ...")
 
-    cnv_idx = dict()
+    cna_idx = dict()
     type_cell_idx = dict()
     region_fet_idx = dict()
     cell_idx = feature_idx = None
-    for (c_type, c_region), c_fold in cnv_profile.items():
+    for (c_type, c_region), c_fold in cna_profile.items():
         if c_type in type_cell_idx:
             cell_idx = type_cell_idx[c_type]
         else:
@@ -139,7 +139,7 @@ def gen_cnv_wrapper(
                 (xdata.var["start"] <= end) &      \
                 (xdata.var["end"] >= start))[0]
             region_fet_idx[c_region] = feature_idx
-        cnv_idx[(c_type, c_region)] = np.ix_(cell_idx, feature_idx)
+        cna_idx[(c_type, c_region)] = np.ix_(cell_idx, feature_idx)
 
     # generate new matrix
     if verbose:
@@ -148,7 +148,7 @@ def gen_cnv_wrapper(
     xdata_new = None
     if how in ("simulate", "mosaic"):
         cn_fold = {}
-        for (c_type, c_region), c_fold in cnv_profile.items():
+        for (c_type, c_region), c_fold in cna_profile.items():
             if c_type not in cn_fold:
                 cn_fold[c_type] = np.repeat(1.0, p)
             feature_idx = region_fet_idx[c_region]
@@ -173,8 +173,8 @@ def gen_cnv_wrapper(
         xdata_new = xdata.copy()
         X = xdata_new.X.copy()
         X = X.astype(np.float64)
-        for (c_type, c_region), c_fold in cnv_profile.items():
-            c_idx = cnv_idx[(c_type, c_region)]
+        for (c_type, c_region), c_fold in cna_profile.items():
+            c_idx = cna_idx[(c_type, c_region)]
             X[c_idx] *= c_fold
         xdata_new.X = X.astype(np.int64)
     else:
@@ -199,7 +199,7 @@ def gen_cnv_wrapper(
 
     # output
     if out_format is None:
-        return((xdata_new, cnv_idx))
+        return((xdata_new, cna_idx))
 
     if verbose:
         info("output the new matrices ...")
@@ -222,4 +222,4 @@ def gen_cnv_wrapper(
             barcode_columns = ["cell"]
         )
 
-    return((xdata_new, cnv_idx))
+    return((xdata_new, cna_idx))

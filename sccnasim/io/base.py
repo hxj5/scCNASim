@@ -224,20 +224,20 @@ def load_clones(fn, sep = "\t"):
     return(df)
 
 
-def load_cnvs(fn, sep = "\t"):
-    """Load clonal CNV profile from a header-free file.
+def load_cnas(fn, sep = "\t"):
+    """Load clonal CNA profile from a header-free file.
     
     Parameters
     ----------
     fn : str
-        Path to a a header-free file containing clonal CNV profile, whose
+        Path to a a header-free file containing clonal CNA profile, whose
         first seven columns should be:
-        - "chrom" (str): chromosome name of the CNV region.
-        - "start" (int): start genomic position of the CNV region, 1-based
+        - "chrom" (str): chromosome name of the CNA region.
+        - "start" (int): start genomic position of the CNA region, 1-based
           and inclusive.
-        - "end" (int): end genomic position of the CNV region, 1-based and
+        - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
-        - "region" (str): ID of the CNV region.
+        - "region" (str): ID of the CNA region.
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
@@ -247,7 +247,7 @@ def load_cnvs(fn, sep = "\t"):
     Returns
     -------
     pandas.DataFrame
-        The loaded clonal CNV profile, whose first seven columns are "chrom",
+        The loaded clonal CNA profile, whose first seven columns are "chrom",
         "start", "end", "region", "clone", "cn_ale0", and "cn_ale1".       
     """
     if is_file_empty(fn):

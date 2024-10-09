@@ -12,7 +12,7 @@ import time
 from logging import info, error
 from .config import Config
 from .marginal import fit_libsize, simu_libsize, fit_RD, simu_RD
-from ..io.base import load_clones, load_cnvs
+from ..io.base import load_clones, load_cnas
 from ..utils.grange import str2tuple
 from ..utils.xbarcode import rand_cell_barcodes
 from ..utils.xmatrix import sparse2array
@@ -28,11 +28,11 @@ def cs_core(conf):
 
 
     # check args.
-    cnv_clones = np.unique(conf.cnv_profile["clone"])
+    cna_clones = np.unique(conf.cna_profile["clone"])
     all_clones = np.unique(conf.clone_meta["clone"])
-    assert np.all(np.isin(cnv_clones, all_clones))
-    info("there are %d CNV clones in all %d clones." % (
-        len(cnv_clones), len(all_clones)))
+    assert np.all(np.isin(cna_clones, all_clones))
+    info("there are %d CNA clones in all %d clones." % (
+        len(cna_clones), len(all_clones)))
 
     # subset adata (count matrices) by cell types.
     # only keep cell types listed in clone annotations.
@@ -49,13 +49,13 @@ def cs_core(conf):
     adata = None
 
 
-    # get overlapping features for each CNV profile record.
-    cnv_fet = dict()
+    # get overlapping features for each CNA profile record.
+    cna_fet = dict()
     feature_idx = None
-    for i in range(conf.cnv_profile.shape[0]):
-        rec = conf.cnv_profile.iloc[i, ]
+    for i in range(conf.cna_profile.shape[0]):
+        rec = conf.cna_profile.iloc[i, ]
         c_region = rec["region"]
-        if c_region not in cnv_fet:
+        if c_region not in cna_fet:
             res = str2tuple(c_region)
             if res is None:
                 error("invalid region '%s'." % c_region)
@@ -69,9 +69,9 @@ def cs_core(conf):
                 (conf.adata.var["chrom"] == chrom) &    \
                 (conf.adata.var["start"] <= end) &      \
                 (conf.adata.var["end"] >= start))[0]
-            cnv_fet[c_region] = feature_idx
-    info("extract overlapping features for %d CNV records." % \
-        conf.cnv_profile.shape[0])
+            cna_fet[c_region] = feature_idx
+    info("extract overlapping features for %d CNA records." % \
+        conf.cna_profile.shape[0])
 
 
     # number of cells in each clone.
@@ -130,8 +130,8 @@ def cs_core(conf):
             clones = conf.clone_meta["clone"],
             cell_types = conf.clone_meta["cell_type"],
             n_cell_each = n_cell_each,
-            cnv_profile = conf.cnv_profile,
-            cnv_features = cnv_fet,
+            cna_profile = conf.cna_profile,
+            cna_features = cna_fet,
             size_factors_type = conf.size_factor,
             size_factors_train = size_factors_train,
             size_factors_simu = size_factors_simu,
@@ -165,7 +165,7 @@ def cs_core(conf):
     # save results.
     cs_params = dict(
         # clones : pandas.Series
-        #   The ID of CNV clones.
+        #   The ID of CNA clones.
         clones = conf.clone_meta["clone"],
 
         # cell_types : pandas.Series
@@ -176,15 +176,15 @@ def cs_core(conf):
         #   Number of cells in each of `clones`.
         n_cell_each = n_cell_each,
 
-        # cnv_profile : pandas.DataFrame
-        #   The clonal CNV profile.
-        cnv_profile = conf.cnv_profile,
+        # cna_profile : pandas.DataFrame
+        #   The clonal CNA profile.
+        cna_profile = conf.cna_profile,
 
-        # cnv_features : dict of {str : numpy.ndarray of int}
-        #   The overlapping features of each CNV region.
-        #   Keys are ID of CNV region, values are the (transcriptomics scale)
+        # cna_features : dict of {str : numpy.ndarray of int}
+        #   The overlapping features of each CNA region.
+        #   Keys are ID of CNA region, values are the (transcriptomics scale)
         #   indexes of their overlapping features.
-        cnv_features = cnv_fet,
+        cna_features = cna_fet,
 
         # size_factors_type : str or None
         #   The type of size factors, e.g., "libsize".
@@ -257,7 +257,7 @@ def cs_run(conf):
 
 def cs_wrapper(
     count_fn,
-    clone_meta_fn, cnv_profile_fn,
+    clone_meta_fn, cna_profile_fn,
     out_dir,
     size_factor = "libsize", marginal = "auto",
     ncores = 1, verbose = False,
@@ -287,15 +287,15 @@ def cs_wrapper(
         - "source_cell_type" (str): the source cell type of `clone`.
         - "n_cell" (int): number of cells in the `clone`. If negative, 
           then it will be set as the number of cells in `source_cell_type`.
-    cnv_profile_fn : str
-        A TSV file listing clonal CNV profiles.
+    cna_profile_fn : str
+        A TSV file listing clonal CNA profiles.
         It is header-free and its first 7 columns are:
-        - "chrom" (str): chromosome name of the CNV region.
-        - "start" (int): start genomic position of the CNV region, 1-based
+        - "chrom" (str): chromosome name of the CNA region.
+        - "start" (int): start genomic position of the CNA region, 1-based
           and inclusive.
-        - "end" (int): end genomic position of the CNV region, 1-based and
+        - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
-        - "region" (str): ID of the CNV region.
+        - "region" (str): ID of the CNA region.
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
@@ -347,7 +347,7 @@ def cs_wrapper(
     conf = Config()
     conf.count_fn = count_fn
     conf.clone_meta_fn = clone_meta_fn
-    conf.cnv_profile_fn = cnv_profile_fn
+    conf.cna_profile_fn = cna_profile_fn
     conf.out_dir = out_dir
 
     conf.size_factor = size_factor
@@ -386,8 +386,8 @@ def prepare_config(conf):
     for var_key in ("feature", "chrom", "start", "end"):
         assert var_key in conf.adata.var.columns
 
-    assert os.path.exists(conf.cnv_profile_fn)
-    conf.cnv_profile = load_cnvs(conf.cnv_profile_fn, sep = "\t")
+    assert os.path.exists(conf.cna_profile_fn)
+    conf.cna_profile = load_cnas(conf.cna_profile_fn, sep = "\t")
 
     assert os.path.exists(conf.clone_meta_fn)
     conf.clone_meta = load_clones(conf.clone_meta_fn, sep = "\t")
@@ -412,7 +412,7 @@ def gen_clone_core(
     adata,
     allele,
     clones, cell_types, n_cell_each,
-    cnv_profile, cnv_features,
+    cna_profile, cna_features,
     size_factors_type,
     size_factors_train, size_factors_simu,
     marginal,
@@ -429,16 +429,16 @@ def gen_clone_core(
     allele : {"A", "B", "U"}
         The allele whose data is to be generated.
     clones : pandas.Series
-        The ID of CNV clones.
+        The ID of CNA clones.
     cell_types : pandas.Series
         The source cell types used by `clones`.
     n_cell_each : list of int
         Number of cells in each of `clones`.
-    cnv_profile : pandas.DataFrame
-        The clonal CNV profile.
-    cnv_features : dict of {str : numpy.ndarray of int}
-        The overlapping features of each CNV region.
-        Keys are ID of CNV region, values are the (transcriptomics scale)
+    cna_profile : pandas.DataFrame
+        The clonal CNA profile.
+    cna_features : dict of {str : numpy.ndarray of int}
+        The overlapping features of each CNA region.
+        Keys are ID of CNA region, values are the (transcriptomics scale)
         indexes of their overlapping features.
     size_factors_type : str or None
         The type of size factors, e.g., "libsize".
@@ -472,12 +472,12 @@ def gen_clone_core(
 
     cn_fold = {}      # clone x feature copy number fold.
     min_allele_freq = 0.01      # mimic overall error rate.
-    for i in range(cnv_profile.shape[0]):
-        rec = cnv_profile.iloc[i, ]
+    for i in range(cna_profile.shape[0]):
+        rec = cna_profile.iloc[i, ]
         clone, region = rec["clone"], rec["region"]
         if clone not in cn_fold:
             cn_fold[clone] = np.repeat(1.0, p)
-        feature_idx = cnv_features[region]
+        feature_idx = cna_features[region]
         r = None
         if allele == "A":
             r = float(max(rec["cn_ale0"], min_allele_freq))

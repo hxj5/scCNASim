@@ -30,7 +30,7 @@ def main():
 def main_wrapper(
     sam_fn,
     cell_anno_fn, feature_fn, phased_snp_fn,
-    clone_meta_fn, cnv_profile_fn, 
+    clone_meta_fn, cna_profile_fn, 
     refseq_fn,
     out_dir,
     sam_list_fn = None, sample_ids = None, sample_id_fn = None,
@@ -85,15 +85,15 @@ def main_wrapper(
         - "source_cell_type" (str): the source cell type of `clone`.
         - "n_cell" (int): number of cells in the `clone`. If negative, 
           then it will be set as the number of cells in `source_cell_type`.
-    cnv_profile_fn : str
-        A TSV file listing clonal CNV profiles. 
+    cna_profile_fn : str
+        A TSV file listing clonal CNA profiles. 
         It is header-free and its first 7 columns are:
-        - "chrom" (str): chromosome name of the CNV region.
-        - "start" (int): start genomic position of the CNV region, 1-based
+        - "chrom" (str): chromosome name of the CNA region.
+        - "start" (int): start genomic position of the CNA region, 1-based
           and inclusive.
-        - "end" (int): end genomic position of the CNV region, 1-based and
+        - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
-        - "region" (str): ID of the CNV region.
+        - "region" (str): ID of the CNA region.
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
@@ -186,7 +186,7 @@ def main_wrapper(
     conf.feature_fn = feature_fn
     conf.snp_fn = phased_snp_fn
     conf.clone_meta_fn = clone_meta_fn
-    conf.cnv_profile_fn = cnv_profile_fn
+    conf.cna_profile_fn = cna_profile_fn
     conf.refseq_fn = refseq_fn
     conf.out_dir = out_dir
     conf.sam_list_fn = sam_list_fn
@@ -251,7 +251,7 @@ def main_core(conf):
         feature_fn = conf.feature_fn,
         snp_fn = conf.snp_fn,
         clone_meta_fn = conf.clone_meta_fn,
-        cnv_profile_fn = conf.cnv_profile_fn,
+        cna_profile_fn = conf.cna_profile_fn,
         out_dir = os.path.join(conf.out_dir, "%d_pp" % step)
     )
     if pp_ret < 0:
@@ -305,7 +305,7 @@ def main_core(conf):
     cs_ret, cs_res = cs_wrapper(
         count_fn = adata_fn_new,
         clone_meta_fn = pp_res["clone_meta_fn_new"],
-        cnv_profile_fn = pp_res["cnv_profile_fn_new"],
+        cna_profile_fn = pp_res["cna_profile_fn_new"],
         out_dir = os.path.join(conf.out_dir, "%d_cs" % step),
         size_factor = conf.size_factor,
         marginal = conf.marginal,
@@ -400,7 +400,7 @@ def prepare_config(conf):
     assert_e(conf.feature_fn)
     assert_e(conf.snp_fn)
     assert_e(conf.clone_meta_fn)
-    assert_e(conf.cnv_profile_fn)
+    assert_e(conf.cna_profile_fn)
     assert_e(conf.refseq_fn)
 
     return(0)

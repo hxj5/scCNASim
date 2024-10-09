@@ -1,10 +1,10 @@
-scCNVSim - Simulation of somatic CNVs in single cells
+scCNASim - Simulation of somatic CNAs in single cells
 =====================================================
 
-scCNVSim is a python package for simulation of somatic copy number variations
-(CNVs) in single cells.
-It mainly takes existing alignment file(s) and a clonal CNV profile as input,
-and outputs new alignments with designated signals of CNVs and clonal 
+scCNASim is a python package for simulation of somatic copy number alterations
+(CNAs) in single cells.
+It mainly takes existing alignment file(s) and a clonal CNA profile as input,
+and outputs new alignments with designated signals of CNAs and clonal 
 structure.
 
 
@@ -17,7 +17,7 @@ Installation
 ------------
 .. code-block:: bash
 
-   pip install -U git+https://github.com/hxj5/scCNVSim
+   pip install -U git+https://github.com/hxj5/scCNASim
 
 
 Manual
@@ -35,15 +35,15 @@ new feature requests.
 Acknowledgement
 ---------------
 The simulator has a precursor named scCNASimulator_, which has been used in
-XClone_ to demonstrate its robustness to detect allele-specific CNVs.
+XClone_ to demonstrate its robustness to detect allele-specific CNAs.
 
-scCNASimulator implements a naive strategy for CNV simulation, which 
+scCNASimulator implements a naive strategy for CNA simulation, which 
 multiplies the UMI/read counts directly by copy number fold to generate the
-new counts of CNV features, whereas this new simulator models the counts
+new counts of CNA features, whereas this new simulator models the counts
 with certain probability distribution and encodes the CN fold in the updated
 distribution parameters before generating new simulated counts.
 
 
-.. _issue: https://github.com/hxj5/scCNVSim/issues
+.. _issue: https://github.com/hxj5/scCNASim/issues
 .. _scCNASimulator: https://github.com/hxj5/scCNASimulator
 .. _XClone: https://github.com/single-cell-genetics/XClone
