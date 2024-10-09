@@ -1241,7 +1241,7 @@ def simu_RD_wrapper(
         Its keys are new cell types (str) and values are vectors of CN folds.
         For each such vector, length and order should be the same with
         `feature`.
-        Note that you can specify cell types with copy number variations only,
+        Note that you can specify cell types with copy number alterations only,
         since all features are assumed have fold 1.0 unless specified.
         Set to `None` to use fold 1.0 on all features in all cell types.
     total_count_new : int, list of int or None, default None
