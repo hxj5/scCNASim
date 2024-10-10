@@ -4,6 +4,7 @@
 from codecs import open
 from os import path
 from setuptools import setup, find_packages
+import sys
 
 
 here = path.abspath(path.dirname(__file__))
@@ -15,12 +16,22 @@ exec(open("./sccnasim/app.py").read())
 with open(path.join(here, "README.rst"), encoding='utf-8') as f:
     long_description = f.read()
 
+# check Python version.
+# currently, we tested Python 3.7 (not compatible), 3.11 (compatible).
+# Ref: https://stackoverflow.com/questions/13924931/setup-py-restrict-the-allowable-version-of-the-python-interpreter
+if sys.version_info[0] != 3 or sys.version_info[1] < 11:
+    sys.exit("Sorry, only Python 3.11 or above is supported.")
+
+# Alternatively, use `poetry` with `pyproject.toml` file to specify the 
+# Python version, as `XClone` did.
+
 # set "numpy<2"?
 reqs = ["anndata", "intervaltree", "matplotlib", "numpy", "pandas", "pysam",
         "scipy", "seaborn", "statsmodels"]
 
 # Dependency:
-# - samtools: used for sort_bam_by_tag.
+# - samtools: used in `sam_sort_by_tag()`. However, this function is not
+#   called by any other functions.
 
 setup(
     name = "sccnasim",
@@ -56,6 +67,10 @@ setup(
     #        'sccnasim = sccnasim.main:main'
     #    ],
     #},
+
+    # Check Python version. Only pip >= 9.0.1 supports.
+    # Ref: https://stackoverflow.com/questions/42238484/prevent-package-from-being-installed-on-old-python-versions/42792413
+    python_requires = ">=3.11",
 
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed. For an analysis of "install_requires" vs pip's

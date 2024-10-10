@@ -15,6 +15,13 @@ Release notes are at `docs/release.rst <./docs/release.rst>`_.
 
 Installation
 ------------
+Currently, only Python 3.11 (compatible) and 3.7 (not compatible) were tested.
+Therefore, we strongly recommend to install the package with Python >= 3.11.
+
+Dependency
+~~~~~~~~~~
+* Python >= 3.11
+
 .. code-block:: bash
 
    pip install -U git+https://github.com/hxj5/scCNASim
