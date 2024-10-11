@@ -6,7 +6,7 @@
 #PBS -e rdr.err
 
 source ~/.bashrc
-conda activate test
+conda activate SCSC
 
 # run `set` after `source` & `conda activate` as the source file has an unbound variable
 set -eux  

@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N numbat
 #PBS -q cgsd
-#PBS -l nodes=1:ppn=5,mem=100g,walltime=100:00:00
+#PBS -l nodes=1:ppn=5,mem=200g,walltime=100:00:00
 #PBS -o numbat.out
 #PBS -e numbat.err
 
@@ -15,31 +15,39 @@ repo_dir=~/projects/scCNASim
 
 work_dir=`cd $(dirname $0) && pwd`
 if [ -n "$PBS_O_WORKDIR" ]; then
-  work_dir=$PBS_O_WORKDIR
+    work_dir=$PBS_O_WORKDIR
+fi
+work_dir=`cd $work_dir && cd .. && pwd`
+script_dir=$work_dir/scripts
+
+out_dir=$work_dir/numbat
+if [ ! -e "$out_dir" ]; then
+    mkdir -p $out_dir
 fi
 
-out_dir=$work_dir/result
+cp  $repo_dir/scripts/cna_calling/numbat/pileup_and_phase.R  $script_dir
+cp  $repo_dir/scripts/cna_calling/numbat/numbat.R  $script_dir
 
-cp  $repo_dir/scripts/cna_calling/numbat/pileup_and_phase.R  $work_dir
-cp  $repo_dir/scripts/cna_calling/numbat/numbat.R  $work_dir
+
 
 # settings
-sid=GX109
+sid=st_liver
 platform=10x              # 10x, smartseq, or bulk
 genome=hg38
 ncores=10
 
-bams=/groups/cgsd/xianjie/data/dataset/GX109/scRNA/bam/raw_GX109-T1c/possorted_genome_bam.bam
-barcodes=/groups/cgsd/xianjie/data/dataset/GX109/scRNA/matrix/helen_filtered_matrices/barcodes.tsv
-count_mtx_dir=/groups/cgsd/xianjie/data/dataset/GX109/scRNA/matrix/helen_filtered_matrices
+bams=$work_dir/simu/4_rs/bam/rs.possorted.bam
+barcodes=$work_dir/simu/4_rs/rs.samples.tsv
+count_mtx_dir=$work_dir/rdr
 
-cell_anno_fn=/groups/cgsd/xianjie/data/dataset/GX109/scRNA/anno/GX109-T1c_scRNA_annotation_2column.tsv
-ref_cell_type="immune cells"
+cell_anno_fn=$work_dir/simu/4_rs/rs.cell_anno.tsv
+ref_cell_type="normal"
 
 gmap=/groups/cgsd/xianjie/data/refapp/eagle/Eagle_v2.4.1/tables/genetic_map_${genome}_withX.txt.gz
-eagle=~/.anaconda3/envs/XCLBM/bin/eagle
+eagle=~/.anaconda3/envs/SCSC/bin/eagle
 snpvcf=/groups/cgsd/xianjie/data/refapp/numbat/genome1K.phase3.SNP_AF5e2.chr1toX.${genome}.vcf.gz
 paneldir=/groups/cgsd/xianjie/data/refapp/numbat/1000G_${genome}
+
 
 
 # preprocess args
@@ -82,7 +90,7 @@ fi
 #  --outdir OUTDIR      Output directory
 #  --ncores NCORES      Number of cores
 
-/usr/bin/time -v Rscript $work_dir/pileup_and_phase.R   \
+/usr/bin/time -v Rscript $script_dir/pileup_and_phase.R   \
     --label  $sid    \
     --samples  $sid  \
     --bams  $bams   \
@@ -96,7 +104,7 @@ fi
     $platform_option
 
 
-#Rscript $work_dir/numbat.R  \
+#Rscript $script_dir/numbat.R  \
 #  <allele file>       \
 #  <count matrix dir>  \
 #  <cell anno file>   \
@@ -107,7 +115,7 @@ fi
 #  <sequencing platform>  \
 #  <ncores>
 
-/usr/bin/time -v Rscript $work_dir/numbat.R  \
+/usr/bin/time -v Rscript $script_dir/numbat.R  \
     $out_dir/allele/${sid}_allele_counts.tsv.gz    \
     $count_mtx_dir      \
     $cell_anno_fn    \

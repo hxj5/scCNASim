@@ -21,7 +21,7 @@ def gen_qsub_batch(
     out_dir_lst = None,        # trick: ["$work_dir/infercnv"] * n
     seq_platform = "10x",      # "10x" or "smartseq"
     n_threads = 10,
-    conda_env = "XCLBM",
+    conda_env = "SCSC",
     qsub_q = "cgsd", 
     qsub_l_nodes = 1, qsub_l_ppn = 5, qsub_l_mem = 100, qsub_l_walltime = 100,
     verbose = True
@@ -107,7 +107,7 @@ def gen_qsub(
     out_dir = None,
     seq_platform = "10x",      # "10x" or "smartseq"
     n_threads = 10,
-    conda_env = "XCLBM",
+    conda_env = "SCSC",
     qsub_N = "infercnv", qsub_q = "cgsd", 
     qsub_l_nodes = 1, qsub_l_ppn = 5, qsub_l_mem = 100, qsub_l_walltime = 100,
     qsub_o = "infercnv.out", qsub_e = "infercnv.err"
@@ -215,7 +215,7 @@ if __name__ == "__main__":
         out_dir_lst = None,
         seq_platform = "10x",      # "10x" or "smartseq"
         n_threads = 10,
-        conda_env = "XCLBM",
+        conda_env = "SCSC",
         qsub_q = "cgsd", 
         qsub_l_nodes = 1, qsub_l_ppn = 5, qsub_l_mem = 100, qsub_l_walltime = 100,
         verbose = True
