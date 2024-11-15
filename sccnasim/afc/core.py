@@ -10,13 +10,14 @@ from logging import debug, error, info
 from .mcount_ab import MCount as ABFeatureMCount
 from .mcount_feature import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
-from ..utils.sam import check_read, sam_fetch
+from ..utils.sam import check_read, get_include_len, sam_fetch
 from ..utils.zfile import zopen, ZF_F_GZIP
 
 
 # NOTE: 
 # 1. bgzf errors when using pysam.AlignmentFile.fetch in parallel (with
 #    multiprocessing): https://github.com/pysam-developers/pysam/issues/397
+
 
 def fc_features(thdata):
     """Feature counting for a list of features.
@@ -156,6 +157,8 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
         for read in itr:
             if check_read(read, conf) < 0:
                 continue
+            if get_include_len(read, reg.start, reg.end) < conf.min_include:
+                continue
             if conf.use_barcodes():
                 ret, smp, umi, ale_idx = mcnt.push_read(read)
             else:
@@ -231,7 +234,7 @@ def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
     """
     mcnt.add_feature(reg)
     for snp in reg.snp_list:
-        ret = plp_snp(snp, sam_list, snp_mcnt, conf)
+        ret = plp_snp(snp, sam_list, snp_mcnt, conf, reg)
         if ret < 0:
             error("SNP (%s:%d:%s:%s) pileup failed; errcode %d." % \
                 (snp.chrom, snp.pos, snp.ref, snp.alt, ret))
@@ -246,7 +249,7 @@ def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
     return(0)
 
 
-def plp_snp(snp, sam_list, mcnt, conf):
+def plp_snp(snp, sam_list, mcnt, conf, reg):
     """Counting in SNP level.
     
     This function generates UMI/read counts of the reference (REF) and 
@@ -262,6 +265,8 @@ def plp_snp(snp, sam_list, mcnt, conf):
         Counting object in SNP level.
     conf : afc.config.Config
         Global configuration object.
+    reg : afc.gfeature.BlockRegion
+        The feature that the `snp` belongs to.
 
     Returns
     -------
@@ -277,6 +282,8 @@ def plp_snp(snp, sam_list, mcnt, conf):
             continue
         for read in itr:
             if check_read(read, conf) < 0:
+                continue
+            if get_include_len(read, reg.start, reg.end) < conf.min_include:
                 continue
             if conf.use_barcodes():
                 ret = mcnt.push_read(read)

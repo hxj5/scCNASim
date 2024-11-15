@@ -42,6 +42,7 @@ def main_wrapper(
     cell_tag = "CB", umi_tag = "UB", umi_len = 10,
     ncores = 1, verbose = False,
     min_mapq = 20, min_len = 30,
+    min_include = 30,
     incl_flag = 0, excl_flag = -1,
     no_orphan = True
 ):
@@ -162,6 +163,8 @@ def main_wrapper(
         Minimum MAPQ for read filtering.
     min_len : int, default 30
         Minimum mapped length for read filtering.
+    min_include : int, default 30
+        Minimum length of included part within specific feature.
     incl_flag : int, default 0
         Required flags: skip reads with all mask bits unset.
     excl_flag : int, default -1
@@ -222,6 +225,7 @@ def main_wrapper(
     # read filtering.
     conf.min_mapq = min_mapq
     conf.min_len = min_len
+    conf.min_include = min_include
     conf.incl_flag = incl_flag
     conf.excl_flag = excl_flag
     conf.no_orphan = no_orphan

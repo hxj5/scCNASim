@@ -58,6 +58,7 @@ def usage(fp = sys.stdout, conf = None):
     s += "                        (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
     s += "      --minLEN INT      Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
     s += "      --minMAPQ INT     Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
+    s += "      --minINCLUDE INT  Minimum length of included part within specific feature [%d]\n" % conf.MIN_INCLUDE
     s += "      --countORPHAN     If use, do not skip anomalous read pairs.\n"
     s += "\n"
 
@@ -102,7 +103,10 @@ def rs_main(argv):
             "cellTAG=", "UMItag=", "UMIlen=",
             "debug=",
 
-            "inclFLAG=", "exclFLAG=", "minLEN=", "minMAPQ=", "countORPHAN"
+            "inclFLAG=", "exclFLAG=", 
+            "minLEN=", "minMAPQ=", 
+            "minINCLUDE=",
+            "countORPHAN"
         ])
 
     for op, val in opts:
@@ -130,6 +134,7 @@ def rs_main(argv):
         elif op in ("--exclflag"): conf.excl_flag = int(val)
         elif op in ("--minlen"): conf.min_len = int(val)
         elif op in ("--minmapq"): conf.min_mapq = float(val)
+        elif op in ("--mininclude"): conf.min_include = int(val)
         elif op in ("--countorphan"): conf.no_orphan = False
 
         else:
@@ -152,6 +157,7 @@ def rs_wrapper(
     chroms = None,
     cell_tag = "CB", umi_tag = "UB", umi_len = 10,
     min_mapq = 20, min_len = 30,
+    min_include = 30,
     incl_flag = 0, excl_flag = -1,
     no_orphan = True
 ):
@@ -214,6 +220,8 @@ def rs_wrapper(
         Minimum MAPQ for read filtering.
     min_len : int, default 30
         Minimum mapped length for read filtering.
+    min_include : int, default 30
+        Minimum length of included part within specific feature.
     incl_flag : int, default 0
         Required flags: skip reads with all mask bits unset.
     excl_flag : int, default -1
@@ -253,6 +261,7 @@ def rs_wrapper(
 
     conf.min_mapq = min_mapq
     conf.min_len = min_len
+    conf.min_include = min_include
     conf.incl_flag = incl_flag
     conf.excl_flag = excl_flag
     conf.no_orphan = no_orphan

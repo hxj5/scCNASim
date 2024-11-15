@@ -45,6 +45,27 @@ def check_read(read, conf):
     return(0)
 
 
+def get_include_len(read, s, e):
+    """Get the length of included part within specific feature.
+
+    Parameters
+    ----------
+    read : pysam.AlignedSegment
+        One alignment read.
+    s : int
+        The start genomic position of the feature, 1-based and inclusive.
+    e : int
+        The end genomic position of the feature, 1-based and exclusive.
+
+    Returns
+    -------
+    int
+        The length of included part within specific feature.
+    """
+    include_pos_list = [x for x in read.positions if s - 1 <= x <= e - 2]
+    return(len(include_pos_list))
+
+
 def get_query_bases(read, full_length = False):
     """Qurey bases that are within the alignment.
 
