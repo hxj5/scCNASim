@@ -22,7 +22,7 @@ from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str, save_cells, save_samples
 from ..utils.grange import format_chrom
-from ..utils.sam import sam_index
+from ..utils.sam import sam_index, get_include_len
 from ..utils.xlog import init_logging
 
 
@@ -590,6 +590,9 @@ def rs_core_chrom(thdata):
         qname = read.query_name
         for dat_idx, dat in enumerate(sample_dat):
             cell_idx, umi_int, reg_idx = dat    # cell and UMI of new CUMI.
+            reg = reg_list[reg_idx - thdata.reg_idx0]
+            if get_include_len(read, reg.start, reg.end) < conf.min_include:
+                continue
             if snps is None:
                 if thdata.reg_idx0 is None:
                     continue
@@ -597,7 +600,7 @@ def rs_core_chrom(thdata):
                 if idx >= len(snp_sets):
                     # feature not in this chromosome.
                     # CHECK ME!! could be a multi-mapping UMI?
-                    warn("[chrom-%s] feature index of CUMI '%s-%s' is out of range." \
+                    warn("[chrom-%s] feature index of CUMI '%s-%s' is out of range." %  \
                         (thdata.chrom, cell, umi))
                 else:
                     snps = snp_sets[reg_idx - thdata.reg_idx0]
