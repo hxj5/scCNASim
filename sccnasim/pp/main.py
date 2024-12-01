@@ -8,7 +8,7 @@ import time
 
 from logging import info, error
 from .config import Config
-from .utils import merge_cna_profile, merge_features
+from .io import merge_cna_profile, merge_features
 from ..io.base import load_cells, load_cnas, load_clones
 
 

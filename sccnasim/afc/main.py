@@ -18,10 +18,10 @@ from logging import debug, error, info
 from logging import warning as warn
 from .config import Config, COMMAND
 from .core import fc_features
-from .thread import ThreadData
-from .utils import load_feature_from_txt, \
+from .io import load_feature_from_txt, \
     load_snp_from_vcf, load_snp_from_tsv, \
     merge_mtx
+from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str

@@ -1,4 +1,4 @@
-# utils.py - help functions.
+# io.py - input and output.
 
 import os
 
