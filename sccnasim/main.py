@@ -7,6 +7,7 @@
 
 
 import anndata as ad
+import logging
 import numpy as np
 import os
 import sys
@@ -364,7 +365,11 @@ def main_core(conf):
 
 
 def main_run(conf):
-    init_logging(stream = sys.stdout)
+    if conf.debug_level > 0:
+        init_logging(stream = sys.stdout, ch_level = logging.DEBUG)
+    else:
+        init_logging(stream = sys.stdout)
+    np.random.seed(123)    # DEBUG
     ret = -1
     res = None
 

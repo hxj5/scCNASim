@@ -574,38 +574,39 @@ def rs_core_chrom(thdata):
         read_dat = in_sam.fetch()   # get one read (after internal filtering).
         if read_dat is None:        # end of file.
             break
+        if thdata.reg_idx0 is None:
+            continue
         read, cell, umi = read_dat
-        ale, sample_dat = ms.query(cell, umi)
-        if sample_dat is None:  # this read is not sampled.
+        hits = ms.query(cell, umi)
+        if len(hits) <= 0:      # this read is not sampled.
             continue
         if in_sam.check_read2(read) < 0:
             continue
-        hap = None
-        if ale == "A":
-            hap = 0
-        elif ale == "B":
-            hap = 1
-        read.set_tag(conf.hap_tag, ale)
-        snps = None
-        qname = read.query_name
-        for dat_idx, dat in enumerate(sample_dat):
-            cell_idx, umi_int, reg_idx = dat    # cell and UMI of new CUMI.
-            reg = reg_list[reg_idx - thdata.reg_idx0]
-            if get_include_len(read, reg.start, reg.end) < conf.min_include:
-                continue
-            if snps is None:
-                if thdata.reg_idx0 is None:
+        for ale, sample_dat in hits:
+            hap = None
+            if ale == "A":
+                hap = 0
+            elif ale == "B":
+                hap = 1
+            read.set_tag(conf.hap_tag, ale)
+            snps = None
+            qname = read.query_name
+            for dat_idx, dat in enumerate(sample_dat):
+                cell_idx, umi_int, reg_idx_whole = dat    # cell and UMI of new CUMI.
+                reg_idx = reg_idx_whole - thdata.reg_idx0
+                reg = reg_list[reg_idx]
+                if get_include_len(read, reg.start, reg.end) < conf.min_include:
                     continue
-                idx = reg_idx - thdata.reg_idx0
-                if idx >= len(snp_sets):
-                    # feature not in this chromosome.
-                    # CHECK ME!! could be a multi-mapping UMI?
-                    warn("[chrom-%s] feature index of CUMI '%s-%s' is out of range." %  \
-                        (thdata.chrom, cell, umi))
-                else:
-                    snps = snp_sets[reg_idx - thdata.reg_idx0]
-                    read = mask_read(read, snps, hap, fa)
-            out_sam.write(read, cell_idx, umi_int, reg_idx, dat_idx, qname)
+                if snps is None:
+                    if reg_idx >= len(snp_sets):
+                        # feature not in this chromosome.
+                        # CHECK ME!! could be a multi-mapping UMI?
+                        warn("[chrom-%s] feature index of CUMI '%s-%s' is out of range." %  \
+                            (thdata.chrom, cell, umi))
+                    else:
+                        snps = snp_sets[reg_idx]
+                        read = mask_read(read, snps, hap, fa)
+                out_sam.write(read, cell_idx, umi_int, reg_idx_whole, dat_idx, qname)
 
     in_sam.close()
     out_sam.close()

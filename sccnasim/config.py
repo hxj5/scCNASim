@@ -168,6 +168,9 @@ class Config:
         self.excl_flag = -1
         self.no_orphan = self.afc_def_conf.NO_ORPHAN
 
+        # others
+        self.debug_level = 1     # DEBUG
+
     def show(self, fp = None, prefix = ""):
         if fp is None:
             fp = sys.stdout
@@ -206,6 +209,9 @@ class Config:
         s += "%sinclude_flag = %d\n" % (prefix, self.incl_flag)
         s += "%sexclude_flag = %d\n" % (prefix, self.excl_flag)
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
+        s += "%s\n" % prefix
+
+        s += "%sdebug_level = %d\n" % (prefix, self.debug_level)
         s += "%s\n" % prefix
 
         fp.write(s)

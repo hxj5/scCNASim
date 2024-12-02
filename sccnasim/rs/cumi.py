@@ -488,20 +488,21 @@ class MergedSampler:
         
         Returns
         -------
-        str or None
-            The allele where the query CUMI comes from. 
-            `None` if the query CUMI is not from any sampler.
-        list or None
-            A list of new CUMI(s) assigned to this query CUMI.
-            See the returned value of :func:`~CUMISampler.query()`.
-            `None` if the query CUMI is not from any sampler.
+        list
+            A list of hits. Each element in the list is a tuple:
+            str
+                The allele where the query CUMI comes from. 
+            list
+                A list of new CUMI(s) assigned to this query CUMI.
+                See the returned value of :func:`~CUMISampler.query()`.
         """
+        hits = []
         for allele, sampler in self.samplers.items():
             res = sampler.query(cell, umi)
             if res is None:
                 continue
-            return((allele, res))
-        return((None, None))
+            hits.append((allele, res))
+        return(hits)
 
 
 def cumi_sample_for_cells(m, n_list):
