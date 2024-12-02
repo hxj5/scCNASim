@@ -64,7 +64,7 @@ class Barcode:
         assert len(s) == self.m
         i = 0
         for j in range(self.m):
-            i |= self.d.index(s[j]) << 2*j
+            i |= self.d.index(s[self.m-1-j]) << 2*j
         return(i)
     
     def __randint(self, m, n, b, e):
