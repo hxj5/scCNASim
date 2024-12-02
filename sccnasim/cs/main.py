@@ -11,6 +11,7 @@ import time
 
 from logging import info, error
 from .config import Config
+from .io import cs_save_adata2mtx
 from .marginal import fit_libsize, simu_libsize, fit_RD, simu_RD
 from ..io.base import load_clones, load_cnas
 from ..utils.grange import str2tuple
@@ -219,6 +220,13 @@ def cs_core(conf):
 
     adata_fn = os.path.join(conf.out_dir, conf.out_prefix + "counts.h5ad")
     adata_new.write_h5ad(adata_fn)
+    
+    cs_save_adata2mtx(
+        adata = adata_new,
+        layers = ("A", "B", "U"),
+        out_dir = os.path.join(conf.out_dir, "matrix"),
+        row_is_cell = True
+    )
     
     res = dict(
         params_fn = params_fn,

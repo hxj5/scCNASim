@@ -88,8 +88,7 @@ def load_10x_data(
 def save_10x_data(
     xdata, out_dir,
     layer = None, row_is_cell = True,
-    cell_columns = None, feature_columns = None, barcode_columns = None,
-    cell_sep = "\t", feature_sep = "\t", barcode_sep = "\t"           
+    cell_columns = None, feature_columns = None, barcode_columns = None           
 ):
     """Save 10x scRNA-seq data into a folder.
 
@@ -117,12 +116,6 @@ def save_10x_data(
         to "<out_dir>/barcodes.tsv".
         If `None`, use the first column of `cell_columns` (when `cell_columns`
         is not `None`) or the first column of cell annotation (otherwise).
-    cell_sep : str, default "\t"
-        The delimiter of the `cell_fn`.
-    feature_sep : str, default "\t"
-        The delimiter of the `feature_fn`.
-    barcode_sep : str, default "\t"
-        The delimiter of the `barcode_fn`.
 
     Returns
     -------
@@ -145,8 +138,7 @@ def save_10x_data(
         layer = layer, row_is_cell = False,
         cell_columns = cell_columns, feature_columns = feature_columns,
         barcode_columns = barcode_columns,
-        cell_sep = cell_sep, feature_sep = feature_sep,
-        barcode_sep = barcode_sep
+        cell_sep = "\t", feature_sep = "\t", barcode_sep = "\t"
     )
 
 
@@ -229,8 +221,7 @@ def load_xcltk_data(
 def save_xcltk_data(
     xdata, out_dir,
     layer = None, row_is_cell = True,
-    cell_columns = None, feature_columns = None, barcode_columns = None,
-    cell_sep = "\t", feature_sep = "\t", barcode_sep = "\t"
+    cell_columns = None, feature_columns = None, barcode_columns = None
 ):
     """Save xcltk RDR data into a folder.
 
@@ -258,12 +249,6 @@ def save_xcltk_data(
         to "<out_dir>/barcodes.tsv".
         If `None`, use the first column of `cell_columns` (when `cell_columns`
         is not `None`) or the first column of cell annotation (otherwise).
-    cell_sep : str, default "\t"
-        The delimiter of the `cell_fn`.
-    feature_sep : str, default "\t"
-        The delimiter of the `feature_fn`.
-    barcode_sep : str, default "\t"
-        The delimiter of the `barcode_fn`.
 
     Returns
     -------
@@ -286,11 +271,184 @@ def save_xcltk_data(
         layer = layer, row_is_cell = False,
         cell_columns = cell_columns, feature_columns = feature_columns,
         barcode_columns = barcode_columns,
-        cell_sep = cell_sep, feature_sep = feature_sep,
-        barcode_sep = barcode_sep
+        cell_sep = "\t", feature_sep = "\t", barcode_sep = "\t"
     )
+    
+    
+def load_xdata_ml(mtx_fn_list, layers,
+    cell_fn, feature_fn, 
+    cell_columns, feature_columns,
+    cell_sep = "\t", feature_sep = "\t",
+    row_is_cell = True
+):
+    """Load multi-layer adata from files.
+
+    Parameters
+    ----------
+    mtx_fn_list : list of str
+        A list of input sparse matrix files.
+    layers : list of str or None
+        A list of layers in which the matrices will be stored.
+        Its order should match `mtx_fn_list`.
+        None means stores the matrix into `adata.X`, while it only works when
+        there is only one input matrix.
+    cell_fn : str
+        Path to the input cell annotation file.
+    feature_fn : str
+        Path to the input feature annotation file.
+    cell_columns : list of str
+        Column names for `cell_fn`.
+    feature_columns : list of str
+        Column names for `feature_fn`.
+    cell_sep : str, default "\t"
+        The delimiter of the `cell_fn`.
+    feature_sep : str, default "\t"
+        The delimiter of the `feature_fn`.
+    row_is_cell : bool, default True
+        Whether the rows of `mtx_fn` are cells.
+
+    Returns
+    -------
+    anndata.AnnData
+        An adata object.
+    """
+    if layers is None:
+        assert len(mtx_fn_list) == 1
+    else:
+        assert len(mtx_fn_list) == len(layers)
+
+    cells = load_cells(cell_fn, cell_columns, sep = cell_sep)
+    features = load_features(feature_fn, feature_columns, sep = feature_sep)
+
+    for idx, mtx_fn in enumerate(mtx_fn_list):
+        mtx = load_matrix(mtx_fn)
+        if idx == 0:
+            if row_is_cell:
+                xdata = ad.AnnData(
+                    X = mtx, 
+                    obs = cells,
+                    var = features)
+            else:
+                xdata = ad.AnnData(
+                    X = mtx, 
+                    obs = features,
+                    var = cells)
+            if layers is not None:
+                xdata.layers[layers[idx]] = xdata.X
+                xdata.X = None
+        else:
+            xdata.layers[layers[idx]] = mtx
+
+    xdata.obs.index = xdata.obs.index.astype(str)      # otherwise, anndata will complain about integer index
+    xdata.var.index = xdata.var.index.astype(str)
+
+    return(xdata)
 
 
+def save_xdata_ml(
+    xdata, layers, mtx_fn_list,
+    cell_fn, feature_fn, barcode_fn = None,
+    row_is_cell = True,
+    cell_columns = None, feature_columns = None, barcode_columns = None,
+    cell_sep = "\t", feature_sep = "\t", barcode_sep = "\t"
+):
+    """Save multi-layer adata into a folder.
+
+    Parameters
+    ----------
+    xdata : anndata.AnnData
+        An anndata object.
+    layers : list of str or None
+        A list of layers in `xdata` to be outputted.
+        None means to output `adata.X`, while it only works when
+        there is only one output matrix.
+    mtx_fn_list : list of str
+        A list of output sparse matrix files.
+        Its order should match `layers`.
+    cell_fn : str
+        Path to the output cell annotation file.
+    feature_fn : str
+        Path to the output feature annotation file.
+    barcode_fn : str or None, default None
+        Path to the output barcode file.
+        If `None`, do not output this file.
+    layer : str or None, default None
+        Name of the layer in `xdata` to be outputted.
+        If `None`, then `xdata.X` will be outputted.
+    row_is_cell : bool, default True
+        Whether the rows of `xdata` are cells.
+    cell_columns : list of str or None, default None
+        Selected columns of cell annotations in `xdata`, to be outputted
+        to `cell_fn`.
+        If `None`, use all columns.
+    feature_columns : list of str or None, default None
+        Selected columns of feature annotations in `xdata`, to be outputted
+        to `feature_fn`.
+        If `None`, use all columns.
+    barcode_columns : list of str or None, default None
+        Selected columns of cell annotations in `xdata`, to be outputted
+        to `barcode_fn`.
+        If `None`, use the first column of `cell_columns` (when `cell_columns`
+        is not `None`) or the first column of cell annotation (otherwise).
+    cell_sep : str, default "\t"
+        The delimiter of the `cell_fn`.
+    feature_sep : str, default "\t"
+        The delimiter of the `feature_fn`.
+    barcode_sep : str, default "\t"
+        The delimiter of the `barcode_fn`.
+
+    Returns
+    -------
+    Void.
+    """
+    if layers is None:
+        assert len(mtx_fn_list) == 1
+    else:
+        assert len(mtx_fn_list) == len(layers)
+    
+    mtx = None
+    for idx, mtx_fn in enumerate(mtx_fn_list):
+        if layers is None:
+            mtx = xdata.X
+        else:
+            mtx = xdata.layers[layers[idx]]
+        save_matrix(mtx, mtx_fn)
+
+    cells = features = barcodes = None
+    if row_is_cell:
+        cells = xdata.obs
+        features = xdata.var
+        barcodes = xdata.obs
+    else:
+        cells = xdata.var
+        features = xdata.obs
+        barcodes = xdata.var
+
+    if cell_columns is not None:
+        cells = cells[cell_columns]
+    if feature_columns is not None:
+        features = features[feature_columns]
+
+    save_cells(cells, cell_fn, cell_sep)
+    save_features(features, feature_fn, feature_sep)
+
+    if barcode_fn is None:
+        return
+    if barcode_columns is None:
+        if cell_columns is None:
+            barcodes = barcodes[[barcodes.columns[0]]]
+        else:
+            barcodes = barcodes[[cell_columns[0]]]
+    elif isinstance(barcode_columns, str):
+        barcodes = barcodes[[barcode_columns]]
+    else:
+        barcodes = barcodes[barcode_columns]
+    save_cells(barcodes, barcode_fn, barcode_sep)
+
+
+# TODO: 
+# - rewrite `load_xdata()` and `save_xdata()` with `load_xdata_ml()` and
+#   `save_xdata_ml()`, respectively.
 def load_xdata(mtx_fn, cell_fn, feature_fn, 
     cell_columns, feature_columns,
     cell_sep = "\t", feature_sep = "\t",
