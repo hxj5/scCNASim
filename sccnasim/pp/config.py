@@ -54,6 +54,8 @@ class Config:
         - "cn_ale1" (int): copy number of the second allele.
     out_dir : str
         The output folder.
+    chroms : str, default "1,2,...22"
+        Comma separated chromosome names.
     """
     def __init__(self):
         # command-line arguments/parameters.
@@ -63,8 +65,14 @@ class Config:
         self.clone_meta_fn = None
         self.cna_profile_fn = None
         self.out_dir = None
+        self.chroms = ",".join([str(c) for c in range(1, 23)])
 
         # derived parameters.
+        
+        # chrom_list : list of str or None
+        #   A list of chromosome names.
+        #   It is used when pileup whole chromosomes.
+        self.chrom_list = None
 
         # out_prefix_raw : str
         #   Prefix to the output raw files.
@@ -86,9 +94,11 @@ class Config:
         s += "%sclone_meta_fn = %s\n" % (prefix, self.clone_meta_fn)
         s += "%scna_profile_fn = %s\n" % (prefix, self.cna_profile_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
+        s += "%schroms = %s\n" % (prefix, self.chroms)
         s += "%s\n" % prefix
 
         # derived parameters.
+        s += "%schrom_list = %s\n" % (prefix, str(self.chrom_list))
         s += "%sout_prefix_raw = %s\n" % (prefix, self.out_prefix_raw)
         s += "%sout_prefix_pp = %s\n" % (prefix, self.out_prefix_pp)
         s += "%s\n" % prefix

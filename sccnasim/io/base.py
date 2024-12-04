@@ -298,6 +298,25 @@ def load_features(fn, sep = "\t"):
     return(df)
 
 
+def save_features(df, fn, sep = "\t"):
+    """Save feature annotation into file.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The feature annotation.
+    fn : str
+        Path to the output file.
+    sep : str, default "\t"
+        File delimiter.
+    
+    Returns
+    -------
+    Void.
+    """
+    return(__save_multi_column_file(df, fn, sep))
+
+
 def load_regions(fn, sep = "\t"):
     """Load region annotation from a header-free file.
     

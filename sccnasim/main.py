@@ -257,7 +257,8 @@ def main_core(conf):
         snp_fn = conf.snp_fn,
         clone_meta_fn = conf.clone_meta_fn,
         cna_profile_fn = conf.cna_profile_fn,
-        out_dir = os.path.join(conf.out_dir, "%d_pp" % step)
+        out_dir = os.path.join(conf.out_dir, "%d_pp" % step),
+        chroms = conf.chroms
     )
     if pp_ret < 0:
         error("preprocessing failed (%d)." % pp_ret)

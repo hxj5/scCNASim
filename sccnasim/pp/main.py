@@ -8,8 +8,9 @@ import time
 
 from logging import info, error
 from .config import Config
-from .io import merge_cna_profile, merge_features
+from .io import merge_cna_profile, filter_features_by_chroms, merge_features
 from ..io.base import load_cells, load_cnas, load_clones
+from ..utils.grange import format_chrom
 
 
 def pp_core(conf):
@@ -20,13 +21,27 @@ def pp_core(conf):
 
 
     # process feature file.
-    # merge overlapping features.
     shutil.copy(conf.feature_fn,
         os.path.join(conf.out_dir, conf.out_prefix_raw + "features.tsv"))
-    merged_feature_fn = os.path.join(conf.out_dir, 
-        conf.out_prefix_pp + "features.tsv")
-    r, n_old, n_new = merge_features(
+    
+    # filter features based on input chromosomes.
+    filter_chrom_feature_fn = os.path.join(conf.out_dir,
+        conf.out_prefix_pp + "features.filter_chrom.tsv")
+    r, n_old, n_new = filter_features_by_chroms(
         in_fn = conf.feature_fn,
+        out_fn = filter_chrom_feature_fn,
+        chrom_list = conf.chrom_list
+    )
+    if r < 0:
+        error("filter features by chroms failed (%d)." % r)
+        raise ValueError
+    info("%d features kept from %d old ones." % (n_new, n_old))
+    
+    # merge overlapping features.
+    merged_feature_fn = os.path.join(conf.out_dir, 
+        conf.out_prefix_pp + "features.filter_chrom.merged.tsv")
+    r, n_old, n_new = merge_features(
+        in_fn = filter_chrom_feature_fn,
         out_fn = merged_feature_fn,
         max_gap = 1,
         new_name_how = "join"
@@ -171,7 +186,7 @@ def pp_run(conf):
 def pp_wrapper(
     cell_anno_fn, feature_fn, snp_fn,
     clone_meta_fn, cna_profile_fn,
-    out_dir
+    out_dir, chroms = None
 ):
     """Wrapper for running the pp (preprocessing) module.
 
@@ -223,6 +238,9 @@ def pp_wrapper(
         - "cn_ale1" (int): copy number of the second allele.
     out_dir : str
         The output folder.
+    chroms : str or None, default None
+        Comma separated chromosome names.
+        If None, it will be set as "1,2,...22".
 
     Returns
     -------
@@ -238,6 +256,11 @@ def pp_wrapper(
     conf.clone_meta_fn = clone_meta_fn
     conf.cna_profile_fn = cna_profile_fn
     conf.out_dir = out_dir
+    
+    if chroms is None:
+        chroms = ",".join([str(i) for i in range(1, 23)])
+    conf.chroms = chroms
+    conf.chrom_list = [format_chrom(c) for c in conf.chroms.split(",")]
     
     ret, res = pp_run(conf)
     #return((ret, res, conf))

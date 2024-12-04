@@ -2,8 +2,8 @@
 
 import functools
 from logging import error
-from ..io.base import load_cnas, load_features
-from ..utils.grange import reg2str
+from ..io.base import load_cnas, load_features, save_features
+from ..utils.grange import format_chrom, reg2str
 
 
 def __cmp_two_intervals(x1, x2):
@@ -140,6 +140,43 @@ def merge_cna_profile(in_fn, out_fn, max_gap = 1):
                     clone_id, str(cn_ale0), str(cn_ale1)]) + "\n")
                 n_new += 1
     fp.close()
+    return((0, n_old, n_new))
+
+
+def filter_features_by_chroms(in_fn, out_fn, chrom_list):
+    """Filter features by chromosomes.
+    
+    This function filters features that are not in the input chromosomes.
+
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input file.
+    out_fn : str
+        Path to the output file.
+    chrom_list: list of str
+        A list of chromosome names.
+    
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative if error.
+    int
+        Number of records before filtering.
+    int
+        Number of records after filtering.
+    """
+    sep = "\t"
+    
+    df = load_features(in_fn, sep = sep)
+    n_old = df.shape[0]
+    
+    chrom_list = [format_chrom(c) for c in chrom_list]
+    df_new = df[df["chrom"].isin(chrom_list)]
+    n_new = df_new.shape[0]
+    
+    save_features(df_new, out_fn, sep = sep)
+    
     return((0, n_old, n_new))
 
 
