@@ -225,7 +225,9 @@ def cs_core(conf):
         adata = adata_new,
         layers = ("A", "B", "U"),
         out_dir = os.path.join(conf.out_dir, "matrix"),
-        row_is_cell = True
+        row_is_cell = True,
+        cell_columns = ["cell", "cell_type"],
+        barcode_columns = ["cell"]
     )
     
     res = dict(

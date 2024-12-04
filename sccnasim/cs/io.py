@@ -48,7 +48,7 @@ def cs_save_adata2mtx(
     mtx_fn_list = [os.path.join(out_dir, "matrix.%s.mtx" % a) for a in layers] 
     
     if row_is_cell:
-        xdata = xdata.transpose()
+        adata = adata.transpose()
         
     save_xdata_ml(
         xdata = adata, layers = layers, mtx_fn_list = mtx_fn_list,
