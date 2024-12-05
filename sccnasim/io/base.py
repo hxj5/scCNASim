@@ -1,8 +1,62 @@
 # base.py - basic input and output.
 
+import anndata as ad
 import pandas as pd
 from ..utils.base import is_file_empty
 from ..utils.grange import format_chrom, format_start, format_end
+
+
+
+def format_anndata(adata, row_is_cell = None):
+    """Format anndata object.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        The object to be formatted.
+    row_is_cell : bool or None, default None
+        Whether the rows (obs) are cells.
+        None means `row_is_cell` is unknown.
+    
+    Returns
+    -------
+    anndata.AnnData
+        The formatted object.
+    """
+    if not adata:
+        return(adata)
+    
+    adata.obs.index = adata.obs.index.astype(str)      # otherwise, anndata will complain about integer index
+    adata.var.index = adata.var.index.astype(str)
+
+    if row_is_cell is None:
+        if adata.var and "chrom" in adata.var.columns:
+            adata.var["chrom"] = adata.var["chrom"].astype(str)
+    elif row_is_cell is True:
+        if adata.var and "chrom" in adata.var.columns:
+            adata.var["chrom"] = adata.var["chrom"].astype(str)    
+    else:
+        if adata.obs and "chrom" in adata.obs.columns:
+            adata.obs["chrom"] = adata.obs["chrom"].astype(str)
+
+    return(adata)
+
+
+def load_h5ad(fn):
+    """Wrapper to load anndata h5ad file.
+
+    Parameters
+    ----------
+    fn : str
+        Path to the h5ad file.
+
+    Returns
+    -------
+    anndata.AnnData
+    """
+    adata = ad.read_h5ad(fn)
+    adata = format_anndata(adata)
+    return(adata)
 
 
 def load_list_from_str(s, sep = ","):

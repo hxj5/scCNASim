@@ -17,7 +17,7 @@ from logging import info, error
 from .afc.main import afc_wrapper
 from .config import Config
 from .cs.main import cs_wrapper
-from .io.base import load_cells
+from .io.base import load_cells, load_h5ad
 from .pp.main import pp_wrapper
 from .rs.main import rs_wrapper
 from .utils.base import assert_e
@@ -421,7 +421,7 @@ def add_cell_anno(adata_fn, cell_anno_fn, out_adata_fn):
     assert "cell" in cell_anno.columns
     assert "cell_type" in cell_anno.columns
 
-    adata = ad.read_h5ad(adata_fn)
+    adata = load_h5ad(adata_fn)
     assert "cell" in adata.obs.columns
 
     assert np.all(adata.obs["cell"].isin(cell_anno["cell"]))

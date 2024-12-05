@@ -15,6 +15,7 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
+from ..io.base import load_h5ad
 from ..utils.base import is_file_empty
 from ..utils.xbarcode import Barcode
 
@@ -22,7 +23,7 @@ from ..utils.xbarcode import Barcode
 def gen_umis(
     xdata, 
     chrom_list, chrom_reg_idx_range_list,
-    alleles, m, out_dir, ncores = 1,
+    alleles, m, out_dir, ncores = 1
 ):
     """Generate UMIs to be used in new BAM.
 
@@ -131,7 +132,7 @@ def gen_umis_thread(
     chrom_list, chrom_reg_idx_range_list, 
     alleles, m
 ):
-    xdata = ad.read_h5ad(fn)
+    xdata = load_h5ad(fn)
     RD = None
     for i, ale in enumerate(alleles):
         assert ale in xdata.layers
@@ -267,7 +268,7 @@ def sample_cumis_chrom(
     umi_fn, alleles, out_fn,
     use_umi = True, max_pool = None
 ):
-    xdata = ad.read_h5ad(xdata_fn)
+    xdata = load_h5ad(xdata_fn)
     with open(reg_fn, "rb") as fp:
         reg_list = pickle.load(fp)
     with open(umi_fn, "rb") as fp:

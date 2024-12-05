@@ -19,7 +19,7 @@ from .sam import SAMInput, SAMOutput, sam_merge_and_index
 from .snp import SNPSet, mask_read
 from .thread import ThreadData
 from ..app import APP, VERSION
-from ..io.base import load_bams, load_barcodes, load_samples,  \
+from ..io.base import load_bams, load_barcodes, load_h5ad, load_samples,  \
     load_list_from_str, save_cells, save_samples
 from ..utils.grange import format_chrom
 from ..utils.sam import sam_index, get_include_len
@@ -794,7 +794,7 @@ def prepare_config(conf):
 
 
 def load_counts(fn):
-    dat = ad.read_h5ad(fn)
+    dat = load_h5ad(fn)
     return(dat)
 
 

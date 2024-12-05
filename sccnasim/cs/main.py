@@ -13,7 +13,7 @@ from logging import info, error
 from .config import Config
 from .io import cs_save_adata2mtx
 from .marginal import fit_libsize, simu_libsize, fit_RD, simu_RD
-from ..io.base import load_clones, load_cnas
+from ..io.base import load_clones, load_cnas, load_h5ad
 from ..utils.grange import str2tuple
 from ..utils.xbarcode import rand_cell_barcodes
 from ..utils.xmatrix import sparse2array
@@ -390,7 +390,7 @@ def prepare_config(conf):
     ret = -1
 
     assert os.path.exists(conf.count_fn)
-    conf.adata = ad.read_h5ad(conf.count_fn)
+    conf.adata = load_h5ad(conf.count_fn)
     for obs_key in ("cell", "cell_type"):
         assert obs_key in conf.adata.obs.columns
     for var_key in ("feature", "chrom", "start", "end"):

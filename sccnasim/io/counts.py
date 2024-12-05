@@ -7,6 +7,7 @@ import scipy as sp
 
 from scipy import io
 from scipy import sparse
+from .base import format_anndata
 
 
 def load_10x_data(
@@ -339,9 +340,7 @@ def load_xdata_ml(mtx_fn_list, layers,
         else:
             xdata.layers[layers[idx]] = mtx
 
-    xdata.obs.index = xdata.obs.index.astype(str)      # otherwise, anndata will complain about integer index
-    xdata.var.index = xdata.var.index.astype(str)
-
+    xdata = format_anndata(xdata, row_is_cell = row_is_cell)
     return(xdata)
 
 
@@ -493,8 +492,7 @@ def load_xdata(mtx_fn, cell_fn, feature_fn,
             X = mtx, 
             obs = features,
             var = cells)
-    xdata.obs.index = xdata.obs.index.astype(str)      # otherwise, anndata will complain about integer index
-    xdata.var.index = xdata.var.index.astype(str)
+    xdata = format_anndata(xdata, row_is_cell = row_is_cell)
     return(xdata)
 
 
