@@ -114,6 +114,9 @@ class Config:
         Length of output UMI barcode.
     ncores : int, default 1
         Number of cores.
+    seed : int or None, default 123
+        Seed for random numbers.
+        None means not using a fixed seed.
     verbose : bool, default False
         Whether to show detailed logging information.
     min_mapq : int, default 20
@@ -158,6 +161,7 @@ class Config:
         self.umi_tag = self.afc_def_conf.UMI_TAG
         self.umi_len = 10
         self.ncores = self.afc_def_conf.NCORES
+        self.seed = 123
         self.verbose = False
 
         # read filtering.
@@ -169,7 +173,7 @@ class Config:
         self.no_orphan = self.afc_def_conf.NO_ORPHAN
 
         # others
-        self.debug_level = 1     # DEBUG
+        self.debug_level = 0
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -200,6 +204,7 @@ class Config:
         s += "%sumi_tag = %s\n" % (prefix, self.umi_tag)
         s += "%sumi_len = %d\n" % (prefix, self.umi_len)
         s += "%snumber_of_cores = %d\n" % (prefix, self.ncores)
+        s += "%sseed = %s\n" % (prefix, str(self.seed))
         s += "%sverbose = %s\n" % (prefix, self.verbose)
         s += "%s\n" % prefix
 

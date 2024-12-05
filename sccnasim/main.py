@@ -41,7 +41,7 @@ def main_wrapper(
     kwargs_fit_rd = None,
     chroms = "human_autosome",
     cell_tag = "CB", umi_tag = "UB", umi_len = 10,
-    ncores = 1, verbose = False,
+    ncores = 1, seed = 123, verbose = False,
     min_mapq = 20, min_len = 30,
     min_include = 30,
     incl_flag = 0, excl_flag = -1,
@@ -158,6 +158,9 @@ def main_wrapper(
         Length of output UMI barcode.
     ncores : int, default 1
         Number of cores.
+    seed : int or None, default 123
+        Seed for random numbers.
+        None means not using a fixed seed.
     verbose : bool, default False
         Whether to show detailed logging information.
     min_mapq : int, default 20
@@ -220,6 +223,7 @@ def main_wrapper(
     conf.umi_tag = umi_tag
     conf.umi_len = umi_len
     conf.ncores = ncores
+    conf.seed = seed
     conf.verbose = verbose
 
 
@@ -370,7 +374,17 @@ def main_run(conf):
         init_logging(stream = sys.stdout, ch_level = logging.DEBUG)
     else:
         init_logging(stream = sys.stdout)
-    np.random.seed(123)    # DEBUG
+        
+    # currently the whole simulation results are not reproducible with a seed,
+    # possibly due to the parallel computing.
+    # TODO: make it reproducible
+    # Ref:
+    # - https://albertcthomas.github.io/good-practices-random-number-generators/
+    # - https://numpy.org/doc/stable/reference/random/parallel.html
+    if conf.seed is not None:
+        np.random.seed(conf.seed)
+    
+    
     ret = -1
     res = None
 
