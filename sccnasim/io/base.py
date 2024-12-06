@@ -23,20 +23,20 @@ def format_anndata(adata, row_is_cell = None):
     anndata.AnnData
         The formatted object.
     """
-    if not adata:
+    if adata is None:
         return(adata)
     
     adata.obs.index = adata.obs.index.astype(str)      # otherwise, anndata will complain about integer index
     adata.var.index = adata.var.index.astype(str)
 
     if row_is_cell is None:
-        if adata.var and "chrom" in adata.var.columns:
+        if adata.var is not None and "chrom" in adata.var.columns:
             adata.var["chrom"] = adata.var["chrom"].astype(str)
     elif row_is_cell is True:
-        if adata.var and "chrom" in adata.var.columns:
+        if adata.var is not None and "chrom" in adata.var.columns:
             adata.var["chrom"] = adata.var["chrom"].astype(str)    
     else:
-        if adata.obs and "chrom" in adata.obs.columns:
+        if adata.obs is not None and "chrom" in adata.obs.columns:
             adata.obs["chrom"] = adata.obs["chrom"].astype(str)
 
     return(adata)
