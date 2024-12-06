@@ -2,5 +2,5 @@
 
 
 APP = "sccnasim"
-VERSION = "0.0.2-dev"
+VERSION = "0.1.0"
 AUTHOR = "Xianjie Huang"
