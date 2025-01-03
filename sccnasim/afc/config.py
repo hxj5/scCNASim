@@ -60,8 +60,9 @@ class Config:
         Minimum MAPQ for read filtering.
     min_len : int, default 30
         Minimum mapped length for read filtering.
-    min_include : int, default 30
+    min_include : int or float, default 0.9
         Minimum length of included part within specific feature.
+        If float between (0, 1), it is the minimum fraction of included length.
     incl_flag : int, default 0
         Required flags: skip reads with all mask bits unset.
     excl_flag : int, default -1
@@ -204,7 +205,7 @@ class Config:
 
         s += "%smin_mapq = %d\n" % (prefix, self.min_mapq)
         s += "%smin_len = %d\n" % (prefix, self.min_len)
-        s += "%smin_include = %d\n" % (prefix, self.min_include)
+        s += "%smin_include = %f\n" % (prefix, self.min_include)
         s += "%sinclude_flag = %d\n" % (prefix, self.incl_flag)
         s += "%sexclude_flag = %d\n" % (prefix, self.excl_flag)
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
@@ -263,7 +264,7 @@ class DefaultConfig:
 
         self.MIN_MAPQ = 20
         self.MIN_LEN = 30
-        self.MIN_INCLUDE = 30
+        self.MIN_INCLUDE = 0.9
         self.INCL_FLAG = 0
         self.EXCL_FLAG_UMI = 772
         self.EXCL_FLAG_XUMI = 1796

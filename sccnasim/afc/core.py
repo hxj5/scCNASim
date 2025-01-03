@@ -10,7 +10,7 @@ from logging import debug, error, info
 from .mcount_ab import MCount as ABFeatureMCount
 from .mcount_feature import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
-from ..utils.sam import check_read, get_include_len, sam_fetch
+from ..utils.sam import check_read, get_include_frac, get_include_len, sam_fetch
 from ..utils.zfile import zopen, ZF_F_GZIP
 
 
@@ -157,8 +157,12 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
         for read in itr:
             if check_read(read, conf) < 0:
                 continue
-            if get_include_len(read, reg.start, reg.end) < conf.min_include:
-                continue
+            if 0 < conf.min_include < 1:
+                if get_include_frac(read, reg.start, reg.end) < conf.min_include:
+                    continue
+            else:
+                if get_include_len(read, reg.start, reg.end) < conf.min_include:
+                    continue
             if conf.use_barcodes():
                 ret, smp, umi, ale_idx = mcnt.push_read(read)
             else:
@@ -283,8 +287,12 @@ def plp_snp(snp, sam_list, mcnt, conf, reg):
         for read in itr:
             if check_read(read, conf) < 0:
                 continue
-            if get_include_len(read, reg.start, reg.end) < conf.min_include:
-                continue
+            if 0 < conf.min_include < 1:
+                if get_include_frac(read, reg.start, reg.end) < conf.min_include:
+                    continue
+            else:
+                if get_include_len(read, reg.start, reg.end) < conf.min_include:
+                    continue
             if conf.use_barcodes():
                 ret = mcnt.push_read(read)
             else:

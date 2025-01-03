@@ -45,6 +45,31 @@ def check_read(read, conf):
     return(0)
 
 
+def get_include_frac(read, s, e):
+    """Get the fraction of included part within specific feature.
+
+    Parameters
+    ----------
+    read : pysam.AlignedSegment
+        One alignment read.
+    s : int
+        The start genomic position of the feature, 1-based and inclusive.
+    e : int
+        The end genomic position of the feature, 1-based and exclusive.
+
+    Returns
+    -------
+    float or None
+        The fraction of included part within specific feature.
+        None if no any part of the read is aligned.
+    """
+    n = len(read.positions)
+    if n <= 0:
+        return(None)
+    m = get_include_len(read, s, e)
+    return(m / float(n))
+
+
 def get_include_len(read, s, e):
     """Get the length of included part within specific feature.
 

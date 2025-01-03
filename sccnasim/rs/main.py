@@ -22,7 +22,7 @@ from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_h5ad, load_samples,  \
     load_list_from_str, save_cells, save_samples
 from ..utils.grange import format_chrom
-from ..utils.sam import sam_index, get_include_len
+from ..utils.sam import sam_index, get_include_frac, get_include_len
 from ..utils.xlog import init_logging
 
 
@@ -53,13 +53,13 @@ def usage(fp = sys.stdout, conf = None):
     s += "  -D, --debug INT        Used by developer for debugging [%d]\n" % conf.DEBUG
     s += "\n"
     s += "Read filtering:\n"
-    s += "      --inclFLAG INT    Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
-    s += "      --exclFLAG INT    Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
-    s += "                        (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
-    s += "      --minLEN INT      Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
-    s += "      --minMAPQ INT     Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
-    s += "      --minINCLUDE INT  Minimum length of included part within specific feature [%d]\n" % conf.MIN_INCLUDE
-    s += "      --countORPHAN     If use, do not skip anomalous read pairs.\n"
+    s += "      --inclFLAG INT          Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
+    s += "      --exclFLAG INT          Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
+    s += "                              (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
+    s += "      --minLEN INT            Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
+    s += "      --minMAPQ INT           Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
+    s += "      --minINCLUDE FLOAT|INT  Minimum fraction or length of included part within specific feature [%d]\n" % conf.MIN_INCLUDE
+    s += "      --countORPHAN           If use, do not skip anomalous read pairs.\n"
     s += "\n"
 
     fp.write(s)
@@ -134,7 +134,11 @@ def rs_main(argv):
         elif op in ("--exclflag"): conf.excl_flag = int(val)
         elif op in ("--minlen"): conf.min_len = int(val)
         elif op in ("--minmapq"): conf.min_mapq = float(val)
-        elif op in ("--mininclude"): conf.min_include = int(val)
+        elif op in ("--mininclude"): 
+            if "." in val:
+                conf.min_include = float(val)
+            else:
+                conf.min_include = int(val)
         elif op in ("--countorphan"): conf.no_orphan = False
 
         else:
@@ -157,7 +161,7 @@ def rs_wrapper(
     chroms = None,
     cell_tag = "CB", umi_tag = "UB", umi_len = 10,
     min_mapq = 20, min_len = 30,
-    min_include = 30,
+    min_include = 0.9,
     incl_flag = 0, excl_flag = -1,
     no_orphan = True
 ):
@@ -220,8 +224,9 @@ def rs_wrapper(
         Minimum MAPQ for read filtering.
     min_len : int, default 30
         Minimum mapped length for read filtering.
-    min_include : int, default 30
+    min_include : int or float, default 0.9
         Minimum length of included part within specific feature.
+        If float between (0, 1), it is the minimum fraction of included length.
     incl_flag : int, default 0
         Required flags: skip reads with all mask bits unset.
     excl_flag : int, default -1
@@ -595,8 +600,12 @@ def rs_core_chrom(thdata):
                 cell_idx, umi_int, reg_idx_whole = dat    # cell and UMI of new CUMI.
                 reg_idx = reg_idx_whole - thdata.reg_idx0
                 reg = reg_list[reg_idx]
-                if get_include_len(read, reg.start, reg.end) < conf.min_include:
-                    continue
+                if 0 < conf.min_include < 1:
+                    if get_include_frac(read, reg.start, reg.end) < conf.min_include:
+                        continue
+                else:
+                    if get_include_len(read, reg.start, reg.end) < conf.min_include:
+                        continue
                 if snps is None:
                     if reg_idx >= len(snp_sets):
                         # feature not in this chromosome.

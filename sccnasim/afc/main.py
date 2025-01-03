@@ -56,13 +56,13 @@ def usage(fp = sys.stdout, conf = None):
     s += "  -D, --debug INT        Used by developer for debugging [%d]\n" % conf.DEBUG
     s += "\n"
     s += "Read filtering:\n"
-    s += "      --inclFLAG INT    Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
-    s += "      --exclFLAG INT    Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
-    s += "                        (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
-    s += "      --minLEN INT      Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
-    s += "      --minMAPQ INT     Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
-    s += "      --minINCLUDE INT  Minimum length of included part within specific feature [%d]\n" % conf.MIN_INCLUDE
-    s += "      --countORPHAN     If use, do not skip anomalous read pairs.\n"
+    s += "      --inclFLAG INT          Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
+    s += "      --exclFLAG INT          Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
+    s += "                              (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
+    s += "      --minLEN INT            Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
+    s += "      --minMAPQ INT           Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
+    s += "      --minINCLUDE FLOAT|INT  Minimum fraction or length of included part within specific feature [%f]\n" % conf.MIN_INCLUDE
+    s += "      --countORPHAN           If use, do not skip anomalous read pairs.\n"
     s += "\n"
 
     fp.write(s)
@@ -135,7 +135,11 @@ def afc_main(argv):
         elif op in ("--exclflag"): conf.excl_flag = int(val)
         elif op in ("--minlen"): conf.min_len = int(val)
         elif op in ("--minmapq"): conf.min_mapq = float(val)
-        elif op in ("--mininclude"): conf.min_include = int(val)
+        elif op in ("--mininclude"):
+            if "." in val:
+                conf.min_include = float(val)
+            else:
+                conf.min_include = int(val)
         elif op in ("--countorphan"): conf.no_orphan = False
 
         else:
@@ -157,7 +161,7 @@ def afc_wrapper(
     cell_tag = "CB", umi_tag = "UB",
     #min_count = 1, min_maf = 0,
     min_mapq = 20, min_len = 30,
-    min_include = 30,
+    min_include = 0.9,
     incl_flag = 0, excl_flag = -1,
     no_orphan = True
 ):
@@ -218,8 +222,9 @@ def afc_wrapper(
         Minimum MAPQ for read filtering.
     min_len : int, default 30
         Minimum mapped length for read filtering.
-    min_include : int, default 30
+    min_include : int or float, default 0.9
         Minimum length of included part within specific feature.
+        If float between (0, 1), it is the minimum fraction of included length.
     incl_flag : int, default 0
         Required flags: skip reads with all mask bits unset.
     excl_flag : int, default -1
