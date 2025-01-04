@@ -81,6 +81,14 @@ class Config:
         # out_prefix_pp : str
         #   Prefix to the output preprocess-ed files.
         self.out_prefix_pp = "pp."
+        
+        # merge_features_how : {"first", "union", None}
+        #   How to merge overlapping features.
+        #   "first" - only keep the first feature.
+        #       Keep the first feature and remove features overlapping with it.
+        #   "union" - keep the union range of overlapping features.
+        #   None - do not merge overlapping features.
+        self.merge_features_how = "first"
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -101,6 +109,7 @@ class Config:
         s += "%schrom_list = %s\n" % (prefix, str(self.chrom_list))
         s += "%sout_prefix_raw = %s\n" % (prefix, self.out_prefix_raw)
         s += "%sout_prefix_pp = %s\n" % (prefix, self.out_prefix_pp)
+        s += "%smerge_features_how = %s\n" % (prefix, self.merge_features_how)
         s += "%s\n" % prefix
 
         fp.write(s)

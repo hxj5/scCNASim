@@ -8,7 +8,7 @@ import time
 
 from logging import info, error
 from .config import Config
-from .io import merge_cna_profile, filter_features_by_chroms, merge_features
+from .io import merge_cna_profile, filter_features_by_chroms, merge_features_first, merge_features_union
 from ..io.base import load_cells, load_cnas, load_clones
 from ..utils.grange import format_chrom
 
@@ -21,8 +21,9 @@ def pp_core(conf):
 
 
     # process feature file.
-    shutil.copy(conf.feature_fn,
-        os.path.join(conf.out_dir, conf.out_prefix_raw + "features.tsv"))
+    raw_feature_fn = os.path.join(conf.out_dir, conf.out_prefix_raw + "features.tsv")
+    shutil.copy(conf.feature_fn, raw_feature_fn)
+    info("feature file copied to '%s'." % raw_feature_fn)
     
     # filter features based on input chromosomes.
     filter_chrom_feature_fn = os.path.join(conf.out_dir,
@@ -40,23 +41,51 @@ def pp_core(conf):
     # merge overlapping features.
     merged_feature_fn = os.path.join(conf.out_dir, 
         conf.out_prefix_pp + "features.filter_chrom.merged.tsv")
-    r, n_old, n_new = merge_features(
-        in_fn = filter_chrom_feature_fn,
-        out_fn = merged_feature_fn,
-        max_gap = 1,
-        new_name_how = "join"
-    )
-    if r < 0:
-        error("merge features failed (%d)." % r)
-        raise ValueError
-    info("%d features merged from %d old ones." % (n_new, n_old))
+    if conf.merge_features_how is None:
+        merged_feature_fn = filter_chrom_feature_fn
+        info("skip merging overlapping features.")
+    else:
+        r, n_old, n_new = None, None, None
+        if conf.merge_features_how == "first":
+            r, n_old, n_new = merge_features_first(
+                in_fn = filter_chrom_feature_fn,
+                out_fn = merged_feature_fn,
+                max_gap = 1,
+                new_name_how = "join"
+            )
+        elif conf.merge_features_how == "union":
+            r, n_old, n_new = merge_features_union(
+                in_fn = filter_chrom_feature_fn,
+                out_fn = merged_feature_fn,
+                max_gap = 1,
+                new_name_how = "join"
+            )
+        else:
+            error("invalid method '%s' to merge overlapping features." %
+                    conf.merge_features_how)
+            raise ValueError
+        if r < 0:
+            error("merge features failed (%d)." % r)
+            raise ValueError
+        info("%d features merged from %d old ones." % (n_new, n_old))
 
 
     # process SNP file.
     suffix = None
     if conf.snp_fn and "." in conf.snp_fn:
-        suffix = conf.snp_fn.split(".")[-1]
-        if len(suffix) <= 0:
+        if conf.snp_fn.endswith(".vcf"):
+            suffix = "vcf"
+        elif conf.snp_fn.endswith(".vcf.gz"):
+            suffix = "vcf.gz"
+        elif conf.snp_fn.endswith(".tsv"):
+            suffix = "tsv"
+        elif conf.snp_fn.endswith(".tsv.gz"):
+            suffix = "tsv.gz"
+        elif conf.snp_fn.endswith(".txt"):
+            suffix = "txt"
+        elif conf.snp_fn.endswith(".txt.gz"):
+            suffix = "txt.gz"
+        else:
             suffix = "tsv"
     else:
         suffix = "tsv"
@@ -68,8 +97,9 @@ def pp_core(conf):
 
     # process clone meta information file.
     # check duplicate records.
-    shutil.copy(conf.clone_meta_fn,
-        os.path.join(conf.out_dir, conf.out_prefix_raw + "clone_meta.tsv"))
+    raw_clone_meta_fn = os.path.join(
+        conf.out_dir, conf.out_prefix_raw + "clone_meta.tsv")
+    shutil.copy(conf.clone_meta_fn, raw_clone_meta_fn)
     clone_meta = load_clones(conf.clone_meta_fn)
     clones = clone_meta["clone"].unique()
     if len(clones) != clone_meta.shape[0]:
@@ -81,8 +111,9 @@ def pp_core(conf):
 
     # process CNA profile file.
     # merge CNA profiles.
-    shutil.copy(conf.cna_profile_fn,
-        os.path.join(conf.out_dir, conf.out_prefix_raw + "cna_profile.tsv"))
+    raw_cna_profile_fn = os.path.join(
+        conf.out_dir, conf.out_prefix_raw + "cna_profile.tsv")
+    shutil.copy(conf.cna_profile_fn, raw_cna_profile_fn)
     merged_cna_profile_fn = os.path.join(conf.out_dir, 
         conf.out_prefix_pp + "cna_profile.tsv")
     r, n_old, n_new = merge_cna_profile(
@@ -107,8 +138,9 @@ def pp_core(conf):
 
     # process cell annotation file.
     # subset cell annotations by cell type.
-    shutil.copy(conf.cell_anno_fn,
-        os.path.join(conf.out_dir, conf.out_prefix_raw + "cell_anno.tsv"))
+    raw_cell_anno_fn = os.path.join(
+        conf.out_dir, conf.out_prefix_raw + "cell_anno.tsv")
+    shutil.copy(conf.cell_anno_fn, raw_cell_anno_fn)
     cell_anno = load_cells(conf.cell_anno_fn)
     cell_anno_new = cell_anno[cell_anno["cell_type"].isin(cell_types)]
     cell_anno_fn_new = os.path.join(
@@ -138,7 +170,7 @@ def pp_core(conf):
 
         # clone_meta_fn_new : str
         #   Path to the file storing the clone annotations.
-        "clone_meta_fn_new": conf.clone_meta_fn,
+        "clone_meta_fn_new": raw_clone_meta_fn,
 
         # cna_profile_fn_new : str
         #   Path to the file storing the merged CNA profiles.
@@ -150,7 +182,7 @@ def pp_core(conf):
 
         # clone_meta_fn_new : str
         #   Path to the file storing the annotations of (phased) SNPs.
-        "snp_fn_new": conf.snp_fn
+        "snp_fn_new": raw_snp_fn
     }
     return(res)
 

@@ -180,8 +180,84 @@ def filter_features_by_chroms(in_fn, out_fn, chrom_list):
     return((0, n_old, n_new))
 
 
-def merge_features(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
-    """Merge adjacent features.
+def merge_features_first(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
+    """Merge adjacent features and only keep the first feature.
+    
+    Keep the first feature and remove features overlapping with it.
+
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input file.
+    out_fn : str
+        Path to the output file.
+    max_gap : int, default 1
+        The maximum gap length that is allowed between two adjacent regions.
+        `1` for strict adjacence.
+    new_name_how : str, default "join"
+        How to name the merged features.
+        "join": join the names of the two features with string "__".
+    
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative if error.
+    int
+        Number of records before merging.
+    int
+        Number of records after merging.
+    """
+    sep = "\t"
+    max_fn_len = 127
+    n_old, n_new = -1, -1
+
+
+    # load data
+    dat = {}
+    df = load_features(in_fn, sep = sep)
+    n_old = df.shape[0]
+    for i in range(df.shape[0]):
+        rec = df.loc[i, ]
+        chrom = rec["chrom"]
+        if chrom not in dat:
+            dat[chrom] = []
+        dat[chrom].append((rec["start"], rec["end"], rec["feature"]))
+
+
+    # merge adjacent features
+    for chrom, ch_dat in dat.items():
+        iv_list = sorted(ch_dat, 
+                    key = functools.cmp_to_key(__cmp_two_intervals))
+        s1, e1, f1 = iv_list[0]
+        new_list = []
+        for s2, e2, f2 in iv_list[1:]:
+            if s2 <= e1 + max_gap:    # overlap adjacent region
+                if new_name_how == "join":
+                    if len(f1) < max_fn_len:
+                        f1 = f1 + "__" + f2
+                        if len(f1) >= max_fn_len:
+                            f1 += "__"      # as a marker of truncated string.
+            else:                     # otherwise
+                new_list.append((s1, e1, f1))
+                s1, e1, f1 = s2, e2, f2
+        new_list.append((s1, e1, f1))
+        dat[chrom] = new_list
+
+
+    # save features
+    n_new = 0
+    fp = open(out_fn, "w")
+    for chrom in sorted(dat.keys()):
+        ch_dat = dat[chrom]
+        for s, e, f in ch_dat:
+            fp.write("\t".join([chrom, str(s), str(e), f]) + "\n")
+            n_new += 1
+    fp.close()
+    return((0, n_old, n_new))
+
+
+def merge_features_union(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
+    """Merge adjacent features and keep their union genomic range.
 
     Parameters
     ----------
