@@ -82,13 +82,14 @@ class Config:
         #   Prefix to the output preprocess-ed files.
         self.out_prefix_pp = "pp."
         
-        # merge_features_how : {"first", "union", None}
+        # merge_features_how : {"bidel", "first", "union", None}
         #   How to merge overlapping features.
+        #   "bidel" - remove overlapping bi-features.
         #   "first" - only keep the first feature.
         #       Keep the first feature and remove features overlapping with it.
         #   "union" - keep the union range of overlapping features.
         #   None - do not merge overlapping features.
-        self.merge_features_how = "first"
+        self.merge_features_how = "bidel"
 
     def show(self, fp = None, prefix = ""):
         if fp is None:

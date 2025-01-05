@@ -180,6 +180,82 @@ def filter_features_by_chroms(in_fn, out_fn, chrom_list):
     return((0, n_old, n_new))
 
 
+def merge_features_bidel(in_fn, out_fn, max_gap = 1, max_frac = 0.1):
+    """Merge adjacent features and remove overlapping bi-features.
+    
+    Here, bi-features means two features overlapping with each other.
+
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input file.
+    out_fn : str
+        Path to the output file.
+    max_gap : int, default 1
+        The maximum gap length that is allowed between two adjacent regions.
+        `1` for strict adjacence.
+    max_frac : float, default 0.1
+        The maximum fraction of overlapping part of either one of bi-features.
+        If exceeds the value, both features will be removed.
+    
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative if error.
+    int
+        Number of records before merging.
+    int
+        Number of records after merging.
+    """
+    sep = "\t"
+    max_fn_len = 127
+    n_old, n_new = -1, -1
+
+
+    # load data
+    dat = {}
+    df = load_features(in_fn, sep = sep)
+    n_old = df.shape[0]
+    for i in range(df.shape[0]):
+        rec = df.loc[i, ]
+        chrom = rec["chrom"]
+        if chrom not in dat:
+            dat[chrom] = []
+        dat[chrom].append((rec["start"], rec["end"], rec["feature"]))
+
+
+    # merge adjacent features
+    bi_dat = set()      # features to be removed.
+    for chrom, ch_dat in dat.items():
+        iv_list = sorted(ch_dat, 
+                    key = functools.cmp_to_key(__cmp_two_intervals))
+        n = len(iv_list)
+        for i in range(n - 1):
+            s1, e1, f1 = iv_list[i]
+            for j in range(i + 1, n):
+                s2, e2, f2 = iv_list[j]
+                if s2 <= e1 + max_gap:    # overlap adjacent region
+                    len1 = e1 - s1 + 1
+                    len2 = e2 - s2 + 1
+                    len_overlap = min(e1, e2) - s2 + 1
+                    if len_overlap / float(min(len1, len2)) > max_frac:
+                        bi_dat.add(f1)
+                        bi_dat.add(f2)
+
+
+    # save features
+    n_new = 0
+    fp = open(out_fn, "w")
+    for chrom in sorted(dat.keys()):
+        ch_dat = dat[chrom]
+        for s, e, f in ch_dat:
+            if f not in bi_dat:
+                fp.write("\t".join([chrom, str(s), str(e), f]) + "\n")
+                n_new += 1
+    fp.close()
+    return((0, n_old, n_new))
+
+
 def merge_features_first(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
     """Merge adjacent features and only keep the first feature.
     

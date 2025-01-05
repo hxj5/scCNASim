@@ -58,7 +58,7 @@ def usage(fp = sys.stdout, conf = None):
     s += "                              (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
     s += "      --minLEN INT            Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
     s += "      --minMAPQ INT           Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
-    s += "      --minINCLUDE FLOAT|INT  Minimum fraction or length of included part within specific feature [%d]\n" % conf.MIN_INCLUDE
+    s += "      --minINCLUDE FLOAT|INT  Minimum fraction or length of included part within specific feature [%f]\n" % conf.MIN_INCLUDE
     s += "      --countORPHAN           If use, do not skip anomalous read pairs.\n"
     s += "\n"
 

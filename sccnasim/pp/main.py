@@ -8,7 +8,8 @@ import time
 
 from logging import info, error
 from .config import Config
-from .io import merge_cna_profile, filter_features_by_chroms, merge_features_first, merge_features_union
+from .io import merge_cna_profile, filter_features_by_chroms, \
+    merge_features_bidel, merge_features_first, merge_features_union
 from ..io.base import load_cells, load_cnas, load_clones
 from ..utils.grange import format_chrom
 
@@ -46,7 +47,14 @@ def pp_core(conf):
         info("skip merging overlapping features.")
     else:
         r, n_old, n_new = None, None, None
-        if conf.merge_features_how == "first":
+        if conf.merge_features_how == "bidel":
+            r, n_old, n_new = merge_features_bidel(
+                in_fn = filter_chrom_feature_fn,
+                out_fn = merged_feature_fn,
+                max_gap = 1,
+                max_frac = 0.1
+            )
+        elif conf.merge_features_how == "first":
             r, n_old, n_new = merge_features_first(
                 in_fn = filter_chrom_feature_fn,
                 out_fn = merged_feature_fn,
