@@ -35,6 +35,7 @@ def main_wrapper(
     refseq_fn,
     out_dir,
     sam_list_fn = None, sample_ids = None, sample_id_fn = None,
+    merge_features_how = "none",
     size_factor = "libsize",
     marginal = "auto",
     kwargs_fit_sf = None,
@@ -114,6 +115,17 @@ def main_wrapper(
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
+    merge_features_how : {"none", "bidel", "first1", "first2", "largest", "union"}
+        How to merge overlapping features.
+        "none" - do not merge overlapping features.
+        "bidel" - remove overlapping bi-features.
+        "first1" - only keep the first feature.
+            Only keep the first of the consecutively overlapping features.
+        "first2" - only keep the first feature.
+            Keep the first feature and remove features overlapping with it.
+        "union" - keep the union range.
+            Keep the union genomic range of a group of consecutively
+            overlapping features.
     size_factor : str or None, default "libsize"
         The type of size factor.
         Currently, only support "libsize" (library size).
@@ -200,6 +212,10 @@ def main_wrapper(
     conf.sam_list_fn = sam_list_fn
     conf.sample_ids = sample_ids
     conf.sample_id_fn = sample_id_fn
+    
+    
+    # preprocessing.
+    conf.merge_features_how = merge_features_how
 
 
     # count simulation.
@@ -263,7 +279,8 @@ def main_core(conf):
         clone_meta_fn = conf.clone_meta_fn,
         cna_profile_fn = conf.cna_profile_fn,
         out_dir = os.path.join(conf.out_dir, "%d_pp" % step),
-        chroms = conf.chroms
+        chroms = conf.chroms,
+        merge_features_how = conf.merge_features_how
     )
     if pp_ret < 0:
         error("preprocessing failed (%d)." % pp_ret)

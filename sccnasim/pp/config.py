@@ -3,6 +3,11 @@
 import sys
 
 
+# TODO:
+# 1. Add new options for `merge_features_how`
+#    "smallest" or "largest" - only keep the smallest/largest feature.
+#        Only keep the smallest/largest of a group of consecutively 
+#        overlapping features.
 class Config:
     """Configuration of the `pp` (preprocessing) module.
     
@@ -56,6 +61,17 @@ class Config:
         The output folder.
     chroms : str, default "1,2,...22"
         Comma separated chromosome names.
+    merge_features_how : {"none", "bidel", "first1", "first2", "union"}
+        How to merge overlapping features.
+        "none" - do not merge overlapping features.
+        "bidel" - remove overlapping bi-features.
+        "first1" - only keep the first feature.
+            Only keep the first of the consecutively overlapping features.
+        "first2" - only keep the first feature.
+            Keep the first feature and remove features overlapping with it. 
+        "union" - keep the union range.
+            Keep the union genomic range of a group of consecutively
+            overlapping features.
     """
     def __init__(self):
         # command-line arguments/parameters.
@@ -66,6 +82,7 @@ class Config:
         self.cna_profile_fn = None
         self.out_dir = None
         self.chroms = ",".join([str(c) for c in range(1, 23)])
+        self.merge_features_how = "none"
 
         # derived parameters.
         
@@ -81,15 +98,6 @@ class Config:
         # out_prefix_pp : str
         #   Prefix to the output preprocess-ed files.
         self.out_prefix_pp = "pp."
-        
-        # merge_features_how : {"bidel", "first", "union", None}
-        #   How to merge overlapping features.
-        #   "bidel" - remove overlapping bi-features.
-        #   "first" - only keep the first feature.
-        #       Keep the first feature and remove features overlapping with it.
-        #   "union" - keep the union range of overlapping features.
-        #   None - do not merge overlapping features.
-        self.merge_features_how = "bidel"
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -110,7 +118,7 @@ class Config:
         s += "%schrom_list = %s\n" % (prefix, str(self.chrom_list))
         s += "%sout_prefix_raw = %s\n" % (prefix, self.out_prefix_raw)
         s += "%sout_prefix_pp = %s\n" % (prefix, self.out_prefix_pp)
-        s += "%smerge_features_how = %s\n" % (prefix, self.merge_features_how)
+        s += "%smerge_features_how = %s\n" % (prefix, str(self.merge_features_how))
         s += "%s\n" % prefix
 
         fp.write(s)

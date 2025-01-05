@@ -73,6 +73,17 @@ class Config:
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
+    merge_features_how : {"none", "bidel", "first1", "first2", "largest", "union"}
+        How to merge overlapping features.
+        "none" - do not merge overlapping features.
+        "bidel" - remove overlapping bi-features.
+        "first1" - only keep the first feature.
+            Only keep the first of the consecutively overlapping features.
+        "first2" - only keep the first feature.
+            Keep the first feature and remove features overlapping with it.
+        "union" - keep the union range.
+            Keep the union genomic range of a group of consecutively
+            overlapping features.
     size_factor : str or None, default "libsize"
         The type of size factor.
         Currently, only support "libsize" (library size).
@@ -149,6 +160,9 @@ class Config:
         self.sam_list_fn = None
         self.sample_ids = None
         self.sample_id_fn = None
+        
+        # preprocessing.
+        self.merge_features_how = "none"
 
         # count simulation.
         self.size_factor = "libsize"
@@ -192,6 +206,9 @@ class Config:
         s += "%ssam_list_file = %s\n" % (prefix, self.sam_list_fn)
         s += "%ssample_ids = %s\n" % (prefix, self.sample_ids)
         s += "%ssample_id_file = %s\n" % (prefix, self.sample_id_fn)
+        s += "%s\n" % prefix
+        
+        s += "%smerge_features_how = %s\n" % (prefix, str(self.merge_features_how))
         s += "%s\n" % prefix
 
         s += "%ssize_factor = %s\n" % (prefix, self.size_factor)
