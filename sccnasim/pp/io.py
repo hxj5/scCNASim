@@ -181,6 +181,44 @@ def filter_features_by_chroms(in_fn, out_fn, chrom_list):
     return((0, n_old, n_new))
 
 
+
+def merge_features_m1_m2(
+    in_fn, out_fn,
+    func1, method1,
+    func2, method2,
+    max_gap,
+    func1_kwargs,
+    func2_kwargs
+):
+    out_fn1 = "%s.%s" % (out_fn, method1)
+    r, n_old, n_new = func1(
+        in_fn = in_fn,
+        out_fn = out_fn1,
+        max_gap = max_gap,
+        **func1_kwargs
+    )
+    if r < 0:
+        error("method '%s' failed; errcode %d." % (method1, r))
+        raise ValueError
+    else:
+        info("method '%s': %d features merged from %d old ones." % \
+             (method1, n_new, n_old))
+        
+    r, n_old, n_new = func2(
+        in_fn = out_fn1,
+        out_fn = out_fn,
+        max_gap = max_gap,
+        **func2_kwargs
+    )
+    if r < 0:
+        error("method '%s' failed; errcode %d." % (method2, r))
+        raise ValueError
+    else:
+        info("method '%s': %d features merged from %d old ones." % \
+             (method2, n_new, n_old))
+    return((r, n_old, n_new))
+
+
 def merge_features_bidel(in_fn, out_fn, max_gap = 1, max_frac = 0.1):
     """Merge adjacent features and remove overlapping bi-features.
     
@@ -255,6 +293,9 @@ def merge_features_bidel(in_fn, out_fn, max_gap = 1, max_frac = 0.1):
                 n_new += 1
     fp.close()
     return((0, n_old, n_new))
+
+
+
 
 
 def merge_features_first1(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
@@ -418,7 +459,28 @@ def merge_features_first2(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
     return((0, n_old, n_new))
 
 
-def merge_features_quantile(in_fn, out_fn, max_gap = 1, quantile = 0.99):
+
+def merge_features_quantile1_union(
+    in_fn, out_fn, 
+    max_gap = 1, 
+    quantile = 0.99, 
+    new_name_how = "join"
+):        
+    res = merge_features_m1_m2(
+        in_fn = in_fn,
+        out_fn = out_fn,
+        func1 = merge_features_quantile1,
+        method1 = "merge_features_quantile1",
+        func2 = merge_features_union,
+        method2 = "merge_features_union",
+        max_gap = max_gap,
+        func1_kwargs = dict(quantile = quantile),
+        func2_kwargs = dict(new_name_how = new_name_how)
+    )
+    return(res)
+
+
+def merge_features_quantile1(in_fn, out_fn, max_gap = 1, quantile = 0.99):
     """Remove outliers of bi-features given specific quantile.
     
     Here, bi-features means two features overlapping with each other.
@@ -483,6 +545,110 @@ def merge_features_quantile(in_fn, out_fn, max_gap = 1, quantile = 0.99):
     
     olp_len = {f:len(d) for f, d in olp_dat.items()}
     q = np.quantile(list(olp_len.values()), q = quantile)
+    info("the %f quantile is %d." % (quantile, q))
+
+    # save features
+    n_new = 0
+    fp = open(out_fn, "w")
+    for chrom in sorted(dat.keys()):
+        ch_dat = dat[chrom]
+        for s, e, f in ch_dat:
+            if olp_len[f] > q:
+                continue
+            fp.write("\t".join([chrom, str(s), str(e), f]) + "\n")
+            n_new += 1
+    fp.close()
+    return((0, n_old, n_new))
+
+
+def merge_features_quantile2_union(
+    in_fn, out_fn, 
+    max_gap = 1, 
+    quantile = 0.99, 
+    new_name_how = "join"
+):        
+    res = merge_features_m1_m2(
+        in_fn = in_fn,
+        out_fn = out_fn,
+        func1 = merge_features_quantile2,
+        method1 = "merge_features_quantile2",
+        func2 = merge_features_union,
+        method2 = "merge_features_union",
+        max_gap = max_gap,
+        func1_kwargs = dict(quantile = quantile),
+        func2_kwargs = dict(new_name_how = new_name_how)
+    )
+    return(res)
+
+
+def merge_features_quantile2(in_fn, out_fn, max_gap = 1, quantile = 0.99):
+    """Remove outliers of bi-features given specific quantile.
+    
+    Here, bi-features means two features overlapping with each other.
+    Features which overlap with extremely high number of features will be
+    filtered.
+
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input file.
+    out_fn : str
+        Path to the output file.
+    max_gap : int, default 1
+        The maximum gap length that is allowed between two adjacent regions.
+        `1` for strict adjacence.
+    quantile : float, default 0.99
+        The features will be removed if the number of their overlapping
+        features exceeds the quantile among all features with at least one
+        overlapping features.
+    
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative if error.
+    int
+        Number of records before merging.
+    int
+        Number of records after merging.
+    """
+    sep = "\t"
+    max_fn_len = 127
+    n_old, n_new = -1, -1
+
+
+    # load data
+    dat = {}
+    df = load_features(in_fn, sep = sep)
+    n_old = df.shape[0]
+    for i in range(df.shape[0]):
+        rec = df.loc[i, ]
+        chrom = rec["chrom"]
+        if chrom not in dat:
+            dat[chrom] = []
+        dat[chrom].append((rec["start"], rec["end"], rec["feature"]))
+        
+    # merge adjacent features
+    olp_dat = dict()         # {str : set()} overlapping features.
+    for chrom, ch_dat in dat.items():
+        iv_list = sorted(ch_dat, 
+                    key = functools.cmp_to_key(__cmp_two_intervals))
+        n = len(iv_list)
+        for i in range(n - 1):
+            s1, e1, f1 = iv_list[i]
+            if f1 not in olp_dat:
+                olp_dat[f1] = set()
+            for j in range(i + 1, n):
+                s2, e2, f2 = iv_list[j]
+                if f2 not in olp_dat:
+                    olp_dat[f2] = set()
+                if s2 <= e1 + max_gap:    # overlap adjacent region
+                    olp_dat[f1].add(f2)
+                    olp_dat[f2].add(f1)
+    
+    olp_len = {f:len(d) for f, d in olp_dat.items()}
+    olp_len_arr = np.array(list(olp_len.values()))
+    olp_len_gt0 = olp_len_arr[olp_len_arr > 0]
+    q = np.quantile(olp_len_gt0, q = quantile)
     info("the %f quantile is %d." % (quantile, q))
 
     # save features
