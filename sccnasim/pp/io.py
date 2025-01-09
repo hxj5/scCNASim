@@ -1,7 +1,8 @@
 # io.py - input and output.
 
 import functools
-from logging import error
+import numpy as np
+from logging import info, error
 from ..io.base import load_cnas, load_features, save_features
 from ..utils.grange import format_chrom, reg2str
 
@@ -411,6 +412,87 @@ def merge_features_first2(in_fn, out_fn, max_gap = 1, new_name_how = "join"):
     for chrom in sorted(dat.keys()):
         ch_dat = dat[chrom]
         for s, e, f in ch_dat:
+            fp.write("\t".join([chrom, str(s), str(e), f]) + "\n")
+            n_new += 1
+    fp.close()
+    return((0, n_old, n_new))
+
+
+def merge_features_quantile(in_fn, out_fn, max_gap = 1, quantile = 0.99):
+    """Remove outliers of bi-features given specific quantile.
+    
+    Here, bi-features means two features overlapping with each other.
+    Features which overlap with extremely high number of features will be
+    filtered.
+
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input file.
+    out_fn : str
+        Path to the output file.
+    max_gap : int, default 1
+        The maximum gap length that is allowed between two adjacent regions.
+        `1` for strict adjacence.
+    quantile : float, default 0.99
+        The features will be removed if the number of their overlapping
+        features exceeds the quantile among all features.
+    
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative if error.
+    int
+        Number of records before merging.
+    int
+        Number of records after merging.
+    """
+    sep = "\t"
+    max_fn_len = 127
+    n_old, n_new = -1, -1
+
+
+    # load data
+    dat = {}
+    df = load_features(in_fn, sep = sep)
+    n_old = df.shape[0]
+    for i in range(df.shape[0]):
+        rec = df.loc[i, ]
+        chrom = rec["chrom"]
+        if chrom not in dat:
+            dat[chrom] = []
+        dat[chrom].append((rec["start"], rec["end"], rec["feature"]))
+        
+    # merge adjacent features
+    olp_dat = dict()         # {str : set()} overlapping features.
+    for chrom, ch_dat in dat.items():
+        iv_list = sorted(ch_dat, 
+                    key = functools.cmp_to_key(__cmp_two_intervals))
+        n = len(iv_list)
+        for i in range(n - 1):
+            s1, e1, f1 = iv_list[i]
+            if f1 not in olp_dat:
+                olp_dat[f1] = set()
+            for j in range(i + 1, n):
+                s2, e2, f2 = iv_list[j]
+                if f2 not in olp_dat:
+                    olp_dat[f2] = set()
+                if s2 <= e1 + max_gap:    # overlap adjacent region
+                    olp_dat[f1].add(f2)
+                    olp_dat[f2].add(f1)
+    
+    olp_len = {f:len(d) for f, d in olp_dat.items()}
+    q = np.quantile(list(olp_len.values()), q = quantile)
+    info("the %f quantile is %d." % (quantile, q))
+
+    # save features
+    n_new = 0
+    fp = open(out_fn, "w")
+    for chrom in sorted(dat.keys()):
+        ch_dat = dat[chrom]
+        for s, e, f in ch_dat:
+            if olp_len[f] > q:
+                continue
             fp.write("\t".join([chrom, str(s), str(e), f]) + "\n")
             n_new += 1
     fp.close()

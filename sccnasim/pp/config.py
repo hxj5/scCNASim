@@ -61,14 +61,15 @@ class Config:
         The output folder.
     chroms : str, default "1,2,...22"
         Comma separated chromosome names.
-    merge_features_how : {"none", "bidel", "first1", "first2", "union"}
+    merge_features_how : {"none", "bidel", "first1", "first2", "quantile", "union"}
         How to merge overlapping features.
         "none" - do not merge overlapping features.
         "bidel" - remove overlapping bi-features.
         "first1" - only keep the first feature.
             Only keep the first of the consecutively overlapping features.
         "first2" - only keep the first feature.
-            Keep the first feature and remove features overlapping with it. 
+            Keep the first feature and remove features overlapping with it.
+        "quantile" - remove outliers of bi-features given specific quantile.
         "union" - keep the union range.
             Keep the union genomic range of a group of consecutively
             overlapping features.
