@@ -115,7 +115,7 @@ def main_wrapper(
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
-    merge_features_how : {"none", "bidel", "first1", "first2", "largest", "union"}
+    merge_features_how : str, default "none"
         How to merge overlapping features.
         "none" - do not merge overlapping features.
         "bidel" - remove overlapping bi-features.
@@ -123,6 +123,13 @@ def main_wrapper(
             Only keep the first of the consecutively overlapping features.
         "first2" - only keep the first feature.
             Keep the first feature and remove features overlapping with it.
+        "quantile1" - remove outliers of bi-features.
+            Remove outliers given specific quantile among all features.
+        "quantile1_union" - "quantile1" followed by "union".
+        "quantile2" - remove outliers of bi-features.
+            Remove outliers given specific quantile among all features 
+            overlapping with at least one features.
+        "quantile2_union" - "quantile2" followed by "union".
         "union" - keep the union range.
             Keep the union genomic range of a group of consecutively
             overlapping features.

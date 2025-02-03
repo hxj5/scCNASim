@@ -3,6 +3,16 @@
    History
    =======
 
+
+Release v0.1.1 (03/02/2025)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* pp: add ``merge_features_how`` - How to merge overlapping features.
+* Support both INT and FLOAT as value of ``--minINCLUDE``.
+  If float between (0, 1), it is the minimum fraction of included length.
+* Set default value of ``--minINCLUDE`` or ``min_include`` as 0.9.
+* docs: add TODO.
+
+
 Release v0.1.0 (06/12/2024)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Add ``--minINCLUDE`` option for read filtering.
