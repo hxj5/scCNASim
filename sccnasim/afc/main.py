@@ -51,8 +51,8 @@ def usage(fp = sys.stdout, conf = None):
     s += "  -p, --ncores INT       Number of processes [%d]\n" % conf.NCORES
     s += "      --cellTAG STR      Tag for cell barcodes, set to None when using sample IDs [%s]\n" % conf.CELL_TAG
     s += "      --UMItag STR       Tag for UMI, set to None when reads only [%s]\n" % conf.UMI_TAG
-    #s += "      --minCOUNT INT     Minimum aggragated count for SNP [%d]\n" % conf.MIN_COUNT
-    #s += "      --minMAF FLOAT     Minimum minor allele fraction for SNP [%f]\n" % conf.MIN_MAF
+    s += "      --minCOUNT INT     Minimum aggragated count for SNP [%d]\n" % conf.MIN_COUNT
+    s += "      --minMAF FLOAT     Minimum minor allele fraction for SNP [%f]\n" % conf.MIN_MAF
     s += "  -D, --debug INT        Used by developer for debugging [%d]\n" % conf.DEBUG
     s += "\n"
     s += "Read filtering:\n"
@@ -102,7 +102,7 @@ def afc_main(argv):
 
             "ncores=", 
             "cellTAG=", "UMItag=", 
-            #"minCOUNT=", "minMAF=",
+            "minCOUNT=", "minMAF=",
             "debug=",
 
             "inclFLAG=", "exclFLAG=",
@@ -127,8 +127,8 @@ def afc_main(argv):
         elif op in ("-p", "--ncores"): conf.ncores = int(val)
         elif op in (      "--celltag"): conf.cell_tag = val
         elif op in (      "--umitag"): conf.umi_tag = val
-        #elif op in (      "--mincount"): conf.min_count = int(val)
-        #elif op in (      "--minmaf"): conf.min_maf = float(val)
+        elif op in (      "--mincount"): conf.min_count = int(val)
+        elif op in (      "--minmaf"): conf.min_maf = float(val)
         elif op in ("-D", "--debug"): conf.debug = int(val)
 
         elif op in ("--inclflag"): conf.incl_flag = int(val)
@@ -159,7 +159,7 @@ def afc_wrapper(
     debug_level = 0,
     ncores = 1,
     cell_tag = "CB", umi_tag = "UB",
-    #min_count = 1, min_maf = 0,
+    min_count = 20, min_maf = 0.1,
     min_mapq = 20, min_len = 30,
     min_include = 0.9,
     incl_flag = 0, excl_flag = -1,
@@ -218,6 +218,10 @@ def afc_wrapper(
         Tag for cell barcodes, set to None when using sample IDs.
     umi_tag : str or None, default "UB"
         Tag for UMI, set to None when reads only.
+    min_count : int, default 20
+        Minimum aggragated count for SNP.
+    min_maf : float, default 0.1
+        Minimum minor allele fraction for SNP.
     min_mapq : int, default 20
         Minimum MAPQ for read filtering.
     min_len : int, default 30
@@ -256,8 +260,8 @@ def afc_wrapper(
     conf.cell_tag = cell_tag
     conf.umi_tag = umi_tag
     conf.ncores = ncores
-    #conf.min_count = min_count
-    #conf.min_maf = min_maf
+    conf.min_count = min_count
+    conf.min_maf = min_maf
 
     conf.min_mapq = min_mapq
     conf.min_len = min_len

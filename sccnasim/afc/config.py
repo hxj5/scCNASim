@@ -56,6 +56,10 @@ class Config:
         Tag for UMI, set to None when reads only.
     ncores : int, default 1
         Number of cores.
+    min_count : int, default 20
+        Minimum aggragated count for SNP.
+    min_maf : float, default 0.1
+        Minimum minor allele fraction for SNP.
     min_mapq : int, default 20
         Minimum MAPQ for read filtering.
     min_len : int, default 30
@@ -259,8 +263,8 @@ class DefaultConfig:
         self.UMI_TAG = "UB"
         self.UMI_TAG_BC = "UB"    # the default umi tag for 10x data.
         self.NCORES = 1
-        self.MIN_COUNT = 1 
-        self.MIN_MAF = 0
+        self.MIN_COUNT = 20
+        self.MIN_MAF = 0.1
 
         self.MIN_MAPQ = 20
         self.MIN_LEN = 30
