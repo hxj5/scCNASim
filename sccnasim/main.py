@@ -15,6 +15,7 @@ import time
 
 from logging import info, error
 from .afc.main import afc_wrapper
+from .app import APP, VERSION
 from .config import Config
 from .cs.main import cs_wrapper
 from .io.base import load_cells, load_h5ad
@@ -417,6 +418,7 @@ def main_run(conf):
     time_str = time.strftime(
         "%Y-%m-%d %H:%M:%S", time.localtime(start_time))
     info("start time: %s." % time_str)
+    info("%s (VERSION %s)." % (APP, VERSION))
 
     try:
         res = main_core(conf)
