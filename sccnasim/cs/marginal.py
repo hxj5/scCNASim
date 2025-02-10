@@ -438,7 +438,7 @@ def fit_RD_feature(
                     flag |= (1 << 3)
                     if ret_nb != 0:
                         flag |= (1 << 7)
-                        model, par = "nb", estimate_dist_nb(x, s)
+                        model, par = "poi", estimate_dist_poi(x, s)
                         break
                     if np.min(x) > 0:      # no zero-inflation.
                         model, par, mres = "nb", par_nb, mres_nb
@@ -458,7 +458,7 @@ def fit_RD_feature(
                         flag |= (1 << 3)
                         if ret_nb != 0:
                             flag |= (1 << 7)
-                            model, par = "nb", estimate_dist_nb(x, s)
+                            model, par = "poi", estimate_dist_poi(x, s)
                             break
                     model, par, mres = "nb", par_nb, mres_nb
                     break
@@ -485,7 +485,7 @@ def fit_RD_feature(
                 flag |= (1 << 3)
                 if ret_nb != 0:
                     flag |= (1 << 7)
-                    model, par = "nb", estimate_dist_nb(x, s)
+                    model, par = "poi", estimate_dist_poi(x, s)
                     break
                 model, par, mres = "nb", par_nb, mres_nb
                 break
