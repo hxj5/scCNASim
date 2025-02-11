@@ -4,6 +4,29 @@
    =======
 
 
+Release v0.1.2 (11/02/2025)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This version mainly aims to reduce the variation in the simulated BAF signals
+of normal features/regions.
+
+* afc: set default min_count=20, min_maf=0.1.
+  It may filter some input phased SNPs whose expression levels in the seed
+  data are low.
+  Motivation: if one gene contains mainly lowly-expressed SNPs, then its
+  haplotype-specific counts (Hap-A and Hap-B) will be small, and its simulated
+  Hap-A and Hap-B counts are probably also small, hence AF may be biased
+  towards 0 or 1.
+* cs: use Poisson distribution when fitting NB failed.
+  Previously, empirical parameters of NB were used when fitting NB failed.
+  We expect Poisson to produce lower variation level in simulated counts, 
+  compared to NB, especially for lowly-expressed features.
+* pp: set "quantile2" as default option of ``merge_features_how``.
+  Both "quantile2" and "quantile2_union" strategies can remove features that
+  overlap large number of other features, while "quantile2" seem to produce
+  stronger CNA signals.
+* main: logging APP and VERSION.
+
+
 Release v0.1.1 (03/02/2025)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * pp: add ``merge_features_how`` - How to merge overlapping features.
