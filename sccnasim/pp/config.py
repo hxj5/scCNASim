@@ -3,11 +3,6 @@
 import sys
 
 
-# TODO:
-# 1. Add new options for `merge_features_how`
-#    "smallest" or "largest" - only keep the smallest/largest feature.
-#        Only keep the smallest/largest of a group of consecutively 
-#        overlapping features.
 class Config:
     """Configuration of the `pp` (preprocessing) module.
     
@@ -61,7 +56,7 @@ class Config:
         The output folder.
     chroms : str, default "1,2,...22"
         Comma separated chromosome names.
-    merge_features_how : str, default "none"
+    merge_features_how : str, default "quantile2"
         How to merge overlapping features.
         "none" - do not merge overlapping features.
         "bidel" - remove overlapping bi-features.
@@ -89,7 +84,7 @@ class Config:
         self.cna_profile_fn = None
         self.out_dir = None
         self.chroms = ",".join([str(c) for c in range(1, 23)])
-        self.merge_features_how = "none"
+        self.merge_features_how = "quantile2"
 
         # derived parameters.
         

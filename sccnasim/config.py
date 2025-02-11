@@ -73,7 +73,7 @@ class Config:
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
-    merge_features_how : str, default "none"
+    merge_features_how : str, default "quantile2"
         How to merge overlapping features.
         "none" - do not merge overlapping features.
         "bidel" - remove overlapping bi-features.
@@ -169,7 +169,7 @@ class Config:
         self.sample_id_fn = None
         
         # preprocessing.
-        self.merge_features_how = "none"
+        self.merge_features_how = "quantile2"
 
         # count simulation.
         self.size_factor = "libsize"

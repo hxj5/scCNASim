@@ -267,7 +267,7 @@ def pp_run(conf):
 def pp_wrapper(
     cell_anno_fn, feature_fn, snp_fn,
     clone_meta_fn, cna_profile_fn,
-    out_dir, chroms = None, merge_features_how = "none"
+    out_dir, chroms = None, merge_features_how = "quantile2"
 ):
     """Wrapper for running the pp (preprocessing) module.
 
@@ -322,7 +322,7 @@ def pp_wrapper(
     chroms : str or None, default None
         Comma separated chromosome names.
         If None, it will be set as "1,2,...22".
-    merge_features_how : str, default "none"
+    merge_features_how : str, default "quantile2"
         How to merge overlapping features.
         "none" - do not merge overlapping features.
         "bidel" - remove overlapping bi-features.

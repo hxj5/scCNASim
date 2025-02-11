@@ -36,7 +36,7 @@ def main_wrapper(
     refseq_fn,
     out_dir,
     sam_list_fn = None, sample_ids = None, sample_id_fn = None,
-    merge_features_how = "none",
+    merge_features_how = "quantile2",
     size_factor = "libsize",
     marginal = "auto",
     kwargs_fit_sf = None,
@@ -116,7 +116,7 @@ def main_wrapper(
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
-    merge_features_how : str, default "none"
+    merge_features_how : str, default "quantile2"
         How to merge overlapping features.
         "none" - do not merge overlapping features.
         "bidel" - remove overlapping bi-features.
