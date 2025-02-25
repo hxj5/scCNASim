@@ -66,7 +66,7 @@ def cs_core(conf):
         max_libsize = min(conf.qc_max_library_size, libsize_up)
     min_features = conf.qc_min_features
     if min_features < 1:
-        min_features = adata.shape[1] * min_features
+        min_features = conf.adata.shape[1] * min_features
         
     qc_flag = np.logical_and(np.logical_and(sf >= min_libsize, sf <= max_libsize), ef >= min_features)
     conf.adata = conf.adata[qc_flag, :].copy()

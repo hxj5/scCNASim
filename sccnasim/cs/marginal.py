@@ -414,7 +414,7 @@ def fit_RD_feature(
                     model, par = "poi", estimate_dist_poi(x, s)
                     break
                 elif mres_poi["converged"] is False:
-                    flag | = (1 << 10)
+                    flag |= (1 << 10)
                     model, par = "poi", estimate_dist_poi(x, s)
                     break                    
                 if np.min(x) > 0:          # no zero-inflation.
@@ -429,7 +429,7 @@ def fit_RD_feature(
                     model, par, mres = "poi", par_poi, mres_poi
                     break
                 elif mres_zip["converged"] is False:
-                    flag | = (1 << 12)
+                    flag |= (1 << 12)
                     model, par = "poi", estimate_dist_poi(x, s)
                     break
 
@@ -453,7 +453,7 @@ def fit_RD_feature(
                         model, par = "poi", estimate_dist_poi(x, s)
                         break
                     elif mres_nb["converged"] is False:
-                        flag | = (1 << 11)
+                        flag |= (1 << 11)
                         model, par = "poi", estimate_dist_poi(x, s)
                         break
                     if np.min(x) > 0:      # no zero-inflation.
@@ -477,13 +477,13 @@ def fit_RD_feature(
                             model, par = "poi", estimate_dist_poi(x, s)
                             break
                         elif mres_nb["converged"] is False:
-                            flag | = (1 << 11)
+                            flag |= (1 << 11)
                             model, par = "poi", estimate_dist_poi(x, s)
                             break
                     model, par, mres = "nb", par_nb, mres_nb
                     break
                 elif mres_zinb["converged"] is False:
-                    flag | = (1 << 13)
+                    flag |= (1 << 13)
                     model, par = "poi", estimate_dist_poi(x, s)
                     break
                 
@@ -512,7 +512,7 @@ def fit_RD_feature(
                     model, par = "poi", estimate_dist_poi(x, s)
                     break
                 elif mres_nb["converged"] is False:
-                    flag | = (1 << 11)
+                    flag |= (1 << 11)
                     model, par = "poi", estimate_dist_poi(x, s)
                     break
                 model, par, mres = "nb", par_nb, mres_nb
