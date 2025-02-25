@@ -208,9 +208,9 @@ def simu_libsize_cell_type(params, n, low = None, high = None):
     
     if dist in ("normal", "t"):
         if low is None:
-            low = np.max([10, params["min"]*0.8, params["min"]-params["sd"]*0.2])
+            low = np.max([1000, params["min"] * 0.95])
         if high is None:
-            high = params["max"] + params["sd"]*0.2
+            high = params["max"] * 1.05
         s[s < low] = low
         s[s > high] = high
     return(s)
