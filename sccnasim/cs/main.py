@@ -48,7 +48,31 @@ def cs_core(conf):
         (conf.adata.shape, adata.shape))
     conf.adata = adata.copy()
     adata = None
-
+    
+    
+    # filter low-quality cells, e.g, with very small library size or small
+    # number of expressed features.
+    X = conf.adata.layers["A"] + conf.adata.layers["B"] + \
+            conf.adata.layers["U"]
+    sf = np.sum(X, axis = 1)
+    ef = np.sum(X > 0, axis = 1)     # number of expressed features.
+    
+    libsize_low = np.quantile(sf, conf.qc_cw_low_quantile)
+    libsize_up = np.quantile(sf, conf.qc_cw_up_quantile)
+    min_libsize = max(conf.qc_min_library_size, libsize_low)
+    if conf.qc_max_library_size is None:
+        max_libsize = libsize_up
+    else:
+        max_libsize = min(conf.qc_max_library_size, libsize_up)
+    min_features = conf.qc_min_features
+    if min_features < 1:
+        min_features = adata.shape[1] * min_features
+        
+    qc_flag = np.logical_and(np.logical_and(sf >= min_libsize, sf <= max_libsize), ef >= min_features)
+    conf.adata = conf.adata[qc_flag, :].copy()
+    info("QC: %d cells filtered (min_libsize=%.2f; max_libsize=%.2f; min_features=%.2f)." % \
+        (np.sum(~qc_flag), min_libsize, max_libsize, min_features))
+    
 
     # get overlapping features for each CNA profile record.
     cna_fet = dict()

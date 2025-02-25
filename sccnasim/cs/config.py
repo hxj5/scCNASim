@@ -111,6 +111,32 @@ class Config:
         # out_prefix : str
         #   Prefix to the output files.
         self.out_prefix = COMMAND + "."
+        
+        
+        # internal parameters.
+        
+        # qc_min_library_size : int
+        #   Minimum library size of one cell.
+        self.qc_min_library_size = 1000
+        
+        # qc_max_library_size : int or None
+        #   Maximum library size of one cell.
+        #   If ``None``, there is no limit.
+        self.qc_max_library_size = None
+        
+        # qc_min_features : int or float
+        #   Minimum expressed features in one cell.
+        #   If ``float``, it is the fraction of all input features.
+        self.qc_min_features = 0.01
+        
+        # qc_cw_low_quantile : float
+        #   The lower quantile of cell-wise statistics.
+        self.qc_cw_low_quantile = 0.01
+        
+        # qc_cw_up_quantile : float
+        #   The upper quantile of cell-wise statistics.
+        self.qc_cw_up_quantile = 0.99
+        
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
