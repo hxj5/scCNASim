@@ -354,6 +354,10 @@ def fit_RD_feature(
         7  - NB fit failed?
         8  - ZIP fit failed?
         9  - ZINB fit failed?
+        10 - Poisson not converged?
+        11 - NB not converged?
+        12 - ZIP not converged?
+        13 - ZINB not converged?
     model : str
         Model name, should be one of "poi", "nb", "zip", and "zinb".
     par : dict
@@ -409,6 +413,10 @@ def fit_RD_feature(
                     flag |= (1 << 6)
                     model, par = "poi", estimate_dist_poi(x, s)
                     break
+                elif mres_poi["converged"] is False:
+                    flag | = (1 << 10)
+                    model, par = "poi", estimate_dist_poi(x, s)
+                    break                    
                 if np.min(x) > 0:          # no zero-inflation.
                     model, par, mres = "poi", par_poi, mres_poi
                     break
@@ -419,6 +427,10 @@ def fit_RD_feature(
                 if ret_zip != 0:
                     flag |= (1 << 8)
                     model, par, mres = "poi", par_poi, mres_poi
+                    break
+                elif mres_zip["converged"] is False:
+                    flag | = (1 << 12)
+                    model, par = "poi", estimate_dist_poi(x, s)
                     break
 
                 # check significance level of zero-inflation via GLR test.
@@ -438,6 +450,10 @@ def fit_RD_feature(
                     flag |= (1 << 3)
                     if ret_nb != 0:
                         flag |= (1 << 7)
+                        model, par = "poi", estimate_dist_poi(x, s)
+                        break
+                    elif mres_nb["converged"] is False:
+                        flag | = (1 << 11)
                         model, par = "poi", estimate_dist_poi(x, s)
                         break
                     if np.min(x) > 0:      # no zero-inflation.
@@ -460,7 +476,15 @@ def fit_RD_feature(
                             flag |= (1 << 7)
                             model, par = "poi", estimate_dist_poi(x, s)
                             break
+                        elif mres_nb["converged"] is False:
+                            flag | = (1 << 11)
+                            model, par = "poi", estimate_dist_poi(x, s)
+                            break
                     model, par, mres = "nb", par_nb, mres_nb
+                    break
+                elif mres_zinb["converged"] is False:
+                    flag | = (1 << 13)
+                    model, par = "poi", estimate_dist_poi(x, s)
                     break
                 
                 if marginal == "auto":      # assert mres_nb is not None
@@ -485,6 +509,10 @@ def fit_RD_feature(
                 flag |= (1 << 3)
                 if ret_nb != 0:
                     flag |= (1 << 7)
+                    model, par = "poi", estimate_dist_poi(x, s)
+                    break
+                elif mres_nb["converged"] is False:
+                    flag | = (1 << 11)
                     model, par = "poi", estimate_dist_poi(x, s)
                     break
                 model, par, mres = "nb", par_nb, mres_nb
