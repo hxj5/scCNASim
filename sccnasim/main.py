@@ -149,7 +149,7 @@ def main_wrapper(
         The additional kwargs passed to function 
         :func:`~marginal.fit_libsize_wrapper` for fitting size factors.
         The available arguments are:
-        - dist : {"normal", "t"}
+        - dist : {"lognormal", "swr", "normal", "t"}
             Type of distribution.
         If None, set to `{}`.
     kwargs_fit_rd : dict or None, default None

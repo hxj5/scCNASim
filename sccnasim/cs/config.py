@@ -64,7 +64,7 @@ class Config:
         The additional kwargs passed to function 
         :func:`~marginal.fit_libsize_wrapper` for fitting size factors.
         The available arguments are:
-        - dist : {"normal", "t"}
+        - dist : {"lognormal", "swr", "normal", "t"}
             Type of distribution.
     kwargs_fit_rd : dict
         The additional kwargs passed to function 
@@ -111,11 +111,14 @@ class Config:
         # out_prefix : str
         #   Prefix to the output files.
         self.out_prefix = COMMAND + "."
+
+
+        # internal parameters.
         
         # def_kwargs_fit_sf : dict
         #   Default settings passing to `kwargs_fit_sf`.
         self.def_kwargs_fit_sf = {
-            "dist": "log-normal"
+            "dist": "lognormal"
         }
         
         # def_kwargs_fit_rd : dict
@@ -125,9 +128,6 @@ class Config:
             "max_iter": 100,
             "pval_cutoff": 0.05
         }
-
-
-        # internal parameters.
         
         # qc_min_library_size : int
         #   Minimum library size of one cell.

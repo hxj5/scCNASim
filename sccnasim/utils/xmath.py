@@ -73,6 +73,24 @@ def estimate_dist_normal(x):
     return(par)
 
 
+def estimate_dist_lognormal(x, shift = 0):
+    """Estimator for parameters of the log-normal distribution.
+    
+    Parameters
+    ----------
+    shift : float, default 0
+        The input `x` will be changed to `x + shift`.
+        It is useful for count data, where `log1p` is commonly used.
+    """
+    x = np.log(x + shift)
+    par = {
+        "mu": np.mean(x) + 0.0,
+        "sigma": np.std(x) + 0.0,
+        "shift": shift
+    }
+    return(par)
+
+
 def estimate_dist_poi(x, s = None):
     """Estimator for parameters of the Poisson distribution.
 

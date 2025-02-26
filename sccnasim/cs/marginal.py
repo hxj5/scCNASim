@@ -12,8 +12,9 @@ from logging import info, error
 from ..utils import base as xbase
 from ..utils import xmath
 from ..utils.xmath import   \
-    estimate_dist_nb, estimate_dist_normal, estimate_dist_poi,  \
-    fit_dist_nb, fit_dist_poi, fit_dist_zinb, fit_dist_zip,     \
+    estimate_dist_nb, estimate_dist_poi,  \
+    estimate_dist_normal, estimate_dist_lognormal,  \
+    fit_dist_nb, fit_dist_poi, fit_dist_zinb, fit_dist_zip,   \
     fit_dist_t
 from ..utils.xmatrix import sparse2array
 
@@ -22,7 +23,7 @@ from ..utils.xmatrix import sparse2array
 
 def fit_libsize_cell_type(
     X,
-    dist = "normal"
+    dist = "lognormal"
 ):
     """Fit library size for one cell type.
 
@@ -30,7 +31,7 @@ def fit_libsize_cell_type(
     ----------
     X : numpy.ndarray
         The *cell x feature* matrix containing sample values.
-    dist : {"normal", "t"}
+    dist : {"lognormal", "swr", "normal", "t"}
         Type of distribution.
 
     Returns
@@ -38,13 +39,17 @@ def fit_libsize_cell_type(
     dict
         The fitted parameters, will be used by downstream simulation.
     """
-    if dist not in ("normal", "t"):
+    if dist not in ("lognormal", "swr", "normal", "t"):
         error("invalid distribution '%s'." % dist)
         raise ValueError
     
     s = np.sum(X, axis = 1)
     par = None
-    if dist == "normal":
+    if dist == "lognormal":
+        par = estimate_dist_lognormal(s, shift = 1)
+    elif dist == "swr":     # sampling with replacement.
+        par = {"s": s}
+    elif dist == "normal":
         par = estimate_dist_normal(s)
     else:
         ret, par, mres = fit_dist_t(s)
@@ -66,7 +71,7 @@ def fit_libsize(
     X,
     cell_types,
     cell_type_fit,
-    dist = "normal",
+    dist = "lognormal",
     verbose = True
 ):
     """Fit library size for all cell types.
@@ -80,7 +85,7 @@ def fit_libsize(
         Its length and order should match the rows of `X`.
     cell_type_fit : list of str
         The cell types to be fitted.
-    dist : {"normal", "t"}
+    dist : {"lognormal", "swr", "normal", "t"}
         Type of distribution.
     verbose : bool, default True
         Whether to show detailed logging information.
@@ -99,7 +104,7 @@ def fit_libsize(
     assert len(cell_type_fit) == len(set(cell_type_fit)) and \
         np.all(np.isin(cell_type_fit, all_cell_types))
 
-    if dist not in ("normal", "t"):
+    if dist not in ("lognormal", "swr", "normal", "t"):
         error("invalid distribution '%s'." % dist)
         raise ValueError
 
@@ -124,7 +129,7 @@ def fit_libsize(
 def fit_libsize_wrapper(
     xdata,
     cell_type_fit = None,
-    dist = "normal",
+    dist = "lognormal",
     verbose = True
 ):
     """Wrapper of fitting library size for all cell types.
@@ -137,7 +142,7 @@ def fit_libsize_wrapper(
     cell_type_fit : list of str or None, default None
         A list of cell types (str) whose features will be fitted.
         If `None`, use all unique cell types in `xdata`.
-    dist : {"normal", "t"}
+    dist : {"lognormal", "swr", "normal", "t"}
         Type of distribution.
     verbose : bool, default True
         Whether to show detailed logging information.
@@ -159,7 +164,7 @@ def fit_libsize_wrapper(
     if cell_type_fit is None:
         cell_type_fit = sorted(list(all_cell_types))
 
-    if dist not in ("normal", "t"):
+    if dist not in ("lognormal", "swr", "normal", "t"):
         error("invalid distribution '%s'." % dist)
         raise ValueError
 
@@ -198,7 +203,12 @@ def simu_libsize_cell_type(params, n, low = None, high = None):
     """
     par, dist = params["par"], params["dist"]
     s = None
-    if dist == "normal":
+    if dist == "lognormal":
+        log_s = np.random.normal(par["mu"], par["sigma"], size = n)
+        s = np.exp(log_s) - par["shift"]
+    elif dist == "swr":
+        s = np.random.choice(par["s"], size = n, replace = True)
+    elif dist == "normal":
         s = np.random.normal(par["mu"], par["sigma"], size = n)
     elif dist == "t":
         s = sp.stats.t.rvs(par["df"], par["loc"], par["scale"], size = n)
@@ -206,13 +216,12 @@ def simu_libsize_cell_type(params, n, low = None, high = None):
         error("invalid distribution '%s'." % dist)
         raise ValueError
     
-    if dist in ("normal", "t"):
-        if low is None:
-            low = np.max([1000, params["min"] * 0.95])
-        if high is None:
-            high = params["max"] * 1.05
-        s[s < low] = low
-        s[s > high] = high
+    if low is None:
+        low = np.max([1000, params["min"] * 0.95])
+    if high is None:
+        high = params["max"] * 1.05
+    s[s < low] = low
+    s[s > high] = high
     return(s)
 
 
