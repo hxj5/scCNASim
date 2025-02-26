@@ -112,7 +112,21 @@ class Config:
         #   Prefix to the output files.
         self.out_prefix = COMMAND + "."
         
+        # def_kwargs_fit_sf : dict
+        #   Default settings passing to `kwargs_fit_sf`.
+        self.def_kwargs_fit_sf = {
+            "dist": "log-normal"
+        }
         
+        # def_kwargs_fit_rd : dict
+        #   Default settings passing to `kwargs_fit_rd`.
+        self.def_kwargs_fit_rd = {
+            "min_nonzero_num": 5,
+            "max_iter": 100,
+            "pval_cutoff": 0.05
+        }
+
+
         # internal parameters.
         
         # qc_min_library_size : int

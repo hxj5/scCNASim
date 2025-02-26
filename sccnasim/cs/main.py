@@ -433,10 +433,17 @@ def prepare_config(conf):
     
     assert conf.marginal in ("auto", "poisson", "nb", "zinb")
 
-    conf.kwargs_fit_sf = {k:v for k, v in conf.kwargs_fit_sf.items() \
-                        if k in ("dist", )}
-    conf.kwargs_fit_rd = {k:v for k, v in conf.kwargs_fit_rd.items() \
-                    if k in ("min_nonzero_num", "max_iter", "pval_cutoff")}
+    kwargs_fit_sf = conf.def_kwargs_fit_sf.copy()
+    for k, v in kwargs_fit_sf.items():
+        if k in conf.kwargs_fit_sf:
+            kwargs_fit_sf[k] = conf.kwargs_fit_sf[k]
+    conf.kwargs_fit_sf = kwargs_fit_sf
+    
+    kwargs_fit_rd = conf.def_kwargs_fit_rd.copy()
+    for k, v in kwargs_fit_rd.items():
+        if k in conf.kwargs_fit_rd:
+            kwargs_fit_rd[k] = conf.kwargs_fit_rd[k]
+    conf.kwargs_fit_rd = kwargs_fit_rd
 
     ret = 0
     return(ret)
