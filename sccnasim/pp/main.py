@@ -45,10 +45,10 @@ def pp_core(conf):
     
     # merge overlapping features.
     merged_feature_fn = os.path.join(conf.out_dir, 
-        conf.out_prefix_pp + "features.filter_chrom.merged.tsv")
+        conf.out_prefix_pp + "features.filter_chrom.resolve_overlap.tsv")
     if conf.merge_features_how == "none":
         merged_feature_fn = filter_chrom_feature_fn
-        info("skip merging overlapping features.")
+        info("skip resolving overlapping features.")
     else:
         r, n_old, n_new = None, None, None
         if conf.merge_features_how == "bidel":
@@ -110,13 +110,13 @@ def pp_core(conf):
                 new_name_how = "join"
             )
         else:
-            error("invalid method '%s' to merge overlapping features." %
+            error("invalid method '%s' to resolve overlapping features." %
                     conf.merge_features_how)
             raise ValueError
         if r < 0:
-            error("merge features failed (%d)." % r)
+            error("resolve overlapping features failed (%d)." % r)
             raise ValueError
-        info("%d features merged from %d old ones." % (n_new, n_old))
+        info("%d features left after resolving %d old ones." % (n_new, n_old))
 
 
     # process SNP file.
