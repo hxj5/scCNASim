@@ -121,23 +121,26 @@ def pp_core(conf):
 
     # process SNP file.
     suffix = None
-    if conf.snp_fn and "." in conf.snp_fn:
-        if conf.snp_fn.endswith(".vcf"):
+    snp_fn = conf.snp_fn.lower()
+    if snp_fn and "." in snp_fn:
+        if snp_fn.endswith(".vcf"):
             suffix = "vcf"
-        elif conf.snp_fn.endswith(".vcf.gz"):
+        elif snp_fn.endswith(".vcf.gz"):
             suffix = "vcf.gz"
-        elif conf.snp_fn.endswith(".tsv"):
+        elif snp_fn.endswith(".tsv"):
             suffix = "tsv"
-        elif conf.snp_fn.endswith(".tsv.gz"):
+        elif snp_fn.endswith(".tsv.gz"):
             suffix = "tsv.gz"
-        elif conf.snp_fn.endswith(".txt"):
+        elif snp_fn.endswith(".txt"):
             suffix = "txt"
-        elif conf.snp_fn.endswith(".txt.gz"):
+        elif snp_fn.endswith(".txt.gz"):
             suffix = "txt.gz"
         else:
-            suffix = "tsv"
+            suffix = "txt"
+            if snp_fn.endswith(".gz"):
+                suffix += ".gz"
     else:
-        suffix = "tsv"
+        suffix = "txt"
     raw_snp_fn = os.path.join(
         conf.out_dir, conf.out_prefix_raw + "snp." + suffix)
     shutil.copy(conf.snp_fn, raw_snp_fn)

@@ -503,6 +503,7 @@ def prepare_config(conf):
             error("sam file '%s' does not exist." % fn)
             return(-1)
 
+        
     if conf.barcode_fn:
         conf.sample_ids = None
         if conf.sample_ids or conf.sample_id_fn:
@@ -535,6 +536,7 @@ def prepare_config(conf):
         
     conf.samples = conf.barcodes if conf.barcodes else conf.sample_ids
 
+    
     if not conf.out_dir:
         error("out dir needed!")
         return(-1)
@@ -557,6 +559,7 @@ def prepare_config(conf):
     conf.out_adata_fn = os.path.join(
         conf.out_dir, conf.out_prefix + "counts.h5ad")
 
+    
     if conf.feature_fn:
         if os.path.isfile(conf.feature_fn): 
             conf.reg_list = load_feature_from_txt(conf.feature_fn)
@@ -572,10 +575,12 @@ def prepare_config(conf):
         error("feature file needed!")
         return(-1)
 
+    
     if conf.snp_fn:
         if os.path.isfile(conf.snp_fn):
-            if conf.snp_fn.endswith(".vcf") or conf.snp_fn.endswith(".vcf.gz")\
-                    or conf.snp_fn.endswith(".vcf.bgz"):
+            snp_fn = conf.snp_fn.lower()
+            if snp_fn.endswith(".vcf") or snp_fn.endswith(".vcf.gz")  \
+                    or snp_fn.endswith(".vcf.bgz"):
                 conf.snp_set = load_snp_from_vcf(conf.snp_fn)
             else:
                 conf.snp_set = load_snp_from_tsv(conf.snp_fn)
@@ -591,6 +596,7 @@ def prepare_config(conf):
         error("SNP file needed!")
         return(-1)
 
+    
     if conf.cell_tag and conf.cell_tag.upper() == "NONE":
         conf.cell_tag = None
     if conf.cell_tag and conf.barcodes:
@@ -612,6 +618,7 @@ def prepare_config(conf):
     else:
         pass
 
+    
     with open(conf.out_sample_fn, "w") as fp:
         fp.write("".join([smp + "\n" for smp in conf.samples]))
     
