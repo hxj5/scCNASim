@@ -70,7 +70,7 @@ class Config:
         The additional kwargs passed to function 
         :func:`~marginal.fit_RD_wrapper` for fitting read depth.
         The available arguments are:
-        - min_nonzero_num : int, default 3
+        - min_nonzero_num : int, default 5
             The minimum number of cells that have non-zeros for one feature.
             If smaller than the cutoff, then the feature will not be fitted
             (i.e., its mean will be directly treated as 0).
@@ -125,7 +125,7 @@ class Config:
         #   Default settings passing to `kwargs_fit_rd`.
         self.def_kwargs_fit_rd = {
             "min_nonzero_num": 5,
-            "max_iter": 100,
+            "max_iter": 1000,
             "pval_cutoff": 0.05
         }
         
