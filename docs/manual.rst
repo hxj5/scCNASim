@@ -205,7 +205,7 @@ An example is as follows:
 Clonal CNA profile (TSV file)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The clonal CNA profile stored in a header-free TSV file.
-Its first 7 columns should be ``chrom``, ``start``, ``end``, ``region``,
+Its first 6 columns should be ``chrom``, ``start``, ``end``,
 ``clone``, ``cn_ale0``, and ``cn_ale1``, where
 
 chrom : str
@@ -218,10 +218,6 @@ end : int or "Inf"
     The end genomic position of the CNA region, 1-based and inclusive.
     To specify the end of the whole chromosome, you can use either the actual
     genomic position or simply ``Inf``.
-
-region : str
-    The ID of the CNA region, can be arbitrary string as long as it is unique
-    in each clone.
 
 clone : str
     The clone ID.
@@ -237,12 +233,12 @@ An example is as follows:
 
 .. code-block::
 
-   chr8 1   Inf c8  clone3_cancer   1   2
-   chr6 1   Inf c6  clone4_cancer   0   1
-   chr8 1   Inf c8  clone4_cancer   1   2
-   chr6 1   Inf c6  clone5_cancer   1   0
-   chr8 1   Inf c8  clone5_cancer   1   2
-   chr11    1   Inf c11 clone5_cancer   2   0
+   chr8 1   Inf clone3_cancer   1   2
+   chr6 1   Inf clone4_cancer   0   1
+   chr8 1   Inf clone4_cancer   1   2
+   chr6 1   Inf clone5_cancer   1   0
+   chr8 1   Inf clone5_cancer   1   2
+   chr11    1   Inf clone5_cancer   2   0
 
 
 **Support all three major CNA types**

@@ -48,13 +48,12 @@ class Config:
           then it will be set as the number of cells in `source_cell_type`.
     cna_profile_fn : str
         A TSV file listing clonal CNA profiles. 
-        It is header-free and its first 7 columns are:
+        It is header-free and its first 6 columns are:
         - "chrom" (str): chromosome name of the CNA region.
         - "start" (int): start genomic position of the CNA region, 1-based
           and inclusive.
         - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
-        - "region" (str): ID of the CNA region.
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.

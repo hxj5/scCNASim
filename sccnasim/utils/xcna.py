@@ -350,7 +350,6 @@ def save_cna_profile(dat, fn):
                 cp["chrom"][i],
                 str(cp["start"][i]),
                 str(cp["end"][i]),
-                cp["name"][i],
                 cp["clone"][i],
                 str(cp["cn_ale0"][i]),
                 str(cp["cn_ale1"][i])

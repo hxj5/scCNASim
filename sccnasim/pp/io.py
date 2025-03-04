@@ -136,8 +136,8 @@ def merge_cna_profile(in_fn, out_fn, max_gap = 1):
         for chrom in sorted(cl_dat.keys()):
             ch_dat = cl_dat[chrom]
             for s, e, cn_ale0, cn_ale1 in ch_dat:
-                region_id = reg2str(chrom, s, e)
-                fp.write("\t".join([chrom, str(s), str(e), region_id, \
+                #region_id = reg2str(chrom, s, e)
+                fp.write("\t".join([chrom, str(s), str(e), \
                     clone_id, str(cn_ale0), str(cn_ale1)]) + "\n")
                 n_new += 1
     fp.close()

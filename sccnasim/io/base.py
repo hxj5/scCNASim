@@ -3,7 +3,7 @@
 import anndata as ad
 import pandas as pd
 from ..utils.base import is_file_empty
-from ..utils.grange import format_chrom, format_start, format_end
+from ..utils.grange import format_chrom, format_start, format_end, reg2str
 
 
 
@@ -285,13 +285,12 @@ def load_cnas(fn, sep = "\t"):
     ----------
     fn : str
         Path to a a header-free file containing clonal CNA profile, whose
-        first seven columns should be:
+        first 6 columns should be:
         - "chrom" (str): chromosome name of the CNA region.
         - "start" (int): start genomic position of the CNA region, 1-based
           and inclusive.
         - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
-        - "region" (str): ID of the CNA region.
         - "clone" (str): clone ID.
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
@@ -302,20 +301,27 @@ def load_cnas(fn, sep = "\t"):
     -------
     pandas.DataFrame
         The loaded clonal CNA profile, whose first seven columns are "chrom",
-        "start", "end", "region", "clone", "cn_ale0", and "cn_ale1".       
+        "start", "end", "clone", "cn_ale0", and "cn_ale1", "region".
+        Note that "region" is a formatted string combining "chrom", "start",
+        and "end".
     """
     if is_file_empty(fn):
         df = pd.DataFrame(columns = [
-            "chrom", "start", "end", "region", "clone", "cn_ale0", "cn_ale1"])
+            "chrom", "start", "end", "clone", "cn_ale0", "cn_ale1", "region"])
         return(df)
     df = pd.read_csv(fn, sep = sep, header = None, dtype = {0: str})
     df.columns = df.columns.astype(str)
-    df.columns.values[:7] = [
-        "chrom", "start", "end", "region", "clone", "cn_ale0", "cn_ale1"]
+    df.columns.values[:6] = [
+        "chrom", "start", "end", "clone", "cn_ale0", "cn_ale1"]
     #df["chrom"] = df["chrom"].astype(str)
     df["chrom"] = df["chrom"].map(format_chrom)
     df["start"] = df["start"].map(format_start)
     df["end"] = df["end"].map(format_end)
+    df["region"] = [reg2str(
+                        df["chrom"].iloc[i], 
+                        df["start"].iloc[i], 
+                        df["end"].iloc[i]
+                    ) for i in range(df.shape[0])]
     return(df)
 
 
