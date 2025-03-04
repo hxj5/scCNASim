@@ -7,8 +7,9 @@ from . import cs
 from . import io
 from . import pp
 from . import rs
-from . import tests
+#from . import tests
 from . import utils
+
 from .app import VERSION
 from .config import Config
 from .main import main_run
