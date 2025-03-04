@@ -198,7 +198,7 @@ def get_gw_metrics(X, metrics = None, out_fmt = "df"):
 
 def get_gw_cv(X):
     """Get gene-wise coefficient of variation (CV)."""
-    return np.std(X, axis = 0) / np.mean(X, axis = 0)
+    return np.std(X, axis = 0) / (np.mean(X, axis = 0) + 1e-8)
 
 def get_gw_mean(X):
     """Get gene-wise mean."""
