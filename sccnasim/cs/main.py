@@ -50,6 +50,26 @@ def cs_core(conf):
     adata = None
     
     
+    # number of cells in each clone.
+    # Note, put this step before QC-cells, otherwise the number of cells in
+    # each clone may deviate from the #cells in training/input data when `-1`
+    # is specified.
+    n_cell_each = None
+    if np.all(conf.clone_meta["n_cell"] > 0):
+        n_cell_each = conf.clone_meta["n_cell"].to_numpy()
+    else:     # use #cells in training/input data.
+        n_cell_each = []
+        d = {}
+        for c_type in conf.clone_meta["cell_type"]:
+            if c_type in d:
+                n_cell_each.append(d[c_type])
+            else:
+                n_cell = np.sum(conf.adata.obs["cell_type"] == c_type)
+                d[c_type] = n_cell
+                n_cell_each.append(n_cell)
+    info("#cells in each clone: %s." % str(n_cell_each))
+    
+    
     # filter low-quality cells, e.g, with very small library size or small
     # number of expressed features.
     X = conf.adata.layers["A"] + conf.adata.layers["B"] + \
@@ -69,9 +89,16 @@ def cs_core(conf):
         min_features = conf.adata.shape[1] * min_features
         
     qc_flag = np.logical_and(np.logical_and(sf >= min_libsize, sf <= max_libsize), ef >= min_features)
+    n_cells_filtered = np.sum(~qc_flag)
+    
+    fcell_barcode_fn = os.path.join(conf.out_dir, conf.out_prefix + "qc.filtered_cells.barcodes.tsv")
+    fcell_anno_fn = os.path.join(conf.out_dir, conf.out_prefix + "qc.filtered_cells.cell_anno.tsv")
+    conf.adata.obs[~qc_flag][["cell"]].to_csv(fcell_barcode_fn, header = False, index = False)
+    conf.adata.obs[~qc_flag].to_csv(fcell_anno_fn, sep = "\t", header = False, index = False)
+    
     conf.adata = conf.adata[qc_flag, :].copy()
     info("QC: %d cells filtered (min_libsize=%.2f; max_libsize=%.2f; min_features=%.2f)." % \
-        (np.sum(~qc_flag), min_libsize, max_libsize, min_features))
+        (n_cells_filtered, min_libsize, max_libsize, min_features))
     
 
     # get overlapping features for each CNA profile record.
@@ -97,23 +124,6 @@ def cs_core(conf):
             cna_fet[c_region] = feature_idx
     info("extract overlapping features for %d CNA records." % \
         conf.cna_profile.shape[0])
-
-
-    # number of cells in each clone.
-    n_cell_each = None
-    if np.all(conf.clone_meta["n_cell"] > 0):
-        n_cell_each = conf.clone_meta["n_cell"].to_numpy()
-    else:     # use #cells in training/input data.
-        n_cell_each = []
-        d = {}
-        for c_type in conf.clone_meta["cell_type"]:
-            if c_type in d:
-                n_cell_each.append(d[c_type])
-            else:
-                n_cell = np.sum(conf.adata.obs["cell_type"] == c_type)
-                d[c_type] = n_cell
-                n_cell_each.append(n_cell)
-    info("#cells in each clone: %s." % str(n_cell_each))
 
 
     # get cell-wise size factors.
