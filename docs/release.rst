@@ -4,6 +4,43 @@
    =======
 
 
+Release v0.2.0 (05/03/2025)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Improve the quality of simulated cells, to avoid generating some noisy clones.
+
+* cs: add QC step to filter low-quality seed cells, e.g., 
+  with small library size or small number of expressed features.
+  The filtered cells are outputted for potential further analysis.
+* cs: use more stringent up and low bound of simulated library size, e.g.,
+  the minimum simulated library size allowed is 1000.
+
+Input:
+
+* update file format of CNA profile, removing the ``region`` column.
+
+For library size simulation:
+
+* cs: add lognormal and swr (sampling with replacement) strategies for
+  library size fitting and simulation.
+* cs: add interface for default kwargs_fit_sf and kwargs_fit_rd.
+  Set ``lognormal`` as default strategy for library size (size factor)
+  fitting and simulation.
+
+For fitting read depth:
+
+* cs: use Poisson as default when distribution fitting is not converged.
+* cs: set default max_iter to 1000 when fitting read depth.
+
+Others:
+
+* cs: add small epsilon value to mean when calculating cv.
+* mark module or folder ``tests`` deprecated.
+* pp: rename the filename of features after resolving overlapping features.
+  Specifically, suffix changed from "merged.tsv" to "resolve_overlap.tsv".
+* better support processing SNP file names, no matter the suffix is in
+  lower or upper case.
+
+
 Release v0.1.2 (11/02/2025)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This version mainly aims to reduce the variation in the simulated BAF signals
