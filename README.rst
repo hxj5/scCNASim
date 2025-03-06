@@ -26,6 +26,24 @@ Dependency
 
    pip install -U git+https://github.com/hxj5/scCNASim
 
+Potential Issues
+~~~~~~~~~~~~~~~~
+If you encounter an error
+``"configure: error: liblzma development files not found"``
+when installing scCNASim, it is actually an installation issue of pysam.
+
+You can fix the error easily by installing pysam via conda, if you are
+installing scCNASim in an conda env, i.e., run
+
+.. code-block:: bash
+
+   conda config --add channels bioconda
+   conda config --add channels conda-forge
+   conda install pysam
+
+and then re-install scCNASim.
+See `Issue 3 <https://github.com/hxj5/scCNASim/issues/3>`_ for details.
+
 
 Manual
 ------
