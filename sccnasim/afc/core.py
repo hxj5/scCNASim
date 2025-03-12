@@ -44,7 +44,7 @@ def fc_features(thdata):
 
     sam_list = []
     for sam_fn in conf.sam_fn_list:
-        sam = pysam.AlignmentFile(sam_fn, "r")
+        sam = pysam.AlignmentFile(sam_fn, "r", require_index = True)
         sam_list.append(sam)
 
     reg_list = None

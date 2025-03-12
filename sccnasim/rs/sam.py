@@ -75,7 +75,8 @@ class SAMInput:
 
         # fp : pysam.AlignmentFile
         #   The SAM/BAM file object.
-        self.fp = pysam.AlignmentFile(self.sams[self.idx], "r")
+        self.fp = pysam.AlignmentFile(
+            self.sams[self.idx], "r", require_index = True)
 
         # iter : pysam.IteratorRow
         #   An iterator over a collection of chrom-specific reads.
@@ -89,7 +90,8 @@ class SAMInput:
             if self.idx >= self.n_sam:
                 return(None)
             self.fp.close()
-            self.fp = pysam.AlignmentFile(self.sams[self.idx], "r")
+            self.fp = pysam.AlignmentFile(
+                self.sams[self.idx], "r", require_index = True)
             self.iter = sam_fetch(self.fp, self.chrom, None, None)
             return(self.__fetch_read())
         return(read)
