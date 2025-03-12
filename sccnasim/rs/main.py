@@ -20,7 +20,7 @@ from .snp import SNPSet, mask_read
 from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_h5ad, load_samples,  \
-    load_list_from_str, save_cells, save_samples
+    load_list_from_str, save_cells, save_h5ad, save_samples
 from ..utils.grange import format_chrom
 from ..utils.sam import sam_index, get_include_frac, get_include_len
 from ..utils.xlog import init_logging
@@ -345,7 +345,7 @@ def rs_core(conf):
     for chrom in conf.chrom_list:
         fn = os.path.join(d, "chrom%s.counts.h5ad" % chrom)
         adat = xdata[:, xdata.var["chrom"] == chrom]
-        adat.write_h5ad(fn)
+        save_h5ad(adat, fn)
         chrom_counts_fn_list.append(fn)
     del conf.adata
     conf.adata = None

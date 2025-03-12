@@ -18,7 +18,7 @@ from .afc.main import afc_wrapper
 from .app import APP, VERSION
 from .config import Config
 from .cs.main import cs_wrapper
-from .io.base import load_cells, load_h5ad
+from .io.base import load_cells, load_h5ad, save_h5ad
 from .pp.main import pp_wrapper
 from .rs.main import rs_wrapper
 from .utils.base import assert_e
@@ -469,4 +469,4 @@ def add_cell_anno(adata_fn, cell_anno_fn, out_adata_fn):
 
     assert "cell_type" in adata.obs.columns
 
-    adata.write_h5ad(out_adata_fn)
+    save_h5ad(adata, out_adata_fn)

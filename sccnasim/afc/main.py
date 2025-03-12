@@ -24,7 +24,7 @@ from .io import load_feature_from_txt, \
 from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
-    load_list_from_str
+    load_list_from_str, save_h5ad
 from ..io.counts import load_xdata
 from ..utils.xlog import init_logging
 from ..utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
@@ -415,7 +415,7 @@ def afc_core(conf):
             adata.X = None
         else:
             adata.layers[ale] = dat.X
-    adata.transpose().write_h5ad(conf.out_adata_fn)
+    save_h5ad(adata.transpose(), conf.out_adata_fn)
 
 
     # clean

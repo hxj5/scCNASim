@@ -59,6 +59,21 @@ def load_h5ad(fn):
     return(adata)
 
 
+def save_h5ad(
+    adata, 
+    filename = None, 
+    compression = "gzip", 
+    compression_opts = None, 
+    as_dense = ()
+):
+    return(adata.write_h5ad(
+        filename = filename,
+        compression = compression,
+        compression_opts = compression_opts,
+        as_dense = as_dense
+    ))
+
+
 def load_list_from_str(s, sep = ","):
     """Split the string into a list.
     

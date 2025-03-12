@@ -15,7 +15,7 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
-from ..io.base import load_h5ad
+from ..io.base import load_h5ad, save_h5ad
 from ..utils.base import is_file_empty
 from ..utils.xbarcode import Barcode
 
@@ -88,7 +88,7 @@ def gen_umis(
     for idx, i in enumerate(range(0, n, k)):
         fn = os.path.join(tmp_dir, "adata_batch%d.h5ad" % idx)
         xdata_batch = xdata[i:(i+k), :]
-        xdata_batch.write_h5ad(fn)
+        save_h5ad(xdata_batch, fn)
         fn_list.append(fn)
     del xdata
 
