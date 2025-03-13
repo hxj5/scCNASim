@@ -175,7 +175,9 @@ class SAMOutput:
     def __init__(
         self,
         sams, n_sam, samples, ref_sam,
-        cell_tag, umi_tag, umi_len
+        cell_tag, umi_tag, umi_len,
+        cell_raw_tag, backup_cell_raw_tag,
+        umi_raw_tag, backup_umi_raw_tag
     ):
         """
         Parameters
@@ -195,6 +197,18 @@ class SAMOutput:
             Tag for UMI, set to None when reads only.
         umi_len : int
             Length of the UMI barcode.
+        cell_raw_tag : str or None
+            Tag for uncorrected raw cell tag in seed and simulated BAM.
+            Set to None if do not use it.
+        backup_cell_raw_tag : str or None
+            Tag for backup uncorrected raw cell barcode (from seed BAM) 
+            in simulated BAM. Set to None if do not use it.
+        umi_raw_tag : str or None
+            Tag for uncorrected raw umi tag in seed and simulated BAM.
+            Set to None if do not use it.
+        backup_umi_raw_tag : str or None
+           Tag for backup uncorrected raw umi barcode (from seed BAM) 
+           in simulated BAM. Set to None if do not use it.
         """
         self.sams = sams
         if n_sam == 1:
@@ -208,6 +222,11 @@ class SAMOutput:
         self.cell_tag = cell_tag
         self.umi_tag = umi_tag
         self.umi_len = umi_len
+        
+        self.cell_raw_tag = cell_raw_tag
+        self.backup_cell_raw_tag = backup_cell_raw_tag
+        self.umi_raw_tag = umi_raw_tag
+        self.backup_umi_raw_tag = backup_umi_raw_tag
 
         if not self.use_barcodes():
             assert len(self.samples) == n_sam
@@ -258,12 +277,27 @@ class SAMOutput:
         fp = None
         if self.use_barcodes():
             fp = self.fps[0]
-            read.set_tag(self.cell_tag, self.samples[cell_idx])
+            cb = self.samples[cell_idx]
+            read.set_tag(self.cell_tag, cb)
+            if self.cell_raw_tag is not None:
+                assert self.backup_cell_raw_tag is not None
+                cell_raw = None
+                if read.has_tag(self.cell_raw_tag):
+                    cell_raw = read.get_tag(self.cell_raw_tag)
+                    read.set_tag(self.cell_raw_tag, cb[:-2])
+                    read.set_tag(self.backup_cell_raw_tag, cell_raw)
         else:
             fp = self.fps[cell_idx]
         if self.use_umi():
             umi = self.b.int2str(umi_int)
             read.set_tag(self.umi_tag, umi)
+            if self.umi_raw_tag is not None:
+                assert self.backup_umi_raw_tag is not None
+                umi_raw = None
+                if read.has_tag(self.umi_raw_tag):
+                    umi_raw = read.get_tag(self.umi_raw_tag)
+                    read.set_tag(self.umi_raw_tag, umi)
+                    read.set_tag(self.backup_umi_raw_tag, umi_raw)
         # suffix = "_%d_%d" % (idx, umi_int)
         suffix = "_%d" % (idx, )
         if qname is None:

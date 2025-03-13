@@ -556,7 +556,11 @@ def rs_core_chrom(thdata):
         sams = thdata.out_sam_fn_list, n_sam = len(thdata.out_sam_fn_list),
         samples = thdata.out_samples, ref_sam = conf.sam_fn_list[0],
         cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
-        umi_len = conf.umi_len
+        umi_len = conf.umi_len,
+        cell_raw_tag = conf.cell_raw_tag,
+        backup_cell_raw_tag = conf.backup_cell_raw_tag,
+        umi_raw_tag = conf.umi_raw_tag,
+        backup_umi_raw_tag = conf.backup_umi_raw_tag
     )
     debug("[chrom-%s] %d output BAM(s) created." % (
         thdata.chrom, len(thdata.out_sam_fn_list)))

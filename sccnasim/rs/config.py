@@ -145,11 +145,34 @@ class Config:
         # out_prefix : str
         #   The prefix of the output files.
         self.out_prefix = COMMAND + "."
+        
+        
+        # internal parameters.
 
         # hap_tag : str
         #   Tag for haplotype in the output BAM file.
         self.hap_tag = "HT"
-
+        
+        # cell_raw_tag : str or None
+        #   Tag for uncorrected raw cell tag in seed and simulated BAM.
+        #   Set to None if do not use it.
+        self.cell_raw_tag = "CR"
+        
+        # backup_cell_raw_tag : str or None
+        #   Tag for backup uncorrected raw cell barcode (from seed BAM) 
+        #   in simulated BAM. Set to None if do not use it.
+        self.backup_cell_raw_tag = "RC"
+        
+        # umi_raw_tag : str or None
+        #   Tag for uncorrected raw umi tag in seed and simulated BAM.
+        #   Set to None if do not use it.
+        self.umi_raw_tag = "UR"
+        
+        # backup_umi_raw_tag : str or None
+        #   Tag for backup uncorrected raw umi barcode (from seed BAM) 
+        #   in simulated BAM. Set to None if do not use it.
+        self.backup_umi_raw_tag = "RU"
+        
         # alleles : tuple of str
         #   All alleles.
         self.alleles = ("A", "B", "U")
@@ -217,8 +240,14 @@ class Config:
         s += "%snumber_of_features = %d\n" % (prefix, len(self.reg_list) if \
                 self.reg_list is not None else -1)
         s += "%s\n" % prefix
+        
+        # internal parameters.
 
         s += "%shap_tag = %s\n" % (prefix, self.hap_tag)
+        s += "%scell_raw_tag = %s\n" % (prefix, self.cell_raw_tag)
+        s += "%sbackup_cell_raw_tag = %s\n" % (prefix, self.backup_cell_raw_tag)
+        s += "%sumi_raw_tag = %s\n" % (prefix, self.umi_raw_tag)
+        s += "%sbackup_umi_raw_tag = %s\n" % (prefix, self.backup_umi_raw_tag)
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
         s += "%scumi_max_pool = %s\n" % (prefix, str(self.cumi_max_pool))
         s += "%s\n" % prefix

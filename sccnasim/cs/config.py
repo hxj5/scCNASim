@@ -173,5 +173,13 @@ class Config:
         # derived parameters.
         s += "%sout_prefix = %s\n" % (prefix, self.out_prefix)
         s += "%s\n" % prefix
+        
+        # internal parameters.
+        s += "%sqc_min_library_size = %s\n" % (prefix, self.qc_min_library_size)
+        s += "%sqc_max_library_size = %s\n" % (prefix, self.qc_max_library_size)
+        s += "%sqc_min_features = %s\n" % (prefix, self.qc_min_features)
+        s += "%sqc_cw_low_quantile = %s\n" % (prefix, self.qc_cw_low_quantile)
+        s += "%sqc_cw_up_quantile = %s\n" % (prefix, self.qc_cw_up_quantile)
+        s += "%s\n" % prefix        
 
         fp.write(s)
