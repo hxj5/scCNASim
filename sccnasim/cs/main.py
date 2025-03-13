@@ -8,6 +8,7 @@ import pandas as pd
 import pickle
 import sys
 import time
+import warning
 
 from logging import info, error
 from .config import Config
@@ -281,7 +282,9 @@ def cs_run(conf):
     info("start time: %s." % time_str)
 
     try:
-        res = cs_core(conf)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            res = cs_core(conf)
     except ValueError as e:
         error(str(e))
         error("Running program failed.")
