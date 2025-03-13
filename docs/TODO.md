@@ -7,6 +7,9 @@
 
 
 ## Implementation
+- Add an option about `total library size` to enable simulation of various
+  read depth.
+  Refer to the `total number of reads` in scDesign2.
 
 
 ## Docs
