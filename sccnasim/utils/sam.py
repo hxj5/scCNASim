@@ -38,8 +38,13 @@ def check_read(read, conf):
         return(-5)
     if conf.cell_tag and not read.has_tag(conf.cell_tag):
         return(-11)
-    if conf.umi_tag and not read.has_tag(conf.umi_tag):
-        return(-12)
+    if conf.umi_tag:
+        if read.has_tag(conf.umi_tag):
+            umi = read.get_tag(conf.umi_tag)
+            if umi and 'N' in umi.upper():
+                return(-13)
+        else:
+            return(-12)
     if len(read.positions) < conf.min_len:
         return(-21)
     return(0)

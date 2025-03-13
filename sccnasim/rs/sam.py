@@ -102,8 +102,13 @@ class SAMInput:
             return(-2)
         if self.cell_tag and not read.has_tag(self.cell_tag):
             return(-11)
-        if self.umi_tag and not read.has_tag(self.umi_tag):
-            return(-12)        
+        if self.umi_tag:
+            if read.has_tag(self.umi_tag):
+                umi = read.get_tag(self.umi_tag)
+                if umi and 'N' in umi.upper():
+                    return(-13)
+            else:
+                return(-12)
         return(0)
     
     def check_read2(self, read):
