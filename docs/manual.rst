@@ -44,23 +44,24 @@ Input
 -----
 The inputs to the simulator include:
 
-* Alignment file (BAM file).
-* Cell annotation (TSV file).
-* Feature annotation (TSV file).
-* Phased SNPs (TSV or VCF file).
-* Clone annotation (TSV file).
-* Clonal CNA profile (TSV file).
+* Alignment file of seed data (BAM file).
+* Cell annotations of seed data (TSV file).
+* Feature annotations of seed data (TSV file).
+* Phased SNPs of seed data (TSV or VCF file).
+* Reference genome sequence of seed data (FASTA file).
+* Clone annotations of simulated data (TSV file).
+* Clonal CNA profiles of simulated data  (TSV file).
 
 
-Alignment file (BAM file)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Alignment file of seed data (BAM file)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The aligned reads stored in either one single BAM file (from droplet-based 
 sequencing platform) or a list of BAM files (from well-based sequencing 
 platform).
 
 
-Cell annotation (TSV file)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Cell annotations of seed data (TSV file)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The cell annotation stored in a header-free TSV file.
 Its first two columns are ``cell`` and ``cell_type``, where
 
@@ -82,8 +83,8 @@ An example is as follows:
    AAGCCGCTCCTCAATT-1    epithelial
 
 
-Feature annotation (TSV file)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Feature annotations of seed data (TSV file)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The feature annotation stored in a header-free TSV file.
 Its first four columns are ``chrom``, ``start``, ``end``, and ``feature``,
 where
@@ -112,8 +113,8 @@ An example is as follows:
    chr3       23757   24501   LINC01986
 
 
-Phased SNPs (TSV or VCF file)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Phased SNPs of seed data (TSV or VCF file)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The phased SNPs stored in either a TSV file or a VCF file.
 
 Phased SNPs in TSV format
@@ -167,10 +168,18 @@ The corresponding phased genotype could be delimited by either ``'/'`` or
      (e.g., in bin level) could be used to reduce error rate, e.g., with the
      3-step phasing used by CHISEL_ in scDNA-seq data and XClone_ in scRNA-seq
      data.
+     
+
+Reference genome sequence of seed data (FASTA file)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The sequence of reference genome, e.g., the human genome version hg38, 
+should be stored in a FASTA file.
+Its version should match the one used for generating the alignment (BAM)
+file of seed data.
 
 
-Clone annotation (TSV file)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Clone annotations of simulated data (TSV file)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Clone annotation stored in a header-free TSV file.
 Its first 3 columns should be ``clone``, ``source_cell_type``, and ``n_cell``,
 where
@@ -202,8 +211,8 @@ An example is as follows:
    for simulation of somatic CNAs.
 
 
-Clonal CNA profile (TSV file)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Clonal CNA profiles of simulated data (TSV file)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The clonal CNA profile stored in a header-free TSV file.
 Its first 6 columns should be ``chrom``, ``start``, ``end``,
 ``clone``, ``cn_ale0``, and ``cn_ale1``, where
