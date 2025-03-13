@@ -55,24 +55,18 @@ class Config:
         The output folder.
     chroms : str, default "1,2,...22"
         Comma separated chromosome names.
-    merge_features_how : str, default "quantile2"
+    merge_features_how : str, default "quantile"
         How to merge overlapping features.
-        "none" - do not merge overlapping features.
-        "bidel" - remove overlapping bi-features.
-        "first1" - only keep the first feature.
-            Only keep the first of the consecutively overlapping features.
-        "first2" - only keep the first feature.
-            Keep the first feature and remove features overlapping with it.
-        "quantile1" - remove outliers of bi-features.
-            Remove outliers given specific quantile among all features.
-        "quantile1_union" - "quantile1" followed by "union".
-        "quantile2" - remove outliers of bi-features.
-            Remove outliers given specific quantile among all features 
-            overlapping with at least one features.
-        "quantile2_union" - "quantile2" followed by "union".
-        "union" - keep the union range.
-            Keep the union genomic range of a group of consecutively
-            overlapping features.
+        "none" - Leave all input gene annotations unchanged.
+        "quantile" - alias to "quantile2".
+        "quantile2" - remove highly overlapping genes.
+            Remove genes with number of overlapping genes larger than a given
+            value. Default is the 0.99 quantile among all genes that have 
+            overlaps.
+        "union" - keep the union range of gene overlaps.
+            Replace consecutive overlapping genes with their union genomic 
+            range, i.e., aggregate overlapping genes into non-overlapping
+            super-genes.
     """
     def __init__(self):
         # command-line arguments/parameters.
@@ -83,7 +77,7 @@ class Config:
         self.cna_profile_fn = None
         self.out_dir = None
         self.chroms = ",".join([str(c) for c in range(1, 23)])
-        self.merge_features_how = "quantile2"
+        self.merge_features_how = "quantile"
 
         # derived parameters.
         

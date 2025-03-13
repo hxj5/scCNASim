@@ -72,24 +72,18 @@ class Config:
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
-    merge_features_how : str, default "quantile2"
+    merge_features_how : str, default "quantile"
         How to merge overlapping features.
-        "none" - do not merge overlapping features.
-        "bidel" - remove overlapping bi-features.
-        "first1" - only keep the first feature.
-            Only keep the first of the consecutively overlapping features.
-        "first2" - only keep the first feature.
-            Keep the first feature and remove features overlapping with it.
-        "quantile1" - remove outliers of bi-features.
-            Remove outliers given specific quantile among all features.
-        "quantile1_union" - "quantile1" followed by "union".
-        "quantile2" - remove outliers of bi-features.
-            Remove outliers given specific quantile among all features 
-            overlapping with at least one features.
-        "quantile2_union" - "quantile2" followed by "union".
-        "union" - keep the union range.
-            Keep the union genomic range of a group of consecutively
-            overlapping features.
+        "none" - Leave all input gene annotations unchanged.
+        "quantile" - alias to "quantile2".
+        "quantile2" - remove highly overlapping genes.
+            Remove genes with number of overlapping genes larger than a given
+            value. Default is the 0.99 quantile among all genes that have 
+            overlaps.
+        "union" - keep the union range of gene overlaps.
+            Replace consecutive overlapping genes with their union genomic 
+            range, i.e., aggregate overlapping genes into non-overlapping
+            super-genes.
     size_factor : str or None, default "libsize"
         The type of size factor.
         Currently, only support "libsize" (library size).
@@ -168,7 +162,7 @@ class Config:
         self.sample_id_fn = None
         
         # preprocessing.
-        self.merge_features_how = "quantile2"
+        self.merge_features_how = "quantile"
 
         # count simulation.
         self.size_factor = "libsize"

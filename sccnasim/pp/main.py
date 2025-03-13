@@ -9,11 +9,7 @@ import time
 from logging import info, error
 from .config import Config
 from .io import merge_cna_profile, filter_features_by_chroms, \
-    merge_features_bidel, \
-    merge_features_first1, merge_features_first2, \
-    merge_features_quantile1, merge_features_quantile1_union, \
-    merge_features_quantile2, merge_features_quantile2_union, \
-    merge_features_union
+    merge_features_quantile2, merge_features_union
 from ..io.base import load_cells, load_cnas, load_clones
 from ..utils.grange import format_chrom
 
@@ -51,56 +47,12 @@ def pp_core(conf):
         info("skip resolving overlapping features.")
     else:
         r, n_old, n_new = None, None, None
-        if conf.merge_features_how == "bidel":
-            r, n_old, n_new = merge_features_bidel(
-                in_fn = filter_chrom_feature_fn,
-                out_fn = merged_feature_fn,
-                max_gap = 1,
-                max_frac = 0.1
-            )
-        elif conf.merge_features_how == "first1":
-            r, n_old, n_new = merge_features_first1(
-                in_fn = filter_chrom_feature_fn,
-                out_fn = merged_feature_fn,
-                max_gap = 1,
-                new_name_how = "join"
-            )
-        elif conf.merge_features_how == "first2":
-            r, n_old, n_new = merge_features_first2(
-                in_fn = filter_chrom_feature_fn,
-                out_fn = merged_feature_fn,
-                max_gap = 1,
-                new_name_how = "join"
-            )
-        elif conf.merge_features_how == "quantile1":
-            r, n_old, n_new = merge_features_quantile1(
-                in_fn = filter_chrom_feature_fn,
-                out_fn = merged_feature_fn,
-                max_gap = 1,
-                quantile = 0.99
-            )
-        elif conf.merge_features_how == "quantile1_union":
-            r, n_old, n_new = merge_features_quantile1_union(
-                in_fn = filter_chrom_feature_fn,
-                out_fn = merged_feature_fn,
-                max_gap = 1,
-                quantile = 0.99,
-                new_name_how = "join"
-            )
-        elif conf.merge_features_how == "quantile2":
+        if conf.merge_features_how in ("quantile", "quantile2"):
             r, n_old, n_new = merge_features_quantile2(
                 in_fn = filter_chrom_feature_fn,
                 out_fn = merged_feature_fn,
                 max_gap = 1,
                 quantile = 0.99
-            )
-        elif conf.merge_features_how == "quantile2_union":
-            r, n_old, n_new = merge_features_quantile2_union(
-                in_fn = filter_chrom_feature_fn,
-                out_fn = merged_feature_fn,
-                max_gap = 1,
-                quantile = 0.99,
-                new_name_how = "join"
             )
         elif conf.merge_features_how == "union":
             r, n_old, n_new = merge_features_union(
@@ -270,7 +222,7 @@ def pp_run(conf):
 def pp_wrapper(
     cell_anno_fn, feature_fn, snp_fn,
     clone_meta_fn, cna_profile_fn,
-    out_dir, chroms = None, merge_features_how = "quantile2"
+    out_dir, chroms = None, merge_features_how = "quantile"
 ):
     """Wrapper for running the pp (preprocessing) module.
 
@@ -324,24 +276,18 @@ def pp_wrapper(
     chroms : str or None, default None
         Comma separated chromosome names.
         If None, it will be set as "1,2,...22".
-    merge_features_how : str, default "quantile2"
+    merge_features_how : str, default "quantile"
         How to merge overlapping features.
-        "none" - do not merge overlapping features.
-        "bidel" - remove overlapping bi-features.
-        "first1" - only keep the first feature.
-            Only keep the first of the consecutively overlapping features.
-        "first2" - only keep the first feature.
-            Keep the first feature and remove features overlapping with it.
-        "quantile1" - remove outliers of bi-features.
-            Remove outliers given specific quantile among all features.
-        "quantile1_union" - "quantile1" followed by "union".
-        "quantile2" - remove outliers of bi-features.
-            Remove outliers given specific quantile among all features 
-            overlapping with at least one features.
-        "quantile2_union" - "quantile2" followed by "union".
-        "union" - keep the union range.
-            Keep the union genomic range of a group of consecutively
-            overlapping features.
+        "none" - Leave all input gene annotations unchanged.
+        "quantile" - alias to "quantile2".
+        "quantile2" - remove highly overlapping genes.
+            Remove genes with number of overlapping genes larger than a given
+            value. Default is the 0.99 quantile among all genes that have 
+            overlaps.
+        "union" - keep the union range of gene overlaps.
+            Replace consecutive overlapping genes with their union genomic 
+            range, i.e., aggregate overlapping genes into non-overlapping
+            super-genes.
 
     Returns
     -------
