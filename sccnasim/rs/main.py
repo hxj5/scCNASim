@@ -22,7 +22,7 @@ from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_h5ad, load_samples,  \
     load_list_from_str, save_cells, save_h5ad, save_samples
 from ..utils.grange import format_chrom
-from ..utils.sam import sam_index, get_include_frac, get_include_len
+from ..utils.sam import sam_index, check_strand, check_included
 from ..utils.xlog import init_logging
 
 
@@ -52,13 +52,17 @@ def usage(fp = sys.stdout, conf = None):
     s += "      --UMIlen INT       Length of UMI barcode [%d]\n" % conf.UMI_LEN
     s += "  -D, --debug INT        Used by developer for debugging [%d]\n" % conf.DEBUG
     s += "\n"
+    s += "Read assignment:\n"
+    s += "      --strandness STR        Strandness of the sequencing protocol, one of\n"
+    s += "                              {forward, reverse, unstranded} [%s]\n" % conf.STRANDNESS
+    s += "      --minINCLUDE FLOAT|INT  Minimum fraction or length of included part within specific feature [%f]\n" % conf.MIN_INCLUDE
+    s += "\n"
     s += "Read filtering:\n"
     s += "      --inclFLAG INT          Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
     s += "      --exclFLAG INT          Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
     s += "                              (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
     s += "      --minLEN INT            Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
     s += "      --minMAPQ INT           Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
-    s += "      --minINCLUDE FLOAT|INT  Minimum fraction or length of included part within specific feature [%f]\n" % conf.MIN_INCLUDE
     s += "      --countORPHAN           If use, do not skip anomalous read pairs.\n"
     s += "\n"
 
@@ -103,9 +107,11 @@ def rs_main(argv):
             "cellTAG=", "UMItag=", "UMIlen=",
             "debug=",
 
-            "inclFLAG=", "exclFLAG=", 
-            "minLEN=", "minMAPQ=", 
+            "strandness=",
             "minINCLUDE=",
+            
+            "inclFLAG=", "exclFLAG=",
+            "minLEN=", "minMAPQ=", 
             "countORPHAN"
         ])
 
@@ -130,15 +136,17 @@ def rs_main(argv):
         elif op in (      "--umilen"): conf.umi_len = int(val)
         elif op in ("-D", "--debug"): conf.debug = int(val)
 
-        elif op in ("--inclflag"): conf.incl_flag = int(val)
-        elif op in ("--exclflag"): conf.excl_flag = int(val)
-        elif op in ("--minlen"): conf.min_len = int(val)
-        elif op in ("--minmapq"): conf.min_mapq = float(val)
-        elif op in ("--mininclude"): 
+        elif op in ("--strandness"): conf.strandness = val
+        elif op in ("--mininclude"):
             if "." in val:
                 conf.min_include = float(val)
             else:
                 conf.min_include = int(val)
+
+        elif op in ("--inclflag"): conf.incl_flag = int(val)
+        elif op in ("--exclflag"): conf.excl_flag = int(val)
+        elif op in ("--minlen"): conf.min_len = int(val)
+        elif op in ("--minmapq"): conf.min_mapq = float(val)
         elif op in ("--countorphan"): conf.no_orphan = False
 
         else:
@@ -160,8 +168,9 @@ def rs_wrapper(
     ncores = 1,
     chroms = None,
     cell_tag = "CB", umi_tag = "UB", umi_len = 10,
-    min_mapq = 20, min_len = 30,
+    strandness = "forward",
     min_include = 0.9,
+    min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
     no_orphan = True
 ):
@@ -220,13 +229,18 @@ def rs_wrapper(
         Tag for UMI, set to None when reads only.
     umi_len : int, default 10
         Length of output UMI barcode.
+    strandness : {"forward", "reverse", "unstranded"}
+        Strandness of the sequencing protocol.
+        "forward" - read strand same as the source RNA molecule;
+        "reverse" - read strand opposite to the source RNA molecule;
+        "unstranded" - no strand information.
+    min_include : int or float, default 0.9
+        Minimum length of included part within specific feature.
+        If float between (0, 1), it is the minimum fraction of included length.
     min_mapq : int, default 20
         Minimum MAPQ for read filtering.
     min_len : int, default 30
         Minimum mapped length for read filtering.
-    min_include : int or float, default 0.9
-        Minimum length of included part within specific feature.
-        If float between (0, 1), it is the minimum fraction of included length.
     incl_flag : int, default 0
         Required flags: skip reads with all mask bits unset.
     excl_flag : int, default -1
@@ -263,10 +277,12 @@ def rs_wrapper(
     conf.umi_tag = umi_tag
     conf.umi_len = umi_len
     conf.ncores = ncores
+    
+    conf.strandness = strandness
+    conf.min_include = min_include
 
     conf.min_mapq = min_mapq
     conf.min_len = min_len
-    conf.min_include = min_include
     conf.incl_flag = incl_flag
     conf.excl_flag = excl_flag
     conf.no_orphan = no_orphan
@@ -604,12 +620,10 @@ def rs_core_chrom(thdata):
                 cell_idx, umi_int, reg_idx_whole = dat    # cell and UMI of new CUMI.
                 reg_idx = reg_idx_whole - thdata.reg_idx0
                 reg = reg_list[reg_idx]
-                if 0 < conf.min_include < 1:
-                    if get_include_frac(read, reg.start, reg.end) < conf.min_include:
-                        continue
-                else:
-                    if get_include_len(read, reg.start, reg.end) < conf.min_include:
-                        continue
+                if check_strand(read, reg.strand, conf.strandness) < 0:
+                    continue
+                if check_included(read, reg.start, reg.end, conf.min_include) < 0:
+                    continue
                 if snps is None:
                     if reg_idx >= len(snp_sets):
                         # feature not in this chromosome.

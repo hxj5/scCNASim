@@ -87,7 +87,7 @@ class BlockRegion(Region):
     """Block/Region with information of its covered SNPs."""
 
     def __init__(self, chrom, start, end, name = None,
-                snp_list = None, res_dir = None):
+                strand = None, snp_list = None, res_dir = None):
         """
         Parameters
         ----------
@@ -99,6 +99,9 @@ class BlockRegion(Region):
             1-based genomic end position of the region, exclusive.
         name : str
             Name of the region.
+        strand : str
+            DNA strand orientation of the feature, "+" (positive) or 
+            "-" (negative).
         snp_list : list of afc.gfeature.SNP
             A list of SNPs located within the block.
         res_dir : str
@@ -106,6 +109,7 @@ class BlockRegion(Region):
         """
         super().__init__(chrom, start, end)
         self.name = name
+        self.strand = strand
         self.snp_list = snp_list
         self.res_dir = res_dir
 

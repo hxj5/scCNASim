@@ -44,8 +44,8 @@ def main_wrapper(
     chroms = "human_autosome",
     cell_tag = "CB", umi_tag = "UB", umi_len = 10,
     ncores = 1, seed = 123, verbose = False,
+    strandness = "forward", min_include = 0.9,
     min_mapq = 20, min_len = 30,
-    min_include = 0.9,
     incl_flag = 0, excl_flag = -1,
     no_orphan = True
 ):
@@ -176,13 +176,18 @@ def main_wrapper(
         None means not using a fixed seed.
     verbose : bool, default False
         Whether to show detailed logging information.
+    strandness : {"forward", "reverse", "unstranded"}
+        Strandness of the sequencing protocol.
+        "forward" - read strand same as the source RNA molecule;
+        "reverse" - read strand opposite to the source RNA molecule;
+        "unstranded" - no strand information.
+    min_include : int or float, default 0.9
+        Minimum length of included part within specific feature.
+        If float between (0, 1), it is the minimum fraction of included length.
     min_mapq : int, default 20
         Minimum MAPQ for read filtering.
     min_len : int, default 30
         Minimum mapped length for read filtering.
-    min_include : int or float, default 0.9
-        Minimum length of included part within specific feature.
-        If float between (0, 1), it is the minimum fraction of included length.
     incl_flag : int, default 0
         Required flags: skip reads with all mask bits unset.
     excl_flag : int, default -1
@@ -243,12 +248,16 @@ def main_wrapper(
     conf.ncores = ncores
     conf.seed = seed
     conf.verbose = verbose
+    
+    
+    # read assignment.
+    conf.strandness = strandness
+    conf.min_include = min_include
 
 
     # read filtering.
     conf.min_mapq = min_mapq
     conf.min_len = min_len
-    conf.min_include = min_include
     conf.incl_flag = incl_flag
     conf.excl_flag = excl_flag
     conf.no_orphan = no_orphan
@@ -281,6 +290,7 @@ def main_core(conf):
         cna_profile_fn = conf.cna_profile_fn,
         out_dir = os.path.join(conf.out_dir, "%d_pp" % step),
         chroms = conf.chroms,
+        strandness = conf.strandness,
         merge_features_how = conf.merge_features_how
     )
     if pp_ret < 0:
@@ -306,6 +316,8 @@ def main_core(conf):
         ncores = conf.ncores,
         cell_tag = conf.cell_tag,
         umi_tag = conf.umi_tag,
+        strandness = conf.strandness,
+        min_include = conf.min_include,
         min_mapq = conf.min_mapq,
         min_len = conf.min_len,
         incl_flag = conf.incl_flag,
@@ -369,6 +381,8 @@ def main_core(conf):
         cell_tag = conf.cell_tag,
         umi_tag = conf.umi_tag,
         umi_len = conf.umi_len,
+        strandness = conf.strandness,
+        min_include = conf.min_include,
         min_mapq = conf.min_mapq,
         min_len = conf.min_len,
         incl_flag = conf.incl_flag,
@@ -446,6 +460,8 @@ def prepare_config(conf):
     assert_e(conf.clone_meta_fn)
     assert_e(conf.cna_profile_fn)
     assert_e(conf.refseq_fn)
+    
+    assert conf.strandness in ("forward", "reverse", "unstranded")
 
     return(0)
 

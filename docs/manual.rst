@@ -86,8 +86,8 @@ An example is as follows:
 Feature annotations of seed data (TSV file)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The feature annotation stored in a header-free TSV file.
-Its first four columns are ``chrom``, ``start``, ``end``, and ``feature``,
-where
+Its first five columns are ``chrom``, ``start``, ``end``, ``feature``,
+and ``strand``, where
 
 chrom : str
     Chromosome name of the feature.
@@ -100,17 +100,20 @@ end : int
 
 feature : str
     Feature name.
+    
+strand : str
+    DNA strand orientation of the feature, "+" (positive) or "-" (negative).
 
 An example is as follows:
 
 .. code-block::
 
-   chr1       29554   31109   MIR1302-2HG
-   chr1       34554   36081   FAM138A
-   chr1       65419   71585   OR4F5
-   chr2       38814   46870   FAM110C
-   chr2       197569  202605  AC079779.1
-   chr3       23757   24501   LINC01986
+   chr1       29554   31109   MIR1302-2HG     +
+   chr1       34554   36081   FAM138A -
+   chr1       65419   71585   OR4F5   +
+   chr2       38814   46870   FAM110C -
+   chr2       197569  202605  AC079779.1      +
+   chr3       23757   24501   LINC01986       +
 
 
 Phased SNPs of seed data (TSV or VCF file)

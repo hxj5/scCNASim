@@ -8,8 +8,13 @@ import subprocess
 from logging import error
 
 
+
 def check_read(read, conf):
-    """Check whether read is valid.
+    return(check_basic(read, conf))
+
+
+def check_basic(read, conf):
+    """Basic QC of a read.
 
     This function checks whether a read is valid.
     If invalid, it will be filtered.
@@ -47,6 +52,84 @@ def check_read(read, conf):
             return(-12)
     if len(read.positions) < conf.min_len:
         return(-21)
+    return(0)
+
+
+def check_strand(read, feature_strand, strandness = "forward"):
+    """Check whether the strand of a read is valid.
+    
+    Different from the rules of htseq-count `--stranded`, since 10x Genomics
+    scRNA-seq platform strandness is "forward", and
+    - SE read should be sense; 
+    - PE R1 should be antisense and R2 sense.
+    
+    Parameters
+    ----------
+    read : pysam.AlignedSegment
+        One alignment read.
+    feature_strand : str
+        DNA strand orientation of the feature, "+" (positive) or 
+        "-" (negative).
+    strandness : {"forward", "reverse", "unstranded"}
+        Strandness of the sequencing protocol.
+        "forward" - read strand same as the source RNA molecule;
+        "reverse" - read strand opposite to the source RNA molecule;
+        "unstranded" - no strand information.
+        
+    Returns
+    -------
+    int
+        Return code. 0 if read is valid, negative otherwise.
+    """
+    def __get_expected(read, se, pe_r1, pe_r2):
+        if read.is_paired:
+            if read.is_read1:
+                return(pe_r1)
+            else:
+                return(pe_r2)
+        else:
+            return(se)
+
+
+    if strandness not in ("forward", "reverse"):
+        return(0)
+    
+    read_strand = "+" if read.is_forward else "-"
+    sense = feature_strand
+    anti_sense = "+" if sense == "-" else "-"
+    if strandness == "forward":
+        expected_strand = __get_expected(read, sense, anti_sense, sense)
+        return(0 if read_strand == expected_strand else -3)
+    else:
+        expected_strand = __get_expected(read, anti_sense, sense, anti_sense)
+        return(0 if read_strand == expected_strand else -5)
+
+    
+def check_included(read, start, end, min_include):
+    """Check whether a read is included within specific feature.
+    
+    Parameters
+    ----------
+    read : pysam.AlignedSegment
+        One alignment read.
+    start : int
+        The start genomic position of the feature, 1-based and inclusive.
+    end : int
+        The end genomic position of the feature, 1-based and exclusive.    
+    min_include : int or float
+        Minimum length of included part within specific feature.
+        
+    Returns
+    -------
+    int
+        Return code. 0 if read is included, negative otherwise.
+    """
+    if 0 < min_include < 1:
+        if get_include_frac(read, start, end) < min_include:
+            return(-3)
+    else:
+        if get_include_len(read, start, end) < min_include:
+            return(-5)
     return(0)
 
 

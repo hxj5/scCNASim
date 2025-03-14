@@ -55,13 +55,17 @@ def usage(fp = sys.stdout, conf = None):
     s += "      --minMAF FLOAT     Minimum minor allele fraction for SNP [%f]\n" % conf.MIN_MAF
     s += "  -D, --debug INT        Used by developer for debugging [%d]\n" % conf.DEBUG
     s += "\n"
+    s += "Read assignment:\n"
+    s += "      --strandness STR        Strandness of the sequencing protocol, one of\n"
+    s += "                              {forward, reverse, unstranded} [%s]\n" % conf.STRANDNESS
+    s += "      --minINCLUDE FLOAT|INT  Minimum fraction or length of included part within specific feature [%f]\n" % conf.MIN_INCLUDE
+    s += "\n"
     s += "Read filtering:\n"
     s += "      --inclFLAG INT          Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
     s += "      --exclFLAG INT          Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
     s += "                              (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
     s += "      --minLEN INT            Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
     s += "      --minMAPQ INT           Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
-    s += "      --minINCLUDE FLOAT|INT  Minimum fraction or length of included part within specific feature [%f]\n" % conf.MIN_INCLUDE
     s += "      --countORPHAN           If use, do not skip anomalous read pairs.\n"
     s += "\n"
 
@@ -104,10 +108,12 @@ def afc_main(argv):
             "cellTAG=", "UMItag=", 
             "minCOUNT=", "minMAF=",
             "debug=",
+            
+            "strandness=",
+            "minINCLUDE=",
 
             "inclFLAG=", "exclFLAG=",
             "minLEN=", "minMAPQ=", 
-            "minINCLUDE=",
             "countORPHAN"
         ])
 
@@ -130,16 +136,18 @@ def afc_main(argv):
         elif op in (      "--mincount"): conf.min_count = int(val)
         elif op in (      "--minmaf"): conf.min_maf = float(val)
         elif op in ("-D", "--debug"): conf.debug = int(val)
-
-        elif op in ("--inclflag"): conf.incl_flag = int(val)
-        elif op in ("--exclflag"): conf.excl_flag = int(val)
-        elif op in ("--minlen"): conf.min_len = int(val)
-        elif op in ("--minmapq"): conf.min_mapq = float(val)
+            
+        elif op in ("--strandness"): conf.strandness = val
         elif op in ("--mininclude"):
             if "." in val:
                 conf.min_include = float(val)
             else:
                 conf.min_include = int(val)
+
+        elif op in ("--inclflag"): conf.incl_flag = int(val)
+        elif op in ("--exclflag"): conf.excl_flag = int(val)
+        elif op in ("--minlen"): conf.min_len = int(val)
+        elif op in ("--minmapq"): conf.min_mapq = float(val)
         elif op in ("--countorphan"): conf.no_orphan = False
 
         else:
@@ -160,8 +168,9 @@ def afc_wrapper(
     ncores = 1,
     cell_tag = "CB", umi_tag = "UB",
     min_count = 20, min_maf = 0.1,
-    min_mapq = 20, min_len = 30,
+    strandness = "forward",
     min_include = 0.9,
+    min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
     no_orphan = True
 ):
@@ -222,13 +231,18 @@ def afc_wrapper(
         Minimum aggragated count for SNP.
     min_maf : float, default 0.1
         Minimum minor allele fraction for SNP.
+    strandness : {"forward", "reverse", "unstranded"}
+        Strandness of the sequencing protocol.
+        "forward" - read strand same as the source RNA molecule;
+        "reverse" - read strand opposite to the source RNA molecule;
+        "unstranded" - no strand information.
+    min_include : int or float, default 0.9
+        Minimum length of included part within specific feature.
+        If float between (0, 1), it is the minimum fraction of included length.
     min_mapq : int, default 20
         Minimum MAPQ for read filtering.
     min_len : int, default 30
         Minimum mapped length for read filtering.
-    min_include : int or float, default 0.9
-        Minimum length of included part within specific feature.
-        If float between (0, 1), it is the minimum fraction of included length.
     incl_flag : int, default 0
         Required flags: skip reads with all mask bits unset.
     excl_flag : int, default -1
@@ -263,9 +277,11 @@ def afc_wrapper(
     conf.min_count = min_count
     conf.min_maf = min_maf
 
+    conf.strandness = strandness
+    conf.min_include = min_include
+
     conf.min_mapq = min_mapq
     conf.min_len = min_len
-    conf.min_include = min_include
     conf.incl_flag = incl_flag
     conf.excl_flag = excl_flag
     conf.no_orphan = no_orphan
@@ -406,7 +422,7 @@ def afc_core(conf):
             cell_fn = conf.out_sample_fn,
             feature_fn = conf.out_feature_fn,
             cell_columns = ["cell"],
-            feature_columns = ["chrom", "start", "end", "feature"],
+            feature_columns = ["chrom", "start", "end", "feature", "strand"],
             row_is_cell = False
         )
         if idx == 0:
@@ -619,13 +635,15 @@ def prepare_config(conf):
         pass
 
     
+    assert conf.strandness in ("forward", "reverse", "unstranded")
+    
     with open(conf.out_sample_fn, "w") as fp:
         fp.write("".join([smp + "\n" for smp in conf.samples]))
     
     with open(conf.out_feature_fn, "w") as fp:
         for reg in conf.reg_list:
-            fp.write("%s\t%d\t%d\t%s\n" % \
-                    (reg.chrom, reg.start, reg.end - 1, reg.name))
+            fp.write("%s\t%d\t%d\t%s\t%s\n" % \
+                    (reg.chrom, reg.start, reg.end - 1, reg.name, reg.strand))
 
     if conf.excl_flag < 0:
         if conf.use_umi():

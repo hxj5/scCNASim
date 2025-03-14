@@ -37,14 +37,18 @@ class Config:
         self.ncores = self.defaults.NCORES
         self.min_count = self.defaults.MIN_COUNT
         self.min_maf = self.defaults.MIN_MAF
-
+                
+        # read assignment.
+        self.strandness = self.defaults.STRANDNESS
+        self.min_include = self.defaults.MIN_INCLUDE
+        
         self.min_mapq = self.defaults.MIN_MAPQ
         self.min_len = self.defaults.MIN_LEN
-        self.min_include = self.defaults.MIN_INCLUDE
         self.incl_flag = self.defaults.INCL_FLAG
         self.excl_flag = -1
         self.no_orphan = self.defaults.NO_ORPHAN
 
+        
         # derived parameters.
 
         # barcodes : list of str or None
@@ -144,14 +148,19 @@ class Config:
         s += "%smin_maf = %f\n" % (prefix, self.min_maf)
         s += "%s\n" % prefix
 
+        # read assignment.
+        s += "%sstrandness = %s\n" % (prefix, self.strandness)
+        s += "%smin_include = %f\n" % (prefix, self.min_include)
+        s += "%s\n" % prefix
+
         s += "%smin_mapq = %d\n" % (prefix, self.min_mapq)
         s += "%smin_len = %d\n" % (prefix, self.min_len)
-        s += "%smin_include = %f\n" % (prefix, self.min_include)
         s += "%sinclude_flag = %d\n" % (prefix, self.incl_flag)
         s += "%sexclude_flag = %d\n" % (prefix, self.excl_flag)
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
         s += "%s\n" % prefix
 
+        
         # derived parameters.
         
         s += "%snumber_of_BAMs = %d\n" % (prefix, len(self.sam_fn_list) if \
@@ -185,6 +194,10 @@ class Config:
         s += "%s\n" % prefix
 
         fp.write(s)
+        
+        
+    def is_stranded(self):
+        return self.strandness in ("forward", "reverse")
 
     def use_barcodes(self):
         return self.cell_tag is not None
@@ -202,10 +215,12 @@ class DefaultConfig:
         self.NCORES = 1
         self.MIN_COUNT = 20
         self.MIN_MAF = 0.1
+        
+        self.STRANDNESS = "forward"
+        self.MIN_INCLUDE = 0.9
 
         self.MIN_MAPQ = 20
         self.MIN_LEN = 30
-        self.MIN_INCLUDE = 0.9
         self.INCL_FLAG = 0
         self.EXCL_FLAG_UMI = 772
         self.EXCL_FLAG_XUMI = 1796

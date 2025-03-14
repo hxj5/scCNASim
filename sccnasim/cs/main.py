@@ -8,8 +8,9 @@ import pandas as pd
 import pickle
 import sys
 import time
-import warning
+import warnings
 
+from anndata import ImplicitModificationWarning
 from logging import info, error
 from .config import Config
 from .io import cs_save_adata2mtx
@@ -284,6 +285,8 @@ def cs_run(conf):
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
+            warnings.simplefilter("ignore", UserWarning)
+            warnings.simplefilter("ignore", ImplicitModificationWarning)
             res = cs_core(conf)
     except ValueError as e:
         error(str(e))

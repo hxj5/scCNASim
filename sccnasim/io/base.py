@@ -1,6 +1,7 @@
 # base.py - basic input and output.
 
 import anndata as ad
+import numpy as np
 import pandas as pd
 from ..utils.base import is_file_empty
 from ..utils.grange import format_chrom, format_start, format_end, reg2str
@@ -347,29 +348,32 @@ def load_features(fn, sep = "\t"):
     ----------
     fn : str
         Path to a a header-free file containing feature annotations, whose
-        first four columns should be:
+        first five columns should be:
         - "chrom" (str): chromosome name of the feature.
         - "start" (int): start genomic position of the feature, 1-based and
           inclusive.
         - "end" (int): end genomic position of the feature, 1-based and
           inclusive.
         - "feature" (str): feature name.
+        - "strand" (str): DNA strand orientation of the feature, 
+          "+" (positive) or "-" (negative).
     sep : str, default "\t"
         File delimiter.
 
     Returns
     -------
     pandas.DataFrame
-        The loaded feature annotations, whose first four columns are "chrom",
-        "start", "end", "feature".
+        The loaded feature annotations, whose first five columns are "chrom",
+        "start", "end", "feature", "strand".
     """
     df = pd.read_csv(fn, sep = sep, header = None, dtype = {0: str})
     df.columns = df.columns.astype(str)
-    df.columns.values[:4] = ["chrom", "start", "end", "feature"]
+    df.columns.values[:5] = ["chrom", "start", "end", "feature", "strand"]
     #df["chrom"] = df["chrom"].astype(str)
     df["chrom"] = df["chrom"].map(format_chrom)
     df["start"] = df["start"].map(format_start)
     df["end"] = df["end"].map(format_end)
+    assert np.all(df["strand"].isin(["+", "-"]))
     return(df)
 
 

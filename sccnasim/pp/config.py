@@ -19,6 +19,7 @@ class Config:
         self.cna_profile_fn = None
         self.out_dir = None
         self.chroms = ",".join([str(c) for c in range(1, 23)])
+        self.strandness = "forward"
         self.merge_features_how = "quantile"
 
         # derived parameters.
@@ -49,13 +50,17 @@ class Config:
         s += "%scna_profile_fn = %s\n" % (prefix, self.cna_profile_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
         s += "%schroms = %s\n" % (prefix, self.chroms)
+        s += "%sstrandness = %s\n" % (prefix, self.strandness)
+        s += "%smerge_features_how = %s\n" % (prefix, str(self.merge_features_how))
         s += "%s\n" % prefix
 
         # derived parameters.
         s += "%schrom_list = %s\n" % (prefix, str(self.chrom_list))
         s += "%sout_prefix_raw = %s\n" % (prefix, self.out_prefix_raw)
         s += "%sout_prefix_pp = %s\n" % (prefix, self.out_prefix_pp)
-        s += "%smerge_features_how = %s\n" % (prefix, str(self.merge_features_how))
         s += "%s\n" % prefix
 
         fp.write(s)
+        
+    def is_stranded(self):
+        return self.strandness in ("forward", "reverse")

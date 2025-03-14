@@ -40,12 +40,15 @@ class Config:
         self.umi_len = self.defaults.UMI_LEN
         self.ncores = self.defaults.NCORES
 
+        self.strandness = self.defaults.STRANDNESS
+        self.min_include = self.defaults.MIN_INCLUDE
+
         self.min_mapq = self.defaults.MIN_MAPQ
         self.min_len = self.defaults.MIN_LEN
-        self.min_include = self.defaults.MIN_INCLUDE
         self.incl_flag = self.defaults.INCL_FLAG
         self.excl_flag = -1
         self.no_orphan = self.defaults.NO_ORPHAN
+        
 
         # derived variables
 
@@ -157,14 +160,18 @@ class Config:
         s += "%sumi_len = %s\n" % (prefix, self.umi_len)
         s += "%snumber_of_processes = %d\n" % (prefix, self.ncores)
         s += "%s\n" % prefix
+        
+        s += "%sstrandness = %s\n" % (prefix, self.strandness)
+        s += "%smin_include = %f\n" % (prefix, self.min_include)
+        s += "%s\n" % prefix
 
         s += "%smin_mapq = %d\n" % (prefix, self.min_mapq)
         s += "%smin_len = %d\n" % (prefix, self.min_len)
-        s += "%smin_include = %f\n" % (prefix, self.min_include)
         s += "%sinclude_flag = %d\n" % (prefix, self.incl_flag)
         s += "%sexclude_flag = %d\n" % (prefix, self.excl_flag)
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
         s += "%s\n" % prefix
+        
 
         # derived variables
 
@@ -197,6 +204,10 @@ class Config:
         s += "%s\n" % prefix
 
         fp.write(s)
+        
+        
+    def is_stranded(self):
+        return self.strandness in ("forward", "reverse")
 
     def use_barcodes(self):
         return self.cell_tag is not None

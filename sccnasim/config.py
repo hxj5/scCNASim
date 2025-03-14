@@ -10,140 +10,7 @@ class Config:
 
     Attributes
     ----------
-    sam_fn : str or None
-        Comma separated indexed BAM file.
-        Note that one and only one of `sam_fn` and `sam_list_fn` should be
-        specified.
-    cell_anno_fn : str
-        The cell annotation file. 
-        It is header-free and its first two columns are:
-        - "cell" (str): cell barcodes.
-        - "cell_type" (str): cell type.
-    feature_fn : str
-        A TSV file listing target features. 
-        It is header-free and its first 4 columns shoud be: 
-        - "chrom" (str): chromosome name of the feature.
-        - "start" (int): start genomic position of the feature, 1-based
-          and inclusive.
-        - "end" (int): end genomic position of the feature, 1-based and
-          inclusive.
-        - "feature" (str): feature name.
-    snp_fn : str
-        A TSV or VCF file listing phased SNPs.
-        If TSV, it is a header-free file containing SNP annotations, whose
-        first six columns should be:
-        - "chrom" (str): chromosome name of the SNP.
-        - "pos" (int): genomic position of the SNP, 1-based.
-        - "ref" (str): the reference allele of the SNP.
-        - "alt" (str): the alternative allele of the SNP.
-        - "ref_hap" (int): the haplotype index of `ref`, one of {0, 1}.
-        - "alt_hap" (int): the haplotype index of `alt`, one of {1, 0}.
-        If VCF, it should contain "GT" in its "FORMAT" field.
-    clone_meta_fn : str
-        A TSV file listing clonal meta information.
-        It is header-free and its first 3 columns are:
-        - "clone" (str): clone ID.
-        - "source_cell_type" (str): the reference cell type of `clone`.
-        - "n_cell" (int): number of cells in the `clone`. If negative, 
-          then it will be set as the number of cells in `source_cell_type`.
-    cna_profile_fn : str
-        A TSV file listing clonal CNA profiles. 
-        It is header-free and its first 6 columns are:
-        - "chrom" (str): chromosome name of the CNA region.
-        - "start" (int): start genomic position of the CNA region, 1-based
-          and inclusive.
-        - "end" (int): end genomic position of the CNA region, 1-based and
-          inclusive.
-        - "clone" (str): clone ID.
-        - "cn_ale0" (int): copy number of the first allele.
-        - "cn_ale1" (int): copy number of the second allele.
-    refseq_fn : str
-        A FASTA file storing reference genome sequence.
-    out_dir : str
-        The output folder.
-    sam_list_fn : str or None, default None
-        A file listing indexed BAM files, each per line.
-    sample_ids : str or None, default None
-        Comma separated sample IDs.
-        It should be specified for well-based or bulk data.
-        When `barcode_fn` is not specified, the default value will be
-        "SampleX", where "X" is the 0-based index of the BAM file(s).
-        Note that `sample_ids` and `sample_id_fn` should not be specified
-        at the same time.
-    sample_id_fn : str or None, default None
-        A file listing sample IDs, each per line.
-    merge_features_how : str, default "quantile"
-        How to merge overlapping features.
-        "none" - Leave all input gene annotations unchanged.
-        "quantile" - alias to "quantile2".
-        "quantile2" - remove highly overlapping genes.
-            Remove genes with number of overlapping genes larger than a given
-            value. Default is the 0.99 quantile among all genes that have 
-            overlaps.
-        "union" - keep the union range of gene overlaps.
-            Replace consecutive overlapping genes with their union genomic 
-            range, i.e., aggregate overlapping genes into non-overlapping
-            super-genes.
-    size_factor : str or None, default "libsize"
-        The type of size factor.
-        Currently, only support "libsize" (library size).
-        Set to `None` if do not use size factors for model fitting.
-    marginal : {"auto", "poisson", "nb", "zinb"}
-        Type of marginal distribution.
-        One of
-        - "auto" (auto select).
-        - "poisson" (Poisson).
-        - "nb" (Negative Binomial).
-        - "zinb" (Zero-Inflated Negative Binomial).
-    kwargs_fit_sf : dict
-        The additional kwargs passed to function 
-        :func:`~marginal.fit_libsize_wrapper` for fitting size factors.
-        The available arguments are:
-        - dist : {"normal", "t"}
-            Type of distribution.
-    kwargs_fit_rd : dict
-        The additional kwargs passed to function 
-        :func:`~marginal.fit_RD_wrapper` for fitting read depth.
-        The available arguments are:
-        - min_nonzero_num : int, default 3
-            The minimum number of cells that have non-zeros for one feature.
-            If smaller than the cutoff, then the feature will not be fitted
-            (i.e., its mean will be directly treated as 0).
-        - max_iter : int, default 1000
-            Number of maximum iterations in model fitting.
-        - pval_cutoff : float, default 0.05
-            The p-value cutoff for model selection with GLR test.
-    chroms : str, default "1,2,...22"
-        Comma separated chromosome names.
-        Reads in other chromosomes will not be used for sampling and hence
-        will not be present in the output BAM file(s).
-    cell_tag : str or None, default "CB"
-        Tag for cell barcodes, set to None when using sample IDs.
-    umi_tag : str or None, default "UB"
-        Tag for UMI, set to None when reads only.
-    umi_len : int, default 10
-        Length of output UMI barcode.
-    ncores : int, default 1
-        Number of cores.
-    seed : int or None, default 123
-        Seed for random numbers.
-        None means not using a fixed seed.
-    verbose : bool, default False
-        Whether to show detailed logging information.
-    min_mapq : int, default 20
-        Minimum MAPQ for read filtering.
-    min_len : int, default 30
-        Minimum mapped length for read filtering.
-    min_include : int or float, default 0.9
-        Minimum length of included part within specific feature.
-        If float between (0, 1), it is the minimum fraction of included length.
-    incl_flag : int, default 0
-        Required flags: skip reads with all mask bits unset.
-    excl_flag : int, default -1
-        Filter flags: skip reads with any mask bits set.
-        Value -1 means setting it to 772 when using UMI, or 1796 otherwise.
-    no_orphan : bool, default True
-        If `False`, do not skip anomalous read pairs.
+    See `main::main_wrapper()`.
     """
     def __init__(self):
         self.afc_def_conf = AFC_DefConf()
@@ -178,11 +45,14 @@ class Config:
         self.ncores = self.afc_def_conf.NCORES
         self.seed = 123
         self.verbose = False
+        
+        # read assignment
+        self.strandness = self.afc_def_conf.STRANDNESS
+        self.min_include = self.afc_def_conf.MIN_INCLUDE
 
         # read filtering.
         self.min_mapq = self.afc_def_conf.MIN_MAPQ
         self.min_len = self.afc_def_conf.MIN_LEN
-        self.min_include = self.afc_def_conf.MIN_INCLUDE
         self.incl_flag = self.afc_def_conf.INCL_FLAG
         self.excl_flag = -1
         self.no_orphan = self.afc_def_conf.NO_ORPHAN
@@ -226,9 +96,12 @@ class Config:
         s += "%sverbose = %s\n" % (prefix, self.verbose)
         s += "%s\n" % prefix
 
+        s += "%sstrandness = %s\n" % (prefix, self.strandness)
+        s += "%smin_include = %f\n" % (prefix, self.min_include)
+        s += "%s\n" % prefix
+
         s += "%smin_mapq = %d\n" % (prefix, self.min_mapq)
         s += "%smin_len = %d\n" % (prefix, self.min_len)
-        s += "%smin_include = %f\n" % (prefix, self.min_include)
         s += "%sinclude_flag = %d\n" % (prefix, self.incl_flag)
         s += "%sexclude_flag = %d\n" % (prefix, self.excl_flag)
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
@@ -238,6 +111,10 @@ class Config:
         s += "%s\n" % prefix
 
         fp.write(s)
+
+
+    def is_stranded(self):
+        return self.strandness in ("forward", "reverse")
 
     def use_barcodes(self):
         return self.cell_tag is not None

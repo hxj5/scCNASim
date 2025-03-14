@@ -8,7 +8,8 @@ import time
 
 from logging import info, error
 from .config import Config
-from .io import merge_cna_profile, filter_features_by_chroms, \
+from .gcna import merge_cna_profile
+from .gfeature import filter_features_by_chroms, \
     merge_features_quantile2, merge_features_union
 from ..io.base import load_cells, load_cnas, load_clones
 from ..utils.grange import format_chrom
@@ -19,7 +20,6 @@ def pp_core(conf):
 
     info("configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
-
 
     # process feature file.
     raw_feature_fn = os.path.join(conf.out_dir, conf.out_prefix_raw + "features.tsv")
@@ -37,7 +37,7 @@ def pp_core(conf):
     if r < 0:
         error("filter features by chroms failed (%d)." % r)
         raise ValueError
-    info("%d features kept from %d old ones." % (n_new, n_old))
+    info("%d features kept from %d old ones after filtering by chroms." % (n_new, n_old))
     
     # merge overlapping features.
     merged_feature_fn = os.path.join(conf.out_dir, 
@@ -51,6 +51,7 @@ def pp_core(conf):
             r, n_old, n_new = merge_features_quantile2(
                 in_fn = filter_chrom_feature_fn,
                 out_fn = merged_feature_fn,
+                stranded = conf.is_stranded(),
                 max_gap = 1,
                 quantile = 0.99
             )
@@ -58,6 +59,7 @@ def pp_core(conf):
             r, n_old, n_new = merge_features_union(
                 in_fn = filter_chrom_feature_fn,
                 out_fn = merged_feature_fn,
+                stranded = conf.is_stranded(),
                 max_gap = 1,
                 new_name_how = "join"
             )
@@ -68,7 +70,7 @@ def pp_core(conf):
         if r < 0:
             error("resolve overlapping features failed (%d)." % r)
             raise ValueError
-        info("%d features left after resolving %d old ones." % (n_new, n_old))
+        info("%d features left after resolving feature overlaps in %d old ones." % (n_new, n_old))
 
 
     # process SNP file.
@@ -222,7 +224,8 @@ def pp_run(conf):
 def pp_wrapper(
     cell_anno_fn, feature_fn, snp_fn,
     clone_meta_fn, cna_profile_fn,
-    out_dir, chroms = None, merge_features_how = "quantile"
+    out_dir, chroms = None, strandness = "forward",
+    merge_features_how = "quantile"
 ):
     """Wrapper for running the pp (preprocessing) module.
 
@@ -276,6 +279,11 @@ def pp_wrapper(
     chroms : str or None, default None
         Comma separated chromosome names.
         If None, it will be set as "1,2,...22".
+    strandness : {"forward", "reverse", "unstranded"}
+        Strandness of the sequencing protocol.
+        "forward" - read strand same as the source RNA molecule;
+        "reverse" - read strand opposite to the source RNA molecule;
+        "unstranded" - no strand information.
     merge_features_how : str, default "quantile"
         How to merge overlapping features.
         "none" - Leave all input gene annotations unchanged.
@@ -309,6 +317,7 @@ def pp_wrapper(
     conf.chroms = chroms
     conf.chrom_list = [format_chrom(c) for c in conf.chroms.split(",")]
     
+    conf.strandness = strandness
     conf.merge_features_how = merge_features_how
     
     ret, res = pp_run(conf)

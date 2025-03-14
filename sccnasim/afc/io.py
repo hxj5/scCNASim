@@ -17,7 +17,7 @@ def load_feature_from_txt(fn, sep = "\t"):
     ----------
     fn : str
         Path to header-free plain file listing features, each per line.
-        The first 4 columns should be
+        The first 5 columns should be
         chrom : str
             The chromosome name of the feature.
         start : int
@@ -26,6 +26,9 @@ def load_feature_from_txt(fn, sep = "\t"):
             The end genomic position of the feature, 1-based and inclusive.
         name : str
             The name of the feature.
+        strand : str
+            DNA strand orientation of the feature, "+" (positive) or 
+            "-" (negative).
     sep : str, default '\t'
         The delimiter of the `fn`.
 
@@ -44,7 +47,7 @@ def load_feature_from_txt(fn, sep = "\t"):
             rec["start"],
             rec["end"] + 1,
             rec["feature"],
-            i
+            rec["strand"]
         )
         reg_list.append(reg)
     return reg_list
