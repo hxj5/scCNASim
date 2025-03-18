@@ -4,6 +4,64 @@
    =======
 
 
+Release v0.3.0 (18/03/2025)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This version takes strandness into account.
+Both CellRanger and STARsolo account for strandness, by default they only
+count the sense reads.
+
+* update the input feature annotation file, adding the fifth column "strand",
+  in which "+" and "-" stand for the positive and negative strand of the 
+  feature, respectively.
+* the strand information is considered in resolving gene overlaps.
+  If strandness is "forward" or "reverse" (i.e., strand-specific data), then
+  the gene overlaps have to be on the same strand;
+  otherwise, the gene overlaps are classified purely on their genomic range,
+  regardless of which strands they are in.
+* add option ``strandness`` for specifying the strandness of the sequencing
+  protocol.
+  Three possible values are
+  (1) "forward" (default): read strand is same as source RNA; 
+  (2) "reverse": read strand is opposite to the source RNA;
+  (3) "unstranded": the protocol is not strand-specific, i.e., read strand
+  could be same as or opposite to its source RNA.
+* strand information is considered in read filtering and assignment.
+  (1) when strandness=forward, for single end (SE) read, the read has to be
+  sense read; for pair end (PE) reads, R1 has to be antisense and R2 sense.
+  (2) when strandness=reverse, the rules in (1) are reversed.
+  (3) when strandness=unstranded, no check on sense or antisense.
+  
+
+Implementation:
+
+* discard the reads with 'N' in its UMI.
+* clean unused strategies for resolving gene overlaps.
+  Only keep "quantile" (alias to "quantile2"), "union", and "none".
+
+Output:
+
+* update output BAM tags, mainly make the CR and UR values match the newly
+  generated CB and UB values.
+  It is useful for STARsolo feature counting because STARsolo requires 
+  specifying tags of raw cell and UMI barcodes (default CR and UR) for UMI
+  grouping (collapsing).
+* compress output h5ad files with option gzip.
+  It can greatly reduce the file size.
+
+Others:
+
+* cs: suppress statsmodels RuntimeWarning messages.
+* detect whether the BAM index file exists when using pysam fetch().
+  If not exist, the simulator will report error.
+  For some (or all?) pysam version, while BAM index is required for using
+  fetch() method, it does not report error when the index file is missing.
+* simplify docstrings of Config.
+* docs: add ref genome into section "input" in manual.
+* README: add potential issues of installation related to pysam installation.
+  pysam can be installed via conda when pip install failed.
+
+
+
 Release v0.2.0 (05/03/2025)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Improve the quality of simulated cells, to avoid generating some noisy clones.
