@@ -195,7 +195,7 @@ def rs_wrapper(
     feature_fn : str
         A pickle object file storing target features.
         Typically it is returned by the `afc` module.
-        This file contains a list of :class:`~afc.gfeature.BlockRegion`
+        This file contains a list of :class:`~utils.gfeature.BlockRegion`
         objects, whose order should be the same with the 
         ".var["feature"]" in `count_fn`.
     refseq_fn : str

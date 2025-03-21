@@ -12,7 +12,7 @@ class SNPSet:
         """
         Parameters
         ----------
-        snp_list : list of afc.gfeature.SNP
+        snp_list : list of utils.gfeature.SNP
             A list of SNPs covered by one feature.    
         """
         # dat : dict

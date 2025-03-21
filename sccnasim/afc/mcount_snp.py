@@ -169,7 +169,7 @@ class MCount:
         self.samples = samples
         self.conf = conf
 
-        # snp : afc.gfeature.SNP
+        # snp : utils.gfeature.SNP
         #   The SNP being pileuped.
         self.snp = None
 
@@ -201,7 +201,7 @@ class MCount:
 
         Parameters
         ----------
-        snp : afc.gfeature.SNP
+        snp : utils.gfeature.SNP
             A SNP to be pileuped.
         
         Returns

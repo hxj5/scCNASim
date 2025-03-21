@@ -19,7 +19,7 @@ class ThreadData:
             The global configuration.
         reg_obj_fn : str
             Path to the python pickle file storing a list of features (
-            :class:`~afc.gfeature.BlockRegion` objects).
+            :class:`~utils.gfeature.BlockRegion` objects).
         out_feature_fn : str
             Path to the output feature TSV file in this thread.
         out_ale_fns : dict of {str : str}

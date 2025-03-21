@@ -71,7 +71,7 @@ class Config:
         #   The object storing count matrices.
         self.adata = None
 
-        # reg_list : list of afc.gfeature.BlockRegion
+        # reg_list : list of utils.gfeature.BlockRegion
         #   A list of features.
         self.reg_list = None
 

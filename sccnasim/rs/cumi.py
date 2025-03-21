@@ -192,8 +192,8 @@ def sample_cumis(
         for every allele.
         Note that `xdata_fn_list`, `reg_fn_list`, `reg_idx_range_list`,
         `umi_fn_list`, and `chrom_list` should have the same length and order.
-    reg_fn_list : list of afc.gfeature.BlockRegion
-        A list of :class:`~afc.gfeature.BlockRegion` objects, each stores the
+    reg_fn_list : list of utils.gfeature.BlockRegion
+        A list of :class:`~utils.gfeature.BlockRegion` objects, each stores the
         allele-specific old CUMIs to be sampled from in its `.aln_fns` 
         attribute.
     reg_idx_range_list : list of tuple

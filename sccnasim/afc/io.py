@@ -4,8 +4,8 @@ import os
 
 from logging import error
 from logging import warning as warn
-from .gfeature import SNP, SNPSet, BlockRegion
 from ..io.base import load_features, load_snps
+from ..utils.gfeature import SNP, SNPSet, BlockRegion
 from ..utils.vcf import vcf_load
 from ..utils.zfile import zopen
 
@@ -34,8 +34,8 @@ def load_feature_from_txt(fn, sep = "\t"):
 
     Returns
     -------
-    list of afc.gfeature.BlockRegion or None
-        A list of :class:`~afc.gfeature.BlockRegion` objects if success,
+    list of utils.gfeature.BlockRegion or None
+        A list of :class:`~utils.gfeature.BlockRegion` objects if success,
         `None` otherwise.
     """
     reg_list = []
@@ -77,8 +77,8 @@ def load_snp_from_tsv(fn, sep = "\t"):
 
     Returns
     -------
-    afc.gfeature.SNPSet or None
-        A :class:`~afc.gfeature.SNPSet` object if success, `None` otherwise.
+    utils.gfeature.SNPSet or None
+        A :class:`~utils.gfeature.SNPSet` object if success, `None` otherwise.
     """
     snp_set = SNPSet()
     df = load_snps(fn, sep = sep)
@@ -121,8 +121,8 @@ def load_snp_from_vcf(fn):
 
     Returns
     -------
-    afc.gfeature.SNPSet or None
-        A :class:`~afc.gfeature.SNPSet` object if success, `None` otherwise.
+    utils.gfeature.SNPSet or None
+        A :class:`~utils.gfeature.SNPSet` object if success, `None` otherwise.
     """
     snp_set = SNPSet()
     df, header = vcf_load(fn)

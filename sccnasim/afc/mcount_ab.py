@@ -199,7 +199,7 @@ class MCount:
         self.samples = samples
         self.conf = conf
 
-        # reg : afc.gfeature.BlockRegion
+        # reg : utils.gfeature.BlockRegion
         #   The feature to be counted.
         self.reg = None
 
@@ -222,7 +222,7 @@ class MCount:
 
         Parameters
         ----------
-        reg : afc.gfeature.BlockRegion
+        reg : utils.gfeature.BlockRegion
             A feature to be counted.
         
         Returns

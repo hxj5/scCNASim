@@ -1,6 +1,6 @@
 # gfeature.py - genomic features, supporting interval query.
 
-from ..utils.grange import Region, RegionSet
+from .grange import Region, RegionSet
 
 
 class SNP(Region):
@@ -102,7 +102,7 @@ class BlockRegion(Region):
         strand : str
             DNA strand orientation of the feature, "+" (positive) or 
             "-" (negative).
-        snp_list : list of afc.gfeature.SNP
+        snp_list : list of utils.gfeature.SNP
             A list of SNPs located within the block.
         res_dir : str
             Path to the folder storing the results of this region.

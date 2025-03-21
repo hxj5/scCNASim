@@ -61,11 +61,11 @@ class Config:
         #   None if cell barcodes are used.
         self.sample_ids = None
 
-        # reg_list : list of afc.gfeature.BlockRegion
+        # reg_list : list of utils.gfeature.BlockRegion
         #   A list of features.
         self.reg_list = None
 
-        # snp_set : afc.gfeature.SNPSet
+        # snp_set : utils.gfeature.SNPSet
         #   The object storing a set of SNPs.
         self.snp_set = None
 
