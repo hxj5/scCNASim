@@ -18,10 +18,11 @@ from .afc.main import afc_wrapper
 from .app import APP, VERSION
 from .config import Config
 from .cs.main import cs_wrapper
-from .io.base import load_cells, load_h5ad, save_h5ad
+from .io.base import load_cells, load_h5ad, save_h5ad, load_features
 from .pp.main import pp_wrapper
 from .rs.main import rs_wrapper
 from .utils.base import assert_e
+from .utils.gfeature import assign_feature_batch
 from .utils.xlog import init_logging
 
 
@@ -299,6 +300,17 @@ def main_core(conf):
     info("pp results:")
     info(str(pp_res))
     step += 1
+    
+    
+    # create feature-specific result folders.
+    feature_dir = os.path.join(conf.out_dir, "features")
+    os.makedirs(feature_dir, exist_ok = True)
+    features = load_features(pp_res["feature_fn_new"])
+    out_feature_dirs = assign_feature_batch(
+        feature_names = features["feature"].values,
+        root_dir = feature_dir,
+        batch_size = 1000
+    )
 
 
     # allele-specific feature counting.
@@ -322,7 +334,8 @@ def main_core(conf):
         min_len = conf.min_len,
         incl_flag = conf.incl_flag,
         excl_flag = conf.excl_flag,
-        no_orphan = conf.no_orphan
+        no_orphan = conf.no_orphan,
+        out_feature_dirs = out_feature_dirs
     )
     if afc_ret < 0:
         error("allele-specific feature counting failed (%d)." % afc_ret)

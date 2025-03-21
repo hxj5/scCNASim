@@ -178,7 +178,8 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
         return((-9, None))
     
     reg_ale_cnt = {ale: {smp:0 for smp in conf.samples} for ale in alleles}
-    aln_fps = {ale: open(fn, "w") for ale, fn in reg.aln_fns.items()}
+    cumi_fps = {ale: open(ale_dat.cumi_fn, "w")   \
+            for ale, ale_dat in reg.allele_data.items()}
     ale_umi = None
     for smp, scnt in mcnt.cell_cnt.items():
         reg_ale_cnt["A"][smp] = scnt.hap_cnt[0]
@@ -186,7 +187,7 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
         reg_ale_cnt["D"][smp] = scnt.hap_cnt[2]
         reg_ale_cnt["O"][smp] = scnt.hap_cnt[-1]
         reg_ale_cnt["U"][smp] = scnt.hap_cnt[-2] + scnt.hap_cnt[-3]
-        for ale, fp in aln_fps.items():
+        for ale, fp in cumi_fps.items():
             if ale == "A":
                 ale_umi = scnt.umi_cnt[0]
             elif ale == "B":
@@ -200,7 +201,7 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
             for umi in sorted(list(ale_umi)):
                 fp.write("%s\t%s\n" % (smp, umi))
 
-    for fp in aln_fps.values():
+    for fp in cumi_fps.values():
         fp.close()
 
     return((0, reg_ale_cnt))

@@ -231,7 +231,7 @@ def merge_features_union(
 
 
     sep = "\t"
-    max_fn_len = 63
+    max_fn_len = 31
     n_old, n_new = -1, -1
 
     # load data

@@ -47,8 +47,12 @@ class Config:
         self.incl_flag = self.defaults.INCL_FLAG
         self.excl_flag = -1
         self.no_orphan = self.defaults.NO_ORPHAN
-
         
+        # out_feature_dirs : list of str
+        #   A list of output folders for feature-specific results.
+        self.out_feature_dirs = None
+
+
         # derived parameters.
 
         # barcodes : list of str or None
@@ -78,10 +82,6 @@ class Config:
         #   well-based data).
         #   It will be used as output IDs of each cell.        
         self.samples = None
-
-        # aln_dir : str
-        #   The output folder for alignments.
-        self.aln_dir = None
 
         # count_dir : str
         #   The output folder for count matrices.
@@ -159,6 +159,10 @@ class Config:
         s += "%sexclude_flag = %d\n" % (prefix, self.excl_flag)
         s += "%sno_orphan = %s\n" % (prefix, self.no_orphan)
         s += "%s\n" % prefix
+        
+        s += "%slen(out_feature_dirs) = %d\n" % (prefix, \
+            len(self.out_feature_dirs) if self.out_feature_dirs else 0)
+        s += "%s\n" % prefix
 
         
         # derived parameters.
@@ -175,7 +179,6 @@ class Config:
                 self.snp_set is not None else -1)
         s += "%s\n" % prefix
 
-        s += "%saln_dir = %s\n" % (prefix, self.aln_dir)
         s += "%scount_dir = %s\n" % (prefix, self.count_dir)
         s += "%s\n" % prefix
 

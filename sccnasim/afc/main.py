@@ -26,136 +26,11 @@ from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str, save_h5ad
 from ..io.counts import load_xdata
+from ..utils.base import assert_e
+from ..utils.gfeature import assign_feature_batch
 from ..utils.xlog import init_logging
 from ..utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
 
-
-def usage(fp = sys.stdout, conf = None):
-    s =  "\n"
-    s += "Version: %s\n" % VERSION
-    s += "Usage:   %s %s <options>\n" % (APP, COMMAND)
-    s += "\n" 
-    s += "Options:\n"
-    s += "  -s, --sam FILE         Comma separated indexed sam/bam/cram file.\n"
-    s += "  -S, --samList FILE     A file listing indexed BAM files, each per line.\n"
-    s += "  -b, --barcode FILE     A plain file listing all effective cell barcode, each per line.\n"
-    s += "  -R, --region FILE      A TSV file listing target features. The first 4 columns shoud be:\n"
-    s += "                         chrom, start, end (both 1-based and inclusive), name.\n"
-    s += "  -P, --phasedSNP FILE   A TSV or VCF file listing phased SNPs (i.e., containing phased GT).\n"
-    s += "  -i, --sampleList FILE  A file listing sample IDs, each per line.\n"
-    s += "  -I, --sampleIDs STR    Comma separated sample IDs.\n"
-    s += "  -O, --outdir DIR       Output directory.\n"
-    s += "  -h, --help             Print this message and exit.\n"
-    s += "\n"
-    s += "Optional arguments:\n"
-    s += "  -p, --ncores INT       Number of processes [%d]\n" % conf.NCORES
-    s += "      --cellTAG STR      Tag for cell barcodes, set to None when using sample IDs [%s]\n" % conf.CELL_TAG
-    s += "      --UMItag STR       Tag for UMI, set to None when reads only [%s]\n" % conf.UMI_TAG
-    s += "      --minCOUNT INT     Minimum aggragated count for SNP [%d]\n" % conf.MIN_COUNT
-    s += "      --minMAF FLOAT     Minimum minor allele fraction for SNP [%f]\n" % conf.MIN_MAF
-    s += "  -D, --debug INT        Used by developer for debugging [%d]\n" % conf.DEBUG
-    s += "\n"
-    s += "Read assignment:\n"
-    s += "      --strandness STR        Strandness of the sequencing protocol, one of\n"
-    s += "                              {forward, reverse, unstranded} [%s]\n" % conf.STRANDNESS
-    s += "      --minINCLUDE FLOAT|INT  Minimum fraction or length of included part within specific feature [%f]\n" % conf.MIN_INCLUDE
-    s += "\n"
-    s += "Read filtering:\n"
-    s += "      --inclFLAG INT          Required flags: skip reads with all mask bits unset [%d]\n" % conf.INCL_FLAG
-    s += "      --exclFLAG INT          Filter flags: skip reads with any mask bits set [%d\n" % conf.EXCL_FLAG_UMI
-    s += "                              (when use UMI) or %d (otherwise)]\n" % conf.EXCL_FLAG_XUMI
-    s += "      --minLEN INT            Minimum mapped length for read filtering [%d]\n" % conf.MIN_LEN
-    s += "      --minMAPQ INT           Minimum MAPQ for read filtering [%d]\n" % conf.MIN_MAPQ
-    s += "      --countORPHAN           If use, do not skip anomalous read pairs.\n"
-    s += "\n"
-
-    fp.write(s)
-
-
-def afc_main(argv):
-    """Command-Line interface.
-
-    Parameters
-    ----------
-    argv : list of str
-        A list of cmdline parameters.
-    
-    Returns
-    -------
-    int
-        Return code. 0 if success, -1 otherwise.
-    """
-    conf = Config()
-
-    if len(argv) <= 2:
-        usage(sys.stdout, conf.defaults)
-        sys.exit(0)
-
-    conf.argv = argv.copy()
-    init_logging(stream = sys.stdout)
-
-    opts, args = getopt.getopt(
-        args = argv[2:], 
-        shortopts = "-s:-S:-b:-R:-P:-i:-I:-O:-h-p:-D:", 
-        longopts = [
-            "sam=", "samList=", "barcode=",
-            "region=", "phasedSNP=",
-            "sampleList=", "sampleIDs=",
-            "outdir=",
-            "help",
-
-            "ncores=", 
-            "cellTAG=", "UMItag=", 
-            "minCOUNT=", "minMAF=",
-            "debug=",
-            
-            "strandness=",
-            "minINCLUDE=",
-
-            "inclFLAG=", "exclFLAG=",
-            "minLEN=", "minMAPQ=", 
-            "countORPHAN"
-        ])
-
-    for op, val in opts:
-        if len(op) > 2:
-            op = op.lower()
-        if op in   ("-s", "--sam"): conf.sam_fn = val
-        elif op in ("-S", "--samlist"): conf.sam_list_fn = val
-        elif op in ("-b", "--barcode"): conf.barcode_fn = val
-        elif op in ("-R", "--region"): conf.feature_fn = val
-        elif op in ("-P", "--phasedsnp"): conf.snp_fn = val
-        elif op in ("-i", "--samplelist"): conf.sample_id_fn = val
-        elif op in ("-I", "--sampleids"): conf.sample_ids = val
-        elif op in ("-O", "--outdir"): conf.out_dir = val
-        elif op in ("-h", "--help"): usage(sys.stdout, conf.defaults); sys.exit(0)
-
-        elif op in ("-p", "--ncores"): conf.ncores = int(val)
-        elif op in (      "--celltag"): conf.cell_tag = val
-        elif op in (      "--umitag"): conf.umi_tag = val
-        elif op in (      "--mincount"): conf.min_count = int(val)
-        elif op in (      "--minmaf"): conf.min_maf = float(val)
-        elif op in ("-D", "--debug"): conf.debug = int(val)
-            
-        elif op in ("--strandness"): conf.strandness = val
-        elif op in ("--mininclude"):
-            if "." in val:
-                conf.min_include = float(val)
-            else:
-                conf.min_include = int(val)
-
-        elif op in ("--inclflag"): conf.incl_flag = int(val)
-        elif op in ("--exclflag"): conf.excl_flag = int(val)
-        elif op in ("--minlen"): conf.min_len = int(val)
-        elif op in ("--minmapq"): conf.min_mapq = float(val)
-        elif op in ("--countorphan"): conf.no_orphan = False
-
-        else:
-            error("invalid option: '%s'." % op)
-            return(-1)
-        
-    ret, res = afc_run(conf)
-    return(ret)
 
 
 def afc_wrapper(
@@ -172,7 +47,8 @@ def afc_wrapper(
     min_include = 0.9,
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
-    no_orphan = True
+    no_orphan = True,
+    out_feature_dirs = None
 ):
     """Wrapper for running the afc (allele-specific counting) module.
 
@@ -250,6 +126,9 @@ def afc_wrapper(
         Value -1 means setting it to 772 when using UMI, or 1796 otherwise.
     no_orphan : bool, default True
         If `False`, do not skip anomalous read pairs.
+    out_feature_dirs : list of str or None, default None
+        A list of output folders for feature-specific results.
+        If None, subfolders will be created under the `out_dir/alignments`.
 
     Returns
     -------
@@ -285,6 +164,8 @@ def afc_wrapper(
     conf.incl_flag = incl_flag
     conf.excl_flag = excl_flag
     conf.no_orphan = no_orphan
+    
+    conf.out_feature_dirs = out_feature_dirs
 
     ret, res = afc_run(conf)
     return((ret, res))
@@ -321,8 +202,11 @@ def afc_core(conf):
 
     # assign features to several batches of result folders, to avoid exceeding
     # the maximum number of files/sub-folders in one folder.
-    assign_feature_batch(conf, batch_size = 1000)
-
+    assert len(conf.reg_list) == len(conf.out_feature_dirs)
+    for reg, feature_dir in zip(conf.reg_list, conf.out_feature_dirs):
+        reg.res_dir = feature_dir
+        reg.init_allele_data(alleles = conf.cumi_alleles)
+        
 
     # split feature list and save to file.
     info("split feature list and save to file ...")
@@ -557,9 +441,7 @@ def prepare_config(conf):
         error("out dir needed!")
         return(-1)
     os.makedirs(conf.out_dir, exist_ok = True)
-    conf.aln_dir = os.path.join(conf.out_dir, "alignments")
-    os.makedirs(conf.aln_dir, exist_ok = True)
-    conf.count_dir = os.path.join(conf.out_dir, "counts")
+    conf.count_dir = os.path.join(conf.out_dir, "matrix")
     os.makedirs(conf.count_dir, exist_ok = True)
 
     conf.out_feature_fn = os.path.join(
@@ -650,50 +532,22 @@ def prepare_config(conf):
             conf.excl_flag = conf.defaults.EXCL_FLAG_UMI
         else:
             conf.excl_flag = conf.defaults.EXCL_FLAG_XUMI
-
+            
+    
+    if conf.out_feature_dirs is None:
+        feature_dir = os.path.join(conf.out_dir, "features")
+        os.makedirs(feature_dir, exist_ok = True)
+        conf.out_feature_dirs = assign_feature_batch(
+            feature_names = [reg.name for reg in conf.reg_list],
+            root_dir = feature_dir,
+            batch_size = 1000
+        )
+    else:
+        for fet_dir in conf.out_feature_dirs:
+            assert_e(fet_dir)
+        
     return(0)
 
 
 def show_progress(rv = None):
     return(rv)
-
-
-def assign_feature_batch(conf, batch_size = 1000):
-    """Assign features into several batches.
-
-    This function assign features into several batches of result folders, 
-    to avoid exceeding the maximum number of files/sub-folders in one folder.
-    Specifically, it
-    (1) assgins a list of features in `conf.reg_list` into several batches.
-    (2) creates "result folders" for each of the features and sets ".res_dir"
-        attribute of it accordingly.
-    (3) sets ".aln_fns" attribute of each feature, which are the output
-        allele-specific CUMI files.
-    
-    Parameters
-    ----------
-    conf : afc.config.Config
-        Global configuration object.
-    batch_size : int, default 1000
-        Number of features in each batch.
-    
-    Returns
-    -------
-    Void.
-    """
-    batch_idx = -1
-    batch_dir = None
-    feature_idx = 0
-    feature_dir = None
-    for reg in conf.reg_list:
-        if feature_idx % batch_size == 0:
-            batch_idx += 1
-            batch_dir = os.path.join(conf.aln_dir, "batch%d" % batch_idx)
-            os.makedirs(batch_dir, exist_ok = True)
-        feature_dir = os.path.join(
-            batch_dir, "%d_%s" % (feature_idx, reg.name))
-        os.makedirs(feature_dir, exist_ok = True)
-        reg.res_dir = feature_dir
-        reg.aln_fns = {ale: os.path.join(reg.res_dir, "%s.%s.aln.%s.tsv" % \
-                    (reg.name, ale, COMMAND)) for ale in conf.cumi_alleles}
-        feature_idx += 1

@@ -1,5 +1,6 @@
 # gfeature.py - genomic features, supporting interval query.
 
+import os
 from .grange import Region, RegionSet
 
 
@@ -74,6 +75,7 @@ class SNP(Region):
         return(self.hap[hap])
 
 
+
 class SNPSet(RegionSet):
     """A set of phased SNPs."""
     def __init__(self, is_uniq = False):
@@ -83,11 +85,48 @@ class SNPSet(RegionSet):
         return super().add(snp)
 
 
+
+class AlleleData(object):
+    """Internal wrapper of all allelic data."""
+    
+    def __init__(self, allele, feature, res_dir):
+        """
+        Parameters
+        ----------
+        allele : str
+            Allele name.
+        feature : str
+            Feature name.
+        res_dir : str
+            Path to the folder storing the results.
+        """
+        self.allele = allele
+        self.feature = feature
+        self.res_dir = res_dir
+
+        # derived parameters
+        
+        # sam_fn : str
+        #   The output alignment file.
+        self.sam_fn = None
+        
+        # cumi_fn : str
+        #   The output file containing allele-specific cell-umi barcodes.
+        self.cumi_fn = None
+        
+        # internal parameters
+        
+        # out_prefix : str
+        #   The prefix to the output files.
+        self.out_prefix = allele + "."
+
+
+
 class Feature(Region):
     """Feature with covered SNPs."""
 
-    def __init__(self, chrom, start, end, name = None,
-                strand = None, snp_list = None, res_dir = None):
+    def __init__(self, chrom, start, end, name, strand, 
+                 snp_list = None, res_dir = None):
         """
         Parameters
         ----------
@@ -113,7 +152,73 @@ class Feature(Region):
         self.snp_list = snp_list
         self.res_dir = res_dir
 
-        # aln_fns : dict of {str : str}
-        #   The files containing allele-specific alignments/CUMIs.
-        #   Keys are the alleles, values are the paths to the files.
-        self.aln_fns = None
+        # derived parameters
+        
+        # allele_data : dict of {str : str}
+        #   Keys are the alleles, values are the `AlleleData` objects.
+        self.allele_data = None
+        
+        
+    def init_allele_data(self, alleles):
+        """Initialize the allele-specific data.
+        
+        Parameters
+        ----------
+        alleles : list of str
+            A list of alleles.
+            
+        Returns
+        -------
+        Void.
+        """
+        assert self.allele_data is None
+        self.allele_data = {}
+        for ale in alleles:
+            ale_dir = os.path.join(self.res_dir, ale)
+            os.makedirs(ale_dir, exist_ok = True)
+            ale_data = AlleleData(
+                allele = ale,
+                feature = self.name,
+                res_dir = ale_dir
+            )
+            self.allele_data[ale] = ale_data
+            ale_data.sam_fn = os.path.join(ale_data.res_dir, \
+                ale_data.out_prefix + "bam")
+            ale_data.cumi_fn = os.path.join(ale_data.res_dir, \
+                ale_data.out_prefix + "cumi.tsv")
+            
+
+
+def assign_feature_batch(feature_names, root_dir, batch_size = 1000):
+    """Assign features into several batches.
+
+    This function assign features into several batches of result folders, 
+    to avoid exceeding the maximum number of files/sub-folders in one folder.
+    
+    Parameters
+    ----------
+    feature_names : list of str
+        A list of feature names.
+    root_dir : str
+        The root folder, under which batch subfolders will be created.
+    batch_size : int, default 1000
+        Number of features in each batch.
+    
+    Returns
+    -------
+    list of str
+        A list of paths to result dir of every feature.
+    """
+    batch_idx = -1
+    batch_dir = None
+    feature_dirs = []
+    for fet_idx, fet_name in enumerate(feature_names):
+        if fet_idx % batch_size == 0:
+            batch_idx += 1
+            batch_dir = os.path.join(root_dir, "b%d" % batch_idx)
+            os.makedirs(batch_dir, exist_ok = True)
+        fet_dir = os.path.join(
+            batch_dir, "%d_%s" % (fet_idx, fet_name))
+        os.makedirs(fet_dir, exist_ok = True)
+        feature_dirs.append(fet_dir)
+    return(feature_dirs)

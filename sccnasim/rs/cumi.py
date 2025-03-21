@@ -194,8 +194,7 @@ def sample_cumis(
         `umi_fn_list`, and `chrom_list` should have the same length and order.
     reg_fn_list : list of utils.gfeature.Feature
         A list of :class:`~utils.gfeature.Feature` objects, each stores the
-        allele-specific old CUMIs to be sampled from in its `.aln_fns` 
-        attribute.
+        allele-specific old CUMIs.
     reg_idx_range_list : list of tuple
         The range of chrom-specific feature indexes.
         Each element in the list is a tuple of (int, int) that are the 0-based
@@ -286,7 +285,7 @@ def sample_cumis_chrom(
         sampler = CUMISampler(
             X = xdata.layers[ale],
             reg_idx_list = reg_idx_list,
-            allele_fn_list = [reg.aln_fns[ale] for reg in reg_list],
+            allele_fn_list = [reg.allele_data[ale].cumi_fn for reg in reg_list],
             umis = umi_list[idx],
             use_umi = use_umi,
             max_pool = max_pool[idx]
