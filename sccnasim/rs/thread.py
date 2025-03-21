@@ -25,7 +25,7 @@ class ThreadData:
             The chromosome name.
         reg_obj_fn : str
             Path to the file storing chrom-specific regions, a list of 
-            :class:`~utils.gfeature.BlockRegion` objects.
+            :class:`~utils.gfeature.Feature` objects.
         reg_idx0 : int
             The 0-based feature index within transcriptomics scale.
         cumi_fn : str

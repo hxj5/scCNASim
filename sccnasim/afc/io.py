@@ -5,7 +5,7 @@ import os
 from logging import error
 from logging import warning as warn
 from ..io.base import load_features, load_snps
-from ..utils.gfeature import SNP, SNPSet, BlockRegion
+from ..utils.gfeature import SNP, SNPSet, Feature
 from ..utils.vcf import vcf_load
 from ..utils.zfile import zopen
 
@@ -34,15 +34,15 @@ def load_feature_from_txt(fn, sep = "\t"):
 
     Returns
     -------
-    list of utils.gfeature.BlockRegion or None
-        A list of :class:`~utils.gfeature.BlockRegion` objects if success,
+    list of utils.gfeature.Feature or None
+        A list of :class:`~utils.gfeature.Feature` objects if success,
         `None` otherwise.
     """
     reg_list = []
     df = load_features(fn, sep = sep)
     for i in range(df.shape[0]):
         rec = df.loc[i, ]
-        reg = BlockRegion(
+        reg = Feature(
             rec["chrom"],
             rec["start"],
             rec["end"] + 1,

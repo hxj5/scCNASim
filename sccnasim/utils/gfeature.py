@@ -83,8 +83,8 @@ class SNPSet(RegionSet):
         return super().add(snp)
 
 
-class BlockRegion(Region):
-    """Block/Region with information of its covered SNPs."""
+class Feature(Region):
+    """Feature with covered SNPs."""
 
     def __init__(self, chrom, start, end, name = None,
                 strand = None, snp_list = None, res_dir = None):
@@ -94,18 +94,18 @@ class BlockRegion(Region):
         chrom : str
             Chromosome name.
         start : int
-            1-based genomic start position of the region, inclusive.
+            1-based genomic start position of the feature, inclusive.
         end : int
-            1-based genomic end position of the region, exclusive.
+            1-based genomic end position of the feature, exclusive.
         name : str
-            Name of the region.
+            Name of the feature.
         strand : str
             DNA strand orientation of the feature, "+" (positive) or 
             "-" (negative).
         snp_list : list of utils.gfeature.SNP
-            A list of SNPs located within the block.
+            A list of SNPs located within the feature.
         res_dir : str
-            Path to the folder storing the results of this region.
+            Path to the folder storing the results of this feature.
         """
         super().__init__(chrom, start, end)
         self.name = name

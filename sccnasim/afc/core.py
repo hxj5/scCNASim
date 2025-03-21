@@ -121,7 +121,7 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
     
     Parameters
     ----------
-    reg : utils.gfeature.BlockRegion
+    reg : utils.gfeature.Feature
         The feature to be counted.
     alleles : list of str
         A list of allele names.
@@ -219,7 +219,7 @@ def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
     
     Parameters
     ----------
-    reg : utils.gfeature.BlockRegion
+    reg : utils.gfeature.Feature
         The feature to be counted.
     sam_list : list of pysam.AlignmentFile
         A list of file objects for input SAM/BAM files.
@@ -268,7 +268,7 @@ def plp_snp(snp, sam_list, mcnt, conf, reg):
         Counting object in SNP level.
     conf : afc.config.Config
         Global configuration object.
-    reg : utils.gfeature.BlockRegion
+    reg : utils.gfeature.Feature
         The feature that the `snp` belongs to.
 
     Returns

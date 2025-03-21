@@ -61,7 +61,7 @@ class Config:
         #   None if cell barcodes are used.
         self.sample_ids = None
 
-        # reg_list : list of utils.gfeature.BlockRegion
+        # reg_list : list of utils.gfeature.Feature
         #   A list of features.
         self.reg_list = None
 
