@@ -16,6 +16,8 @@
 
 
 ## Scripts
+- Write python version of benchmarking pipeline for CNA detection, mainly for
+  inferCNV and Numbat.
 
 
 ## Discussion

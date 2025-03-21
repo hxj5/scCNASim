@@ -16,8 +16,8 @@ count the sense reads.
 * the strand information is considered in resolving gene overlaps.
   If strandness is "forward" or "reverse" (i.e., strand-specific data), then
   the gene overlaps have to be on the same strand;
-  otherwise, the gene overlaps are classified purely on their genomic range,
-  regardless of which strands they are in.
+  otherwise, the gene overlaps are classified purely based on their genomic
+  range, regardless of which strands they are in.
 * add option ``strandness`` for specifying the strandness of the sequencing
   protocol.
   Three possible values are
