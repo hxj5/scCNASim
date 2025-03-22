@@ -13,48 +13,25 @@ import time
 from logging import info, error, debug
 from logging import warning as warn
 from .config import Config, COMMAND
-from .cumi import gen_umis, sample_cumis
-from .fa import FastFA
-from .sam import SAMInput, SAMOutput, sam_merge_and_index
-from .snp import SNPSet, mask_read
-from .thread import ThreadData
 from ..app import APP, VERSION
-from ..io.base import load_bams, load_barcodes, load_h5ad, load_samples,  \
-    load_list_from_str, save_cells, save_h5ad, save_samples
-from ..utils.grange import format_chrom
-from ..utils.sam import sam_index, check_strand, check_included
-from ..utils.xlog import init_logging
+from ..io.base import load_h5ad, save_h5ad,   \
+    save_cells, save_samples
 
 
 
 def rs_wrapper(
-    sam_fn, barcode_fn,
-    count_fn, feature_fn,
+    count_fn,
+    feature_fn,
     refseq_fn,
     out_dir,
-    sam_list_fn = None,
-    sample_ids = None, sample_id_fn = None,
     debug_level = 0,
     ncores = 1,
-    chroms = None,
-    cell_tag = "CB", umi_tag = "UB", umi_len = 10,
-    strandness = "forward",
-    min_include = 0.9,
-    min_mapq = 20, min_len = 30,
-    incl_flag = 0, excl_flag = -1,
-    no_orphan = True
+    cell_tag = "CB", umi_tag = "UB", umi_len = 10
 ):
     """Wrapper for running the rs (read simulation) module.
     
     Parameters
     ----------
-    sam_fn : str or None
-        Comma separated indexed BAM file.
-        Note that one and only one of `sam_fn` and `sam_list_fn` should be
-        specified.
-    barcode_fn : str or None
-        A plain file listing all effective cell barcode.
-        It should be specified for droplet-based data.
     count_fn : str
         An ".adata" file storing count matrices.
         Typically it is returned by the `cs` module.
@@ -72,52 +49,17 @@ def rs_wrapper(
         A FASTA file storing reference genome sequence.
     out_dir : str
         Output directory.
-    sam_list_fn : str or None, default None
-        A file listing indexed BAM files, each per line.
-    sample_ids : str or None, default None
-        Comma separated sample IDs.
-        It should be specified for well-based or bulk data.
-        When `barcode_fn` is not specified, the default value will be
-        "SampleX", where "X" is the 0-based index of the BAM file(s).
-        Note that `sample_ids` and `sample_id_fn` should not be specified
-        at the same time.
-    sample_id_fn : str or None, default None
-        A file listing sample IDs, each per line.
     debug_level : {0, 1, 2}
         The debugging level, the larger the number is, more detailed debugging
         information will be outputted.
     ncores : int, default 1
         Number of cores.
-    chroms : str or None, default None
-        Comma separated chromosome names.
-        Reads in other chromosomes will not be used for sampling and hence
-        will not be present in the output BAM file(s).
-        If None, it will be set as "1,2,...22".
     cell_tag : str or None, default "CB"
         Tag for cell barcodes, set to None when using sample IDs.
     umi_tag : str or None, default "UB"
         Tag for UMI, set to None when reads only.
     umi_len : int, default 10
         Length of output UMI barcode.
-    strandness : {"forward", "reverse", "unstranded"}
-        Strandness of the sequencing protocol.
-        "forward" - read strand same as the source RNA molecule;
-        "reverse" - read strand opposite to the source RNA molecule;
-        "unstranded" - no strand information.
-    min_include : int or float, default 0.9
-        Minimum length of included part within specific feature.
-        If float between (0, 1), it is the minimum fraction of included length.
-    min_mapq : int, default 20
-        Minimum MAPQ for read filtering.
-    min_len : int, default 30
-        Minimum mapped length for read filtering.
-    incl_flag : int, default 0
-        Required flags: skip reads with all mask bits unset.
-    excl_flag : int, default -1
-        Filter flags: skip reads with any mask bits set.
-        Value -1 means setting it to 772 when using UMI, or 1796 otherwise.
-    no_orphan : bool, default True
-        If `False`, do not skip anomalous read pairs.
 
     Returns
     -------
@@ -127,35 +69,17 @@ def rs_wrapper(
         The returned data and parameters to be used by downstream analysis.
     """
     conf = Config()
-    #init_logging(stream = sys.stdout)
 
-    conf.sam_fn = sam_fn
-    conf.sam_list_fn = sam_list_fn
-    conf.barcode_fn = barcode_fn
     conf.count_fn = count_fn
     conf.feature_fn = feature_fn
     conf.refseq_fn = refseq_fn
-    conf.sample_ids = sample_ids
-    conf.sample_id_fn = sample_id_fn
     conf.out_dir = out_dir
     conf.debug = debug_level
 
-    if chroms is None:
-        chroms = ",".join([str(i) for i in range(1, 23)])
-    conf.chroms = chroms
     conf.cell_tag = cell_tag
     conf.umi_tag = umi_tag
     conf.umi_len = umi_len
     conf.ncores = ncores
-    
-    conf.strandness = strandness
-    conf.min_include = min_include
-
-    conf.min_mapq = min_mapq
-    conf.min_len = min_len
-    conf.incl_flag = incl_flag
-    conf.excl_flag = excl_flag
-    conf.no_orphan = no_orphan
 
     ret, res = rs_run(conf)
     return((ret, res))
@@ -180,8 +104,6 @@ def rs_core(conf):
     assert "cell_type" in xdata.obs.columns
     assert "feature" in xdata.var.columns
     assert "chrom" in xdata.var.columns
-    xdata.var["chrom"] = xdata.var["chrom"].astype(str)
-    xdata.var["chrom"] = xdata.var["chrom"].map(format_chrom)
     for ale in alleles:
         assert ale in xdata.layers
     n, p = xdata.shape
@@ -191,7 +113,9 @@ def rs_core(conf):
         assert xdata.var["feature"].iloc[i] == conf.reg_list[i].name
 
     assert conf.umi_len <= 31
-    RD = xdata.layers["A"] + xdata.layers["B"] + xdata.layers["U"]
+    RD = 0
+    for ale in alleles:
+        RD += xdata.layers[ale]
     assert np.max(RD.sum(axis = 1)) <= 4 ** conf.umi_len    # cell library size
     del RD
     RD = None
@@ -208,187 +132,12 @@ def rs_core(conf):
     # prepare data for multi-processing
     info("prepare data for multi-processing ...")
 
-    data_dir = os.path.join(conf.out_step_dir, "0_data")
-    os.makedirs(data_dir, exist_ok = True)
 
-    # chrom-specific beginning and ending feature indexes (0-based ) within 
-    # transcriptomics-scale.
-    chrom_reg_idx_range_list = []     # list of tuple(int, int)
-    all_idx = np.array(range(p))
-    for chrom in conf.chrom_list:
-        idx = all_idx[xdata.var["chrom"] == chrom]
-        if len(idx) <= 0:
-            chrom_reg_idx_range_list.append([None, None])
-        else:
-            chrom_reg_idx_range_list.append([idx[0], idx[-1] + 1])
-
-    # split chrom-specific count adata.
-    info("split chrom-specific count adata ...")
-
-    d = os.path.join(data_dir, "chrom_counts")
-    os.makedirs(d, exist_ok = True)
-    chrom_counts_fn_list = []
-    for chrom in conf.chrom_list:
-        fn = os.path.join(d, "chrom%s.counts.h5ad" % chrom)
-        adat = xdata[:, xdata.var["chrom"] == chrom]
-        save_h5ad(adat, fn)
-        chrom_counts_fn_list.append(fn)
-    del conf.adata
-    conf.adata = None
-
-    # split chrom-specific regions.
-    info("split chrom-specific regions ...")
-
-    d = os.path.join(data_dir, "chrom_features")
-    os.makedirs(d, exist_ok = True)
-    chrom_reg_fn_list = []
-    chrom_reg_idx0_list = [s for s, e in chrom_reg_idx_range_list]
-    for chrom in conf.chrom_list:
-        fn = os.path.join(d, "chrom%s.features.pickle" % chrom)
-        regions = [reg for reg in conf.reg_list if reg.chrom == chrom]
-        with open(fn, "wb") as fp:
-            pickle.dump(regions, fp)
-        chrom_reg_fn_list.append(fn)
-    del conf.reg_list
-    conf.reg_list = None
-    step = 1
-
-
-    # generate new UMIs
-    info("generate new UMIs ...")
-
-    xdata = load_counts(conf.count_fn)
-    res_umi_dir = os.path.join(conf.out_step_dir, "%d_umi" % step)
-    os.makedirs(res_umi_dir, exist_ok = True)
-    chrom_umi_fn_list = gen_umis(
-        xdata = xdata, 
-        chrom_list = conf.chrom_list, 
-        chrom_reg_idx_range_list = chrom_reg_idx_range_list,
-        alleles = alleles, m = conf.umi_len, 
-        out_dir = res_umi_dir, ncores = conf.ncores
-    )     # note that `xdata` is deleted inside this function.
-    xdata = None
-    assert len(chrom_umi_fn_list) == len(conf.chrom_list)
-    step += 1
-
-
-    # CUMI sampling.
-    info("generate new CUMIs ...")
-    res_cumi_dir = os.path.join(conf.out_step_dir, "%d_cumi" % step)
-    os.makedirs(res_cumi_dir, exist_ok = True)
-    chrom_cumi_fn_list = sample_cumis(
-        xdata_fn_list = chrom_counts_fn_list,
-        reg_fn_list = chrom_reg_fn_list,
-        reg_idx_range_list = chrom_reg_idx_range_list,
-        umi_fn_list = chrom_umi_fn_list,
-        chrom_list = conf.chrom_list,
-        alleles = alleles,
-        out_dir = res_cumi_dir,
-        use_umi = conf.use_umi(),
-        max_pool = cumi_max_pool,
-        ncores = conf.ncores
-    )
-    assert len(chrom_cumi_fn_list) == len(conf.chrom_list)
-    step += 1
-
-
-    # create output BAM files.
-    conf.out_sam_dir = os.path.join(conf.out_dir, "bam")
-    os.makedirs(conf.out_sam_dir, exist_ok = True)
-    res_sam_dir = os.path.join(conf.out_step_dir, "%d_bam" % step)
-    os.makedirs(res_sam_dir, exist_ok = True)
-
+    # tmp ...
     out_sam_fn_list = []
-    chrom_sam_sample_dirs = []
-    chrom_sam_fn_list = None          # sample x chrom
-    if conf.use_barcodes():
-        chrom_sam_fn_list = [[]]
-        sample_dir = os.path.join(res_sam_dir, "Sample0")
-        os.makedirs(sample_dir, exist_ok = True)
-        chrom_sam_sample_dirs.append(sample_dir)
-        sam_fn = conf.out_prefix + "possorted.bam"
-        for chrom in conf.chrom_list:
-            chrom_sam_fn_list[0].append(os.path.join(
-                sample_dir, "%s.%s" % (chrom, sam_fn)))
-        out_sam_fn_list.append(os.path.join(conf.out_sam_dir, sam_fn))
-    else:
-        chrom_sam_fn_list = [[] for _ in range(len(out_samples))]
-        for idx, sample in enumerate(out_samples):
-            sample_dir = os.path.join(res_sam_dir, sample)
-            os.makedirs(sample_dir, exist_ok = True)
-            chrom_sam_sample_dirs.append(sample_dir)
-            sam_fn = conf.out_prefix + "%s.possorted.bam" % sample
-            for chrom in conf.chrom_list:
-                chrom_sam_fn_list[idx].append(os.path.join(
-                    sample_dir, "%s.%s" % (chrom, sam_fn)))
-            out_sam_fn_list.append(os.path.join(conf.out_sam_dir, sam_fn))
-
-
-    # generate new BAM files.
-    info("generate new BAM files ...")
-
-    m_chroms = len(conf.chrom_list)
-    m_thread = min(conf.ncores, m_chroms)
-    thdata_list = []
-    pool = multiprocessing.Pool(processes = m_thread)
-    mp_result = []
-    for i in range(len(conf.chrom_list)):
-        thdata = ThreadData(
-            idx = i, conf = conf,
-            chrom = conf.chrom_list[i],
-            reg_obj_fn = chrom_reg_fn_list[i],
-            reg_idx0 = chrom_reg_idx0_list[i],
-            cumi_fn = chrom_cumi_fn_list[i],
-            out_samples = out_samples,
-            out_sam_fn_list = [s[i] for s in chrom_sam_fn_list]
-        )
-        thdata_list.append(thdata)
-        if conf.debug > 0:
-            debug("data of thread-%d before:" % i)
-            thdata.show(fp = sys.stdout, prefix = "\t")
-        mp_result.append(pool.apply_async(
-            func = rs_core_chrom, 
-            args = (thdata, ), 
-            callback = None))
-    pool.close()
-    pool.join()
-
-    mp_result = [res.get() for res in mp_result]
-    retcode_list = [item[0] for item in mp_result]
-    thdata_list = [item[1] for item in mp_result]
-    if conf.debug > 0:
-        debug("returned values of multi-processing:")
-        debug("\t%s" % str(retcode_list))
-
-    # check running status of each sub-process
-    for thdata in thdata_list:
-        if conf.debug > 0:
-            debug("data of thread-%d after:" %  thdata.idx)
-            thdata.show(fp = sys.stdout, prefix = "\t")
-        if thdata.ret < 0:
-            error("error code for thread-%d: %d" % (thdata.idx, thdata.ret))
-            raise ValueError
-    del thdata_list
-
-
-    # merge BAM files.
-    info("merge output BAM file(s) ...")
-
-    assert len(out_sam_fn_list) == len(chrom_sam_fn_list)
-    pool = multiprocessing.Pool(processes = conf.ncores)
-    mp_result = []
-    for i in range(len(out_sam_fn_list)):
-        mp_result.append(pool.apply_async(
-            func = sam_merge_and_index, 
-            args = (chrom_sam_fn_list[i], out_sam_fn_list[i]),
-            callback = None))
-    pool.close()
-    pool.join()
-
-
+    
     # clean
     info("clean ...")
-    # TODO: delete tmp dir.
 
     res = {
         # out_sample_fn : str
@@ -410,112 +159,6 @@ def rs_core(conf):
         "out_sam_fn_list": out_sam_fn_list
     }
     return(res)
-
-
-def rs_core_chrom(thdata):
-    conf = thdata.conf
-
-    # check args.
-    info("[chrom-%s] start loading data ..." % (thdata.chrom, ))
-
-    with open(thdata.reg_obj_fn, "rb") as fp:
-        reg_list = pickle.load(fp)
-    snp_sets = [SNPSet(reg.snp_list) for reg in reg_list]
-
-
-    # input BAM(s)
-    in_sam = SAMInput(
-        sams = conf.sam_fn_list, n_sam = len(conf.sam_fn_list),
-        samples = conf.samples,
-        chrom = thdata.chrom,
-        cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
-        min_mapq = conf.min_mapq, min_len = conf.min_len,
-        incl_flag = conf.incl_flag, excl_flag = conf.excl_flag,
-        no_orphan = conf.no_orphan
-    )
-    debug("[chrom-%s] %d input BAM(s) loaded." % (
-        thdata.chrom, len(conf.sam_fn_list)))
-
-
-    # output BAM(s)
-    out_sam = SAMOutput(
-        sams = thdata.out_sam_fn_list, n_sam = len(thdata.out_sam_fn_list),
-        samples = thdata.out_samples, ref_sam = conf.sam_fn_list[0],
-        cell_tag = conf.cell_tag, umi_tag = conf.umi_tag,
-        umi_len = conf.umi_len,
-        cell_raw_tag = conf.cell_raw_tag,
-        backup_cell_raw_tag = conf.backup_cell_raw_tag,
-        umi_raw_tag = conf.umi_raw_tag,
-        backup_umi_raw_tag = conf.backup_umi_raw_tag
-    )
-    debug("[chrom-%s] %d output BAM(s) created." % (
-        thdata.chrom, len(thdata.out_sam_fn_list)))
-
-
-    # refseq
-    fa = FastFA(conf.refseq_fn)
-    debug("[chrom-%s] FASTA file loaded." % thdata.chrom)
-
-
-    # multi-sampler
-    with open(thdata.cumi_fn, "rb") as fp:
-        ms = pickle.load(fp)
-    debug("[chrom-%s] CUMI multi-sampler loaded." % thdata.chrom)
-
-
-    # core part of read simulation (sampling).
-    info("[chrom-%s] start to iterate reads ..." % thdata.chrom)
-    while True:
-        read_dat = in_sam.fetch()   # get one read (after internal filtering).
-        if read_dat is None:        # end of file.
-            break
-        if thdata.reg_idx0 is None:
-            continue
-        read, cell, umi = read_dat
-        hits = ms.query(cell, umi)
-        if len(hits) <= 0:      # this read is not sampled.
-            continue
-        if in_sam.check_read2(read) < 0:
-            continue
-        for ale, sample_dat in hits:
-            hap = None
-            if ale == "A":
-                hap = 0
-            elif ale == "B":
-                hap = 1
-            read.set_tag(conf.hap_tag, ale)
-            snps = None
-            qname = read.query_name
-            for dat_idx, dat in enumerate(sample_dat):
-                cell_idx, umi_int, reg_idx_whole = dat    # cell and UMI of new CUMI.
-                reg_idx = reg_idx_whole - thdata.reg_idx0
-                reg = reg_list[reg_idx]
-                if check_strand(read, reg.strand, conf.strandness) < 0:
-                    continue
-                if check_included(read, reg.start, reg.end, conf.min_include) < 0:
-                    continue
-                if snps is None:
-                    if reg_idx >= len(snp_sets):
-                        # feature not in this chromosome.
-                        # CHECK ME!! could be a multi-mapping UMI?
-                        warn("[chrom-%s] feature index of CUMI '%s-%s' is out of range." %  \
-                            (thdata.chrom, cell, umi))
-                    else:
-                        snps = snp_sets[reg_idx]
-                        read = mask_read(read, snps, hap, fa)
-                out_sam.write(read, cell_idx, umi_int, reg_idx_whole, dat_idx, qname)
-
-    in_sam.close()
-    out_sam.close()
-    fa.close()
-
-
-    # index the output BAM files.
-    info("[chrom-%s] index output BAM file(s) ..." % thdata.chrom)
-    sam_index(thdata.out_sam_fn_list, ncores = 1)
-
-    thdata.ret = 0
-    return((0, thdata))
 
 
 def rs_run(conf):
@@ -569,54 +212,6 @@ def prepare_config(conf):
     int
         Return code. 0 if success, -1 otherwise.
     """
-    if conf.sam_fn:
-        if conf.sam_list_fn:
-            error("should not specify 'sam_fn' and 'sam_list_fn' together.")
-            return(-1)
-        conf.sam_fn_list = load_list_from_str(conf.sam_fn, sep = ",")
-    else:
-        if not conf.sam_list_fn:
-            error("one of 'sam_fn' and 'sam_list_fn' should be specified.")
-            return(-1)
-        conf.sam_fn_list = load_bams(conf.sam_list_fn)
-    
-    for fn in conf.sam_fn_list:
-        if not os.path.isfile(fn):
-            error("sam file '%s' does not exist." % fn)
-            return(-1)
-
-    if conf.barcode_fn:
-        conf.sample_ids = None
-        if conf.sample_ids or conf.sample_id_fn:
-            error("should not specify barcodes and sample IDs together.")
-            return(-1)
-        if os.path.isfile(conf.barcode_fn):
-            conf.barcodes = sorted(load_barcodes(conf.barcode_fn))
-            if len(set(conf.barcodes)) != len(conf.barcodes):
-                error("duplicate barcodes!")
-                return(-1)
-        else:
-            error("barcode file '%s' does not exist." % conf.barcode_fn)
-            return(-1)
-    else:
-        conf.barcodes = None
-        if conf.sample_ids and conf.sample_id_fn:
-            error("should not specify 'sample_ids' and 'sample_fn' together.")
-            return(-1)
-        elif conf.sample_ids:
-            conf.sample_ids = load_list_from_str(conf.sample_ids, sep = ",")
-        elif conf.sample_id_fn:
-            conf.sample_ids = load_samples(conf.sample_id_fn)
-        else:
-            warn("use default sample IDs ...")
-            conf.sample_ids = ["Sample%d" % i for i in \
-                range(len(conf.sam_fn_list))]
-        if len(conf.sample_ids) != len(conf.sam_fn_list):
-            error("numbers of sam files and sample IDs are different.")
-            return(-1)
-        
-    conf.samples = conf.barcodes if conf.barcodes else conf.sample_ids
-
     if not conf.out_dir:
         error("out dir needed!")
         return(-1)
@@ -638,8 +233,7 @@ def prepare_config(conf):
             if not conf.reg_list:
                 error("failed to load feature file.")
                 return(-1)
-            info("[input] %d features in %d single cells." % (
-                len(conf.reg_list), len(conf.samples)))
+            info("[input] %d features loaded." % len(conf.reg_list))
         else:
             error("feature file '%s' does not exist." % conf.feature_fn)
             return(-1)
@@ -650,42 +244,12 @@ def prepare_config(conf):
     if not os.path.isfile(conf.refseq_fn):
         error("refseq file needed!")
         return(-1)
-    
-    conf.chrom_list = [format_chrom(c) for c in conf.chroms.split(",")]
-    if len(conf.chrom_list) <= 0:
-        error("chrom names needed!")
-        return(-1)
 
     if conf.cell_tag and conf.cell_tag.upper() == "NONE":
         conf.cell_tag = None
-    if conf.cell_tag and conf.barcodes:
-        pass       
-    elif (not conf.cell_tag) ^ (not conf.barcodes):
-        error("should not specify cell_tag or barcodes alone.")
-        return(-1)
-    else:
-        pass    
 
-    if conf.umi_tag:
-        if conf.umi_tag.upper() == "AUTO":
-            if conf.barcodes is None:
-                conf.umi_tag = None
-            else:
-                conf.umi_tag = conf.defaults.UMI_TAG_BC
-        elif conf.umi_tag.upper() == "NONE":
-            conf.umi_tag = None
-    else:
-        pass
-
-    if conf.excl_flag < 0:
-        if conf.use_umi():
-            conf.excl_flag = conf.defaults.EXCL_FLAG_UMI
-        else:
-            conf.excl_flag = conf.defaults.EXCL_FLAG_XUMI
-
-    if conf.out_step_dir is None:
-        conf.out_step_dir = os.path.join(conf.out_dir, "steps")
-    os.makedirs(conf.out_step_dir, exist_ok = True)
+    if conf.umi_tag and conf.umi_tag.upper() == "NONE":
+        conf.umi_tag = None
 
     return(0)
 

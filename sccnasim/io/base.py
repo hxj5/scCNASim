@@ -8,16 +8,15 @@ from ..utils.grange import format_chrom, format_start, format_end, reg2str
 
 
 
-def format_anndata(adata, row_is_cell = None):
+def format_anndata(adata, row_is_cell = True):
     """Format anndata object.
     
     Parameters
     ----------
     adata : anndata.AnnData
         The object to be formatted.
-    row_is_cell : bool or None, default None
+    row_is_cell : bool, default True
         Whether the rows (obs) are cells.
-        None means `row_is_cell` is unknown.
     
     Returns
     -------
@@ -30,15 +29,14 @@ def format_anndata(adata, row_is_cell = None):
     adata.obs.index = adata.obs.index.astype(str)      # otherwise, anndata will complain about integer index
     adata.var.index = adata.var.index.astype(str)
 
-    if row_is_cell is None:
+    if row_is_cell is True:
         if adata.var is not None and "chrom" in adata.var.columns:
             adata.var["chrom"] = adata.var["chrom"].astype(str)
-    elif row_is_cell is True:
-        if adata.var is not None and "chrom" in adata.var.columns:
-            adata.var["chrom"] = adata.var["chrom"].astype(str)    
+            adata.var["chrom"] = adata.var["chrom"].map(format_chrom)
     else:
         if adata.obs is not None and "chrom" in adata.obs.columns:
             adata.obs["chrom"] = adata.obs["chrom"].astype(str)
+            adata.var["chrom"] = adata.var["chrom"].map(format_chrom)
 
     return(adata)
 
