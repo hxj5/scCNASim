@@ -7,6 +7,7 @@ import pickle
 import pysam
 
 from logging import debug, error, info
+from .hapidx import hap2idx, idx2hap
 from .mcount_ab import MCount as ABFeatureMCount
 from .mcount_feature import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
@@ -149,6 +150,9 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
     if fc_ab(reg, sam_list, snp_mcnt, ab_mcnt, conf) < 0:
         return((-3, None))
     mcnt.add_feature(reg, ab_mcnt)
+    
+    sam_fps = {ale: pysam.AlignmentFile(ale_dat.sam_fn, "wb",    \
+        template = sam_list[0]) for ale, ale_dat in reg.allele_data.items()}
 
     ret = smp = umi = ale_idx = None
     for idx, sam in enumerate(sam_list):
@@ -173,28 +177,38 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
                 continue
             if (not smp) or (not umi) or ale_idx is None:
                 continue
+            
+            # output reads to feature-allele-specific SAM/BAM file.
+            # Note that these reads are superset of the reads used for read
+            # sampling in `rs` module, because after the read iteration loop,
+            # there could be a few UMI filtering steps.
+            ale = idx2hap(ale_idx)
+            if ale not in sam_fps:
+                continue
+            fp = sam_fps[ale]
+            fp.write(read)
+                
+    for fp in sam_fps.values():
+        fp.close()
+    for ale, ale_dat in reg.allele_data.items():
+        pysam.index(ale_dat.sam_fn)
 
     if mcnt.stat() < 0:
         return((-9, None))
-    
+
     reg_ale_cnt = {ale: {smp:0 for smp in conf.samples} for ale in alleles}
     cumi_fps = {ale: open(ale_dat.cumi_fn, "w")   \
             for ale, ale_dat in reg.allele_data.items()}
-    ale_umi = None
+
     for smp, scnt in mcnt.cell_cnt.items():
-        reg_ale_cnt["A"][smp] = scnt.hap_cnt[0]
-        reg_ale_cnt["B"][smp] = scnt.hap_cnt[1]
-        reg_ale_cnt["D"][smp] = scnt.hap_cnt[2]
-        reg_ale_cnt["O"][smp] = scnt.hap_cnt[-1]
-        reg_ale_cnt["U"][smp] = scnt.hap_cnt[-2] + scnt.hap_cnt[-3]
+        for ale in alleles:      #  {"A", "B", "D", "O", "U"}
+            reg_ale_cnt[ale][smp] = sum([   \
+                    scnt.hap_cnt[i] for i in hap2idx(ale)])
         for ale, fp in cumi_fps.items():
-            if ale == "A":
-                ale_umi = scnt.umi_cnt[0]
-            elif ale == "B":
-                ale_umi = scnt.umi_cnt[1]
-            elif ale == "U":
-                ale_umi = scnt.umi_cnt[-2]
-                ale_umi.update(scnt.umi_cnt[-3])
+            ale_umi = set()
+            if ale in conf.cumi_alleles:
+                for i in hap2idx(ale):
+                    ale_umi.update(scnt.umi_cnt[i])
             else:
                 error("invalid allele '%s'." % ale)
                 raise ValueError
