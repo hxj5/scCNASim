@@ -29,6 +29,7 @@ from ..io.counts import load_xdata
 from ..utils.base import assert_e
 from ..utils.gfeature import assign_feature_batch
 from ..utils.xlog import init_logging
+from ..utils.xthread import split_n2m
 from ..utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
 
 
@@ -215,20 +216,16 @@ def afc_core(conf):
         pickle.dump(conf.reg_list, fp)
 
     m_reg = len(conf.reg_list)
-    m_thread = min(conf.ncores, m_reg)
-    n_reg = None
-    if m_reg % m_thread == 0:
-        n_reg = m_reg // m_thread
-    else:
-        n_reg = m_reg // m_thread + 1
+    td_m, td_n, td_reg_indices = split_n2m(m_reg, conf.ncores)
+    info("m_reg=%d; td_m=%d; td_n=%d;" % (m_reg, td_m, td_n))
 
     reg_fn_list = []
-    for idx, i in enumerate(range(0, m_reg, n_reg)):
+    for idx, (b, e) in enumerate(td_reg_indices):
         reg_fn = conf.out_prefix + "feature.pickle." + str(idx)
         reg_fn = os.path.join(conf.out_dir, reg_fn)
         reg_fn_list.append(reg_fn)
         with open(reg_fn, "wb") as fp:
-            pickle.dump(conf.reg_list[i:(i+n_reg)], fp)
+            pickle.dump(conf.reg_list[b:e], fp)
 
     for reg in conf.reg_list:  # save memory
         del reg
@@ -239,12 +236,12 @@ def afc_core(conf):
 
 
     # allele-specific counting with multi-processing.
-    info("start allele-specific counting with %d cores ..." % m_thread)
+    info("start allele-specific counting with %d cores ..." % td_m)
 
     thdata_list = []
-    pool = multiprocessing.Pool(processes = m_thread)
+    pool = multiprocessing.Pool(processes = td_m)
     mp_result = []
-    for i in range(m_thread):
+    for i in range(td_m):
         thdata = ThreadData(
             idx = i, conf = conf,
             reg_obj_fn = reg_fn_list[i],

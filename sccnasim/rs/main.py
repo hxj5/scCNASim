@@ -13,9 +13,13 @@ import time
 from logging import info, error, debug
 from logging import warning as warn
 from .config import Config, COMMAND
+from .core import rs_features
+from .cumi import gen_cumi
+from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
     save_cells, save_samples
+from ..utils.xthread import split_n2m
 
 
 
@@ -91,6 +95,7 @@ def rs_core(conf):
         raise ValueError
     info("configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
+    step = 1
 
 
     # check args.
@@ -131,10 +136,133 @@ def rs_core(conf):
 
     # prepare data for multi-processing
     info("prepare data for multi-processing ...")
+    
+    data_dir = os.path.join(conf.out_step_dir, "%d_thread_data" % step)
+    os.makedirs(data_dir, exist_ok = True)
+    step += 1
+    
+    m_reg = len(conf.reg_list)
+    td_m, td_n, td_reg_indices = split_n2m(m_reg, conf.ncores)
+    info("m_reg=%d; td_m=%d; td_n=%d;" % (m_reg, td_m, td_n))
+
+    
+    # split features.
+    info("split features ...")
+    
+    reg_fn_list = []
+    for idx, (b, e) in enumerate(td_reg_indices):
+        fn = os.path.join(data_dir, "%d.features.pickle" % idx)
+        reg_fn_list.append(fn)
+        with open(fn, "wb") as fp:
+            pickle.dump(conf.reg_list[b:e], fp)
+            
+    out_cumi_files = []
+    for reg in conf.reg_list:
+        out_cumi_files.append([ale_dat.simu_cumi_fn \
+                        for ale, ale_dat in reg.allele_data.items()])
+
+    for reg in conf.reg_list:  # save memory
+        del reg
+    conf.reg_list.clear()
+    conf.reg_list = None
+
+    
+    # split count adata.
+    info("split count adata ...")
+
+    count_fn_list = []
+    for idx, (b, e) in enumerate(td_reg_indices):
+        fn = os.path.join(data_dir, "%d.counts.h5ad" % idx)
+        adat = xdata[:, b:e].copy()
+        save_h5ad(adat, fn)
+        count_fn_list.append(fn)
+    del conf.adata
+    conf.adata = None
+        
+        
+    # generate CUMIs
+    # Note that this step should be put after count adata and feature objects
+    # are deleted, to avoid memory issues caused by multi-processing.
+    info("generate CUMIs ...")
+
+    cumi_dir = os.path.join(conf.out_step_dir, "%d_cumi" % step)
+    os.makedirs(cumi_dir, exist_ok = True)
+    step += 1
+
+    gen_cumi(
+        count_fn = conf.count_fn,
+        alleles = alleles,
+        umi_len = conf.umi_len,
+        out_files = out_cumi_files,
+        tmp_dir = cumi_dir,
+        ncores = conf.ncores
+    )
+    
+    
+    # prepare thread-specific BAM files.
+    sam_dir = os.path.join(conf.out_step_dir, "%d_thread_bam" % step)
+    os.makedirs(sam_dir, exist_ok = True)
+    step += 1
+
+    sam_fn_list = []
+    if conf.use_barcodes():
+        for idx in range(td_m):
+            fn = os.path.join(conf.out_sam_dir, "%d.possorted.bam" % idx)
+            sam_fn_list.append(fn)
+    else:
+        # currently, only support BAM with cell tag.
+        # For well-based data, e.g., SMART-seq2, merge input BAM files and
+        # add corresponding tag to distinguish cells, e.g., using `RG` tag.
+        raise ValueError
+    
+    
+    # feature-specific read simulation (sampling) with multi-processing.
+    info("start feature-specific read simulation with %d cores ..." % td_m)
+
+    thdata_list = []
+    pool = multiprocessing.Pool(processes = td_m)
+    mp_result = []
+    for i in range(td_m):
+        thdata = ThreadData(
+            idx = i,
+            conf = conf,
+            reg_obj_fn = reg_fn_list[i],
+            out_samples = out_samples,
+            out_sam_fn = sam_fn_list[i]
+        )
+        thdata_list.append(thdata)
+        if conf.debug > 0:
+            debug("data of thread-%d before:" % i)
+            thdata.show(fp = sys.stdout, prefix = "\t")
+        mp_result.append(pool.apply_async(
+            func = rs_features, 
+            args = (thdata, ), 
+            callback = None))
+    pool.close()
+    pool.join()
+
+    mp_result = [res.get() for res in mp_result]
+    retcode_list = [item[0] for item in mp_result]
+    thdata_list = [item[1] for item in mp_result]
+    if conf.debug > 0:
+        debug("returned values of multi-processing:")
+        debug("\t%s" % str(retcode_list))
+
+    # check running status of each sub-process
+    for thdata in thdata_list:         
+        if conf.debug > 0:
+            debug("data of thread-%d after:" %  thdata.idx)
+            thdata.show(fp = sys.stdout, prefix = "\t")
+        if thdata.ret < 0:
+            error("error code for thread-%d: %d" % (thdata.idx, thdata.ret))
+            raise ValueError
+    #del thdata_list
+    
 
 
     # tmp ...
-    out_sam_fn_list = []
+    out_sam_fn = None
+    
     
     # clean
     info("clean ...")
@@ -154,9 +282,9 @@ def rs_core(conf):
         #   Output folder for SAM/BAM file(s).
         "out_sam_dir": conf.out_sam_dir,
 
-        # out_sam_fn_list : list of str
-        #   Path to each output BAM file.
-        "out_sam_fn_list": out_sam_fn_list
+        # out_sam_fn : str
+        #   Path to output BAM file.
+        "out_sam_fn": out_sam_fn
     }
     return(res)
 
@@ -250,6 +378,14 @@ def prepare_config(conf):
 
     if conf.umi_tag and conf.umi_tag.upper() == "NONE":
         conf.umi_tag = None
+        
+    if conf.out_sam_dir is None:
+        conf.out_sam_dir = os.path.join(conf.out_dir, "bam")
+    os.makedirs(conf.out_sam_dir, exist_ok = True)
+        
+    if conf.out_step_dir is None:
+        conf.out_step_dir = os.path.join(conf.out_dir, "steps")
+    os.makedirs(conf.out_step_dir, exist_ok = True)
 
     return(0)
 

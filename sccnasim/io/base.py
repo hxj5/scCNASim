@@ -36,7 +36,7 @@ def format_anndata(adata, row_is_cell = True):
     else:
         if adata.obs is not None and "chrom" in adata.obs.columns:
             adata.obs["chrom"] = adata.obs["chrom"].astype(str)
-            adata.var["chrom"] = adata.var["chrom"].map(format_chrom)
+            adata.obs["chrom"] = adata.obs["chrom"].map(format_chrom)
 
     return(adata)
 

@@ -1,6 +1,7 @@
 # Utils
 
 from . import base
+from . import gfeature
 from . import grange
 from . import sam
 from . import vcf
@@ -10,4 +11,5 @@ from . import xdata
 from . import xlog
 from . import xmath
 from . import xmatrix
+from . import xthread
 from . import zfile

@@ -151,7 +151,7 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
         return((-3, None))
     mcnt.add_feature(reg, ab_mcnt)
     
-    sam_fps = {ale: pysam.AlignmentFile(ale_dat.sam_fn, "wb",    \
+    sam_fps = {ale: pysam.AlignmentFile(ale_dat.seed_sam_fn, "wb",    \
         template = sam_list[0]) for ale, ale_dat in reg.allele_data.items()}
 
     ret = smp = umi = ale_idx = None
@@ -191,13 +191,13 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
     for fp in sam_fps.values():
         fp.close()
     for ale, ale_dat in reg.allele_data.items():
-        pysam.index(ale_dat.sam_fn)
+        pysam.index(ale_dat.seed_sam_fn)
 
     if mcnt.stat() < 0:
         return((-9, None))
 
     reg_ale_cnt = {ale: {smp:0 for smp in conf.samples} for ale in alleles}
-    cumi_fps = {ale: open(ale_dat.cumi_fn, "w")   \
+    cumi_fps = {ale: open(ale_dat.seed_cumi_fn, "w")   \
             for ale, ale_dat in reg.allele_data.items()}
 
     for smp, scnt in mcnt.cell_cnt.items():

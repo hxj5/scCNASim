@@ -106,13 +106,25 @@ class AlleleData(object):
 
         # derived parameters
         
-        # sam_fn : str
-        #   The output alignment file.
-        self.sam_fn = None
+        # seed_sam_fn : str
+        #   The alignment file of seed data.
+        self.seed_sam_fn = None
         
-        # cumi_fn : str
-        #   The output file containing allele-specific cell-umi barcodes.
-        self.cumi_fn = None
+        # seed_cumi_fn : str
+        #   The file containing allele-specific cell-umi barcodes of 
+        #   seed data.
+        self.seed_cumi_fn = None
+        
+
+        # simu_sam_fn : str
+        #   The alignment file of simulated data.
+        self.simu_sam_fn = None
+        
+        # simu_cumi_fn : str
+        #   The file containing allele-specific cell-umi barcodes of 
+        #   simulated data.
+        self.simu_cumi_fn = None
+        
         
         # internal parameters
         
@@ -181,12 +193,15 @@ class Feature(Region):
                 feature = self.name,
                 res_dir = ale_dir
             )
+            ale_data.seed_sam_fn = os.path.join(ale_data.res_dir, \
+                ale_data.out_prefix + "seed.bam")
+            ale_data.seed_cumi_fn = os.path.join(ale_data.res_dir, \
+                ale_data.out_prefix + "seed.cumi.tsv")
+            ale_data.simu_sam_fn = os.path.join(ale_data.res_dir, \
+                ale_data.out_prefix + "simu.bam")
+            ale_data.simu_cumi_fn = os.path.join(ale_data.res_dir, \
+                ale_data.out_prefix + "simu.cumi.tsv")
             self.allele_data[ale] = ale_data
-            ale_data.sam_fn = os.path.join(ale_data.res_dir, \
-                ale_data.out_prefix + "bam")
-            ale_data.cumi_fn = os.path.join(ale_data.res_dir, \
-                ale_data.out_prefix + "cumi.tsv")
-            
 
 
 def assign_feature_batch(feature_names, root_dir, batch_size = 1000):
@@ -215,7 +230,7 @@ def assign_feature_batch(feature_names, root_dir, batch_size = 1000):
     for fet_idx, fet_name in enumerate(feature_names):
         if fet_idx % batch_size == 0:
             batch_idx += 1
-            batch_dir = os.path.join(root_dir, "b%d" % batch_idx)
+            batch_dir = os.path.join(root_dir, "%d" % batch_idx)
             os.makedirs(batch_dir, exist_ok = True)
         fet_dir = os.path.join(
             batch_dir, "%d_%s" % (fet_idx, fet_name))

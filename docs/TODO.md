@@ -10,6 +10,8 @@
 - Add an option about `total library size` to enable simulation of various
   read depth.
   Refer to the `total number of reads` in scDesign2.
+- cs: save memory - split adata by features and save splitted adata into
+  files for each thread (batch).
 
 
 ## Docs

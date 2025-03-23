@@ -89,6 +89,10 @@ class Config:
         # out_sam_dir : str
         #   Output folder for SAM/BAM file(s).
         self.out_sam_dir = None
+        
+        # out_step_dir : str
+        #   Output folder for step-wise results.
+        self.out_step_dir = None
 
 
     def show(self, fp = None, prefix = ""):
@@ -129,6 +133,7 @@ class Config:
         s += "%s\n" % prefix
 
         s += "%sout_sam_dir = %s\n" % (prefix, self.out_sam_dir)
+        s += "%sout_step_dir = %s\n" % (prefix, self.out_step_dir)
         s += "%s\n" % prefix
 
         fp.write(s)
