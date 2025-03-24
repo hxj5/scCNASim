@@ -14,7 +14,7 @@ from logging import info, error, debug
 from logging import warning as warn
 from .config import Config, COMMAND
 from .core import rs_features
-from .cumi import gen_simu_cumi
+from .cumi import gen_simu_cumi, smpl_seed_cumi
 from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
@@ -102,7 +102,6 @@ def rs_core(conf):
     info("check args ...")
 
     alleles = conf.alleles
-    cumi_max_pool = conf.cumi_max_pool
     xdata = conf.adata
 
     assert "cell" in xdata.obs.columns
@@ -178,29 +177,61 @@ def rs_core(conf):
         count_fn_list.append(fn)
     del conf.adata
     conf.adata = None
-        
-        
-    # generate CUMIs
-    # Note that this step should be put after count adata and feature objects
-    # are deleted, to avoid memory issues caused by multi-processing.
-    info("generate CUMIs ...")
-
-    cumi_dir = os.path.join(conf.out_step_dir, "%d_cumi" % step)
-    os.makedirs(cumi_dir, exist_ok = True)
+    
+    
+    # sampling seed CUMIs.
+    info("sampling seed CUMIs ...")
+    
+    smpl_cumi_dir = os.path.join(conf.out_step_dir, "%d_smpl_cumi" % step)
+    os.makedirs(smpl_cumi_dir, exist_ok = True)
     step += 1
 
-    gen_simu_cumi(
+    pool = multiprocessing.Pool(processes = td_m)
+    mp_result = []
+    for i in range(td_m):
+        mp_result.append(pool.apply_async(
+            func = smpl_seed_cumi, 
+            kwds = dict(
+                count_fn = count_fn_list[i],
+                feature_fn = reg_fn_list[i],
+                alleles = alleles
+            ),
+            callback = None))
+    pool.close()
+    pool.join()
+    
+    ret_list = [res.get() for res in mp_result]
+    for i, ret in enumerate(ret_list):
+        if ret != 0:
+            error("sampling seed CUMIs failed in thread-%d (errcode %d)." % \
+                 (i, ret))
+            raise ValueError
+
+
+    # generate simulated CUMIs
+    # Note that this step should be put after count adata and feature objects
+    # are deleted, to avoid memory issues caused by multi-processing.
+    info("generate simulated CUMIs ...")
+
+    simu_cumi_dir = os.path.join(conf.out_step_dir, "%d_simu_cumi" % step)
+    os.makedirs(simu_cumi_dir, exist_ok = True)
+    step += 1
+
+    ret = gen_simu_cumi(
         count_fn = conf.count_fn,
         alleles = alleles,
         umi_len = conf.umi_len,
         out_files = out_cumi_files,
-        tmp_dir = cumi_dir,
+        tmp_dir = simu_cumi_dir,
         ncores = conf.ncores
     )
+    if ret != 0:
+        error("generate simulated CUMIs failed (errcode %d)." % ret)
+        raise ValueError
     
     
     # prepare thread-specific BAM files.
-    sam_dir = os.path.join(conf.out_step_dir, "%d_thread_bam" % step)
+    sam_dir = os.path.join(conf.out_step_dir, "%d_simu_bam" % step)
     os.makedirs(sam_dir, exist_ok = True)
     step += 1
 

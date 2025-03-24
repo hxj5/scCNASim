@@ -115,6 +115,12 @@ class AlleleData(object):
         #   seed data.
         self.seed_cumi_fn = None
         
+        
+        # seed_smpl_cumi_fn : str
+        #   The file containing sampled seed CUMIs.
+        #   Its length and order would match `simu_cumi_fn`.
+        self.seed_smpl_cumi_fn = None
+        
 
         # simu_sam_fn : str
         #   The alignment file of simulated data.
@@ -197,6 +203,8 @@ class Feature(Region):
                 ale_data.out_prefix + "seed.bam")
             ale_data.seed_cumi_fn = os.path.join(ale_data.res_dir, \
                 ale_data.out_prefix + "seed.cumi.tsv")
+            ale_data.seed_smpl_cumi_fn = os.path.join(ale_data.res_dir, \
+                ale_data.out_prefix + "seed.smpl.cumi.tsv")
             ale_data.simu_sam_fn = os.path.join(ale_data.res_dir, \
                 ale_data.out_prefix + "simu.bam")
             ale_data.simu_cumi_fn = os.path.join(ale_data.res_dir, \

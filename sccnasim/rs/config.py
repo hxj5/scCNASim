@@ -78,14 +78,6 @@ class Config:
         #   All alleles.
         self.alleles = ("A", "B", "U")
 
-        # cumi_max_pool : tuple of int
-        #   The maximum size of sampling pool for each allele-specific CUMIs.
-        #   Its length and order should match `alleles`.
-        #   Element value 0 means no limit.
-        #   One example setting for allele A,B,U is:
-        #       self.cumi_max_pool = (1000, 1000, 10000)
-        self.cumi_max_pool = (0, 0, 0)
-
         # out_sam_dir : str
         #   Output folder for SAM/BAM file(s).
         self.out_sam_dir = None
@@ -129,7 +121,6 @@ class Config:
         s += "%sumi_raw_tag = %s\n" % (prefix, self.umi_raw_tag)
         s += "%sbackup_umi_raw_tag = %s\n" % (prefix, self.backup_umi_raw_tag)
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
-        s += "%scumi_max_pool = %s\n" % (prefix, str(self.cumi_max_pool))
         s += "%s\n" % prefix
 
         s += "%sout_sam_dir = %s\n" % (prefix, self.out_sam_dir)

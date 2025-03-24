@@ -19,7 +19,7 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
-from logging import info
+from logging import info, error
 from .io import merge_tsv
 from ..io.base import load_h5ad, save_h5ad
 from ..utils.base import is_file_empty
@@ -99,6 +99,59 @@ def __split_features(
 
 
 
+def extract_simu_cumi(
+    in_fn,
+    out_files,
+    b,
+    e
+):
+    """Extract CUMIs for each feature.
+    
+    Parameters
+    ----------
+    in_fn : str
+        Path to the file storing CUMIs of a batch of features.
+    out_files : list of str
+        A list of feature-specific CUMI files.
+    b : int
+        The transcriptomics-scale index of the first feature in this batch.
+        0-based, inclusive.
+    e : int
+        The transcriptomics-scale index of the last feature in this batch.
+        0-based, inclusive.
+        
+    Returns
+    -------
+    int
+        Return code. 0 if success, negative otherwise.
+    """
+    ret = -1
+    
+    # check args.
+    assert len(out_files) == e - b + 1
+
+    fet_fp_list = [zopen(out_fn, "w", ZF_F_PLAIN) for out_fn in out_files]
+    idx_map = {}
+    for i, fp in zip(range(b, e + 1), fet_fp_list):
+        idx_map[i] = fp
+
+    in_fp = open(in_fn, "r")
+    for line in in_fp:
+        fet, _, cumi = line.partition("\t")
+        fet = int(fet)
+        assert fet in idx_map
+        fp = idx_map[fet]
+        fp.write(cumi)
+    in_fp.close()
+    
+    for fp in fet_fp_list:
+        fp.close()
+        
+    ret = 0
+    return(ret)
+
+
+
 def gen_simu_cumi(
     count_fn,
     alleles,
@@ -133,8 +186,11 @@ def gen_simu_cumi(
 
     Returns
     -------
-    Void.
+    int
+        Return code. 0 if success, negative otherwise.
     """
+    ret = -1
+    
     # check args.
     xdata = load_h5ad(count_fn)
     n, p = xdata.shape
@@ -191,6 +247,11 @@ def gen_simu_cumi(
         ))
     pool.close()
     pool.join()
+    
+    ret_list = [res.get() for res in mp_res]
+    for r in ret_list:
+        if r != 0:
+            return(-3)
     
     
     # merge CUMI files.
@@ -252,6 +313,11 @@ def gen_simu_cumi(
     pool.close()
     pool.join()
     
+    ret_list = [res.get() for res in mp_res]
+    for r in ret_list:
+        if r != 0:
+            return(-5)
+
     
     # clean tmp files.
     # here we do not use methods like shutil.rmtree() to remove entire folder,
@@ -262,6 +328,9 @@ def gen_simu_cumi(
     for ale_dir in fet_ale_cumi_dirs:
         os.rmdir(ale_dir)
     os.rmdir(fet_cumi_dir)
+
+    ret = 0
+    return(ret)
 
 
 
@@ -289,8 +358,11 @@ def gen_simu_cumi_thread(
 
     Returns
     -------
-    Void.
+    int
+        Return code. 0 if success, negative otherwise.
     """
+    ret = -1
+    
     # check args.
     xdata = load_h5ad(count_fn)
     n, p = xdata.shape
@@ -330,49 +402,119 @@ def gen_simu_cumi_thread(
     for fp in fp_list:
         fp.close()
         
+    ret = 0
+    return(ret)
+
+
         
-        
-def extract_simu_cumi(
-    in_fn,
-    out_files,
-    b,
-    e
+def load_cumi(fn, sep = "\t"):
+    """Load CUMIs from file."""
+    if is_file_empty(fn):
+        df = pd.DataFrame(columns = ["cell", "umi"])
+        return(df)
+    dat = pd.read_csv(fn, sep = sep, header = None)
+    dat.columns = ["cell", "umi"]
+    return(dat)
+
+
+
+def smpl_seed_cumi(
+    count_fn,
+    feature_fn,
+    alleles
 ):
-    """Extract CUMIs for each feature.
+    """Sampling feature-specific CUMIs of seed data.
     
     Parameters
     ----------
-    in_fn : str
-        Path to the file storing CUMIs of a batch of features.
-    out_files : list of str
-        A list of feature-specific CUMI files.
-    b : int
-        The transcriptomics-scale index of the first feature in this batch.
-        0-based, inclusive.
-    e : int
-        The transcriptomics-scale index of the last feature in this batch.
-        0-based, inclusive.
+    count_fn : str
+        Path to ".h5ad" file storing allele-specifc *cell x feature* count
+        matrices.
+    feature_fn : str
+        Path to python pickle file storing a list of features, i.e., the
+        `~utils.gfeature.Feature` objects.
+    alleles : list of str
+        A list of alleles.
+
+    Returns
+    -------
+    int
+        Return code. 0 if success, negative otherwise.
+    """
+    ret = -1
+    
+    # check args.
+    adata = load_h5ad(count_fn)
+    
+    with open(feature_fn, "rb") as fp:
+        reg_list = pickle.load(fp)
+        
+    assert "feature" in adata.var
+    assert np.all(adata.var["feature"].values == \
+                  [reg.name for reg in reg_list])
+    
+    for ale in alleles:
+        assert ale in adata.layers
+        
+    # sampling CUMIs.
+    for idx, reg in enumerate(reg_list):
+        for ale in alleles:
+            in_fn = reg.allele_data[ale].seed_cumi_fn
+            out_fn = reg.allele_data[ale].seed_smpl_cumi_fn
+            cumis = load_cumi(in_fn)
+            x = adata.layers[ale][:, idx]
+            if cumis.shape[0] == 0:
+                assert np.sum(x) == 0
+                with open(out_fn, "w") as fp:
+                    pass
+                continue
+            smpl_cumi(
+                cells = cumis["cell"].values,
+                umis = cumis["umi"].values,
+                counts = x,
+                out_fn = out_fn
+            )
+            
+    ret = 0
+    return(ret)
+
+
+
+def smpl_cumi(
+    cells,
+    umis,
+    counts,
+    out_fn
+):
+    """Sampling feature-specific CUMIs for simulated cells and output to file.
+    
+    Parameters
+    ----------
+    cells : numpy.ndarray
+        Cell barcodes of CUMIs to be sampled from.
+    umis : numpy.ndarray
+        UMI barcodes of CUMIs to be sampled from.
+    counts : numpy.ndarray
+        Number of CUMIs to sample for each newly simulated cell.
+    out_fn : str
+        Path to the output CUMI file.
         
     Returns
     -------
     Void.
     """
-    # check args.
-    assert len(out_files) == e - b + 1
-
-    fet_fp_list = [zopen(out_fn, "w", ZF_F_PLAIN) for out_fn in out_files]
-    idx_map = {}
-    for i, fp in zip(range(b, e + 1), fet_fp_list):
-        idx_map[i] = fp
-
-    in_fp = open(in_fn, "r")
-    for line in in_fp:
-        fet, _, cumi = line.partition("\t")
-        fet = int(fet)
-        assert fet in idx_map
-        fp = idx_map[fet]
-        fp.write(cumi)
-    in_fp.close()
+    assert len(cells) == len(umis)
     
-    for fp in fet_fp_list:
-        fp.close()
+    m = len(cells)
+    n = np.sum(counts)
+
+    indices = np.random.choice(
+        range(m), 
+        size = n,
+        replace = n > m
+    )
+
+    fp = zopen(out_fn, "w", ZF_F_PLAIN)
+    for idx in indices:
+        fp.write("%s\t%s\n" % (cells[idx], umis[idx]))
+    fp.close()
