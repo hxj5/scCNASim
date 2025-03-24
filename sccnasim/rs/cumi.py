@@ -19,28 +19,87 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
+from logging import info
+from .io import merge_tsv
 from ..io.base import load_h5ad, save_h5ad
 from ..utils.base import is_file_empty
 from ..utils.xbarcode import Barcode
 from ..utils.xthread import split_n2m
+from ..utils.zfile import zopen, ZF_F_PLAIN
 
 
 
-def __merge_small_files(in_fn_list, out_fn, inplace = False):
-    """Merge small files into one."""
-    out_fp = open(out_fn, "w")
-    for in_fn in in_fn_list:
-        with open(in_fn, "r") as in_fp:
-            s = in_fp.read()
-            out_fp.write(s)
-    out_fp.close()
+def __split_features(
+    in_fn,
+    out_dir,
+    out_prefix,
+    p,
+    ncores,
+    max_per_batch
+):
+    """Split CUMIs of all features into batches.
     
-    if inplace:
-        for fn in in_fn_list:
-            os.remove(fn)
+    Parameters
+    ----------
+    in_fn : str
+        Path to file storing CUMIs of all features.
+    out_dir : str
+        Path to splitted files of CUMIs.
+    out_prefix : str
+        Prefix to output batch files.
+    p : int
+        Number of features.
+    ncores : int
+        Number of cores.
+    max_per_batch : int
+        Maximum features per batch.
+        
+    Returns
+    -------
+    list of tuple
+        Information of splitted batches:
+        int
+            transcriptomics-scale index (0-based, inclusive) of the first
+            feature within this batch.
+        int
+            transcriptomics-scale index (0-based, inclusive) of the last
+            feature within this batch.
+        str
+            Path to the file storing CUMIs of features in this batch.
+    """
+    n_batch = p // max_per_batch + 1 - (p % max_per_batch == 0)
+    n_batch = max(n_batch, ncores)
+    
+    td_m, td_n, td_indices = split_n2m(p, n_batch)
+    td_fp_list = []
+    idx_map = {}
+    res = []
+    for idx, (b, e) in enumerate(td_indices):
+        td_fn = os.path.join(out_dir, "%s%d.cumi.tsv" % (out_prefix, idx))
+        td_fp = zopen(td_fn, "w", ZF_F_PLAIN)
+        td_fp_list.append(td_fp)
+        for i in range(b, e):
+            assert i not in idx_map
+            idx_map[i] = td_fp
+        res.append((b, e - 1, td_fn))
+    
+    in_fp = open(in_fn, "r")
+    for line in in_fp:
+        fet, _, cumi = line.partition("\t")
+        fet = int(fet)
+        assert fet in idx_map
+        fp = idx_map[fet]
+        fp.write(line)
+    in_fp.close()
+    
+    for fp in td_fp_list:
+        fp.close()
+        
+    return(res)
 
 
-def gen_cumi(
+
+def gen_simu_cumi(
     count_fn,
     alleles,
     umi_len,
@@ -65,8 +124,8 @@ def gen_cumi(
         Length of one new UMI barcode.
     out_files : list of list of str
         Two layers of lists specifying output files storing generated CUMIs.
-        The first layer of list matches features in `count_fn` while the 
-        second layer of list matches `alleles`.
+        The first layer of list matches `alleles` while the second layer of
+        list matches features in `count_fn`.
     tmp_dir : str
         Path to folder storing temporary data.
     ncores : int, default 1
@@ -87,62 +146,126 @@ def gen_cumi(
         
     assert umi_len <= 31
     
-    assert len(out_files) == p
+    assert len(out_files) == len(alleles)
     for out_fns in out_files:
-        assert len(out_fns) == len(alleles)
+        assert len(out_fns) == p
         
     os.makedirs(tmp_dir, exist_ok = True)
 
 
     # split cells for multi-processing
     td_m, td_n, td_cell_indices = split_n2m(n, ncores)
-    count_fn_list = []
+    cell_count_fn_list = []
     for idx, (b, e) in enumerate(td_cell_indices):
-        fn = os.path.join(tmp_dir, "%d.adata.h5ad" % idx)
+        fn = os.path.join(tmp_dir, "cell.b%d.adata.h5ad" % idx)
         xdata_batch = xdata[b:e, :]
         save_h5ad(xdata_batch, fn)
-        count_fn_list.append(fn)
+        cell_count_fn_list.append(fn)
     del xdata
     
+    
     # prepare CUMI files for each thread.
-    td_out_fn_list = []     # three layers: thread - feature - allele
+    cell_cumi_fn_list = []      # two layers: thread - allele
     for idx in range(td_m):
-        td_fn_list = []
-        for fet_fn_list in out_files:
-            td_fn_list.append(["%s.%d" % (ale_fn, idx)  \
-                for ale_fn in fet_fn_list])
-        td_out_fn_list.append(td_fn_list)
+        fn_list = []
+        for ale in alleles:
+            fn = os.path.join(tmp_dir, "cell.b%d.%s.cumi.tsv" % (idx, ale))
+            fn_list.append(fn)
+        cell_cumi_fn_list.append(fn_list)
 
-    # multi-processing
+
+    # multi-processing for generating CUMIs.
     mp_res = []
     pool = multiprocessing.Pool(processes = td_m)
     for idx in range(td_m):
         mp_res.append(pool.apply_async(
-            func = gen_cumi_thread,
+            func = gen_simu_cumi_thread,
             kwds = dict(
                 idx = idx,
-                count_fn = count_fn_list[idx],
+                count_fn = cell_count_fn_list[idx],
                 alleles = alleles,
                 umi_len = umi_len,
-                out_files = td_out_fn_list[idx]
+                out_files = cell_cumi_fn_list[idx]
             ),
             callback = None
         ))
     pool.close()
     pool.join()
+    
+    
+    # merge CUMI files.
+    ale_cumi_fn_list = []
+    for idx, ale in enumerate(alleles):
+        fn = os.path.join(tmp_dir, "%s.cumi.tsv" % ale)
+        merge_tsv(
+            in_fn_list = [fn_list[idx] for fn_list in cell_cumi_fn_list],
+            out_fn = fn,
+            remove = True
+        )
+        ale_cumi_fn_list.append(fn)
 
-    # merge feature-specific UMIs
-    for j in range(p):
-        for k in range(len(alleles)):
-            fn = out_files[j][k]
-            __merge_small_files(
-                in_fn_list = [td_files[j][p] for td_files in td_out_fn_list],
-                out_fn = fn,
-                inplace = False
-            )
+
+    # clean tmp files.
+    for fn in cell_count_fn_list:
+        os.remove(fn)
+        
+        
+    # split features for multi-processing.
+    fet_cumi_dir = os.path.join(tmp_dir, "tmp_fet_cumi")
+    os.makedirs(fet_cumi_dir, exist_ok = True)
+    
+    fet_cumi_fn_list = []
+    fet_ale_cumi_dirs = []
+    for idx, ale in enumerate(alleles):
+        ale_cumi_dir = os.path.join(fet_cumi_dir, ale)
+        os.makedirs(ale_cumi_dir, exist_ok = True)
+        fet_ale_cumi_dirs.append(ale_cumi_dir)
+        
+        fn_list_batch = __split_features(
+            in_fn = ale_cumi_fn_list[idx],
+            out_dir = ale_cumi_dir,
+            out_prefix = "%s.fet.b" % ale,
+            p = p,
+            ncores = ncores,
+            max_per_batch = 500       # to avoid "max open files" issue.
+        )
+        fet_cumi_fn_list.append(fn_list_batch)
 
 
-def gen_cumi_thread(
+    # multi-processing to extract feature-specific CUMIs.
+    mp_res = []
+    pool = multiprocessing.Pool(processes = ncores)
+    for idx, ale in enumerate(alleles):
+        fn_list_batch = fet_cumi_fn_list[idx]
+        for fn_batch in fn_list_batch:
+            b, e, cumi_fn = fn_batch
+            mp_res.append(pool.apply_async(
+                func = extract_simu_cumi,
+                kwds = dict(
+                    in_fn = cumi_fn,
+                    out_files = out_files[idx][b:(e+1)],
+                    b = b,
+                    e = e
+                ),
+                callback = None
+            ))
+    pool.close()
+    pool.join()
+    
+    
+    # clean tmp files.
+    # here we do not use methods like shutil.rmtree() to remove entire folder,
+    # to avoid removing some files unexpectedly.
+    for fn_list in fet_cumi_fn_list:
+        for b, e, fn in fn_list:
+            os.remove(fn)
+    for ale_dir in fet_ale_cumi_dirs:
+        os.rmdir(ale_dir)
+    os.rmdir(fet_cumi_dir)
+
+
+
+def gen_simu_cumi_thread(
     idx,
     count_fn, 
     alleles,
@@ -161,10 +284,8 @@ def gen_cumi_thread(
         A list of alleles, e.g., ["A", "B", "U"].
     umi_len : int
         Length of one new UMI barcode.
-    out_files : list of list of str
-        Two layers of lists specifying output files storing generated CUMIs.
-        The first layer of list matches features in `count_fn` while the 
-        second layer of list matches `alleles`.
+    out_files : list of str
+        A list of allele-specific files storing generated CUMIs.
 
     Returns
     -------
@@ -177,9 +298,7 @@ def gen_cumi_thread(
     assert "cell" in xdata.obs
     cell_list = xdata.obs["cell"].values
     
-    assert len(out_files) == p
-    for out_fns in out_files:
-        assert len(out_fns) == len(alleles)
+    assert len(out_files) == len(alleles) 
     
     RD = None
     for i, ale in enumerate(alleles):
@@ -191,23 +310,69 @@ def gen_cumi_thread(
 
     # UMIs are generated in a cell-specific manner, mimicking real data that
     # the UMI of each transcript should be unique within one cell.
+    fp_list = [zopen(fn, "w") for fn in out_files]
     b = Barcode(umi_len)
     for i in range(n):
         cell = cell_list[i]
         uint_list = b.sample_int(n = np.sum(RD[i, :]), sort = False)
         r = 0
-        fmode = "w" if i == 0 else "a"
         for j in range(p):
-            ale_fns = out_files[j]
-            for k, ale in enumerate(alleles):
+            for k, (ale, fp) in enumerate(zip(alleles, fp_list)):
                 x = xdata.layers[ale][i, j]
                 ale_uint_list = uint_list[r:(r+x)]
                 r += x
+                s = ""
+                for uint in ale_uint_list:
+                    umi = b.int2str(uint)
+                    s += "%d\t%s\t%s\n" % (j, cell, umi)
+                fp.write(s)
                 
-                fn = ale_fns[k]
-                with open(fn, fmode) as fp:
-                    s = ""
-                    for uint in ale_uint_list:
-                        umi = b.int2str(uint)
-                        s += "%s\t%s\n" % (cell, umi)
-                    fp.write(s)
+    for fp in fp_list:
+        fp.close()
+        
+        
+        
+def extract_simu_cumi(
+    in_fn,
+    out_files,
+    b,
+    e
+):
+    """Extract CUMIs for each feature.
+    
+    Parameters
+    ----------
+    in_fn : str
+        Path to the file storing CUMIs of a batch of features.
+    out_files : list of str
+        A list of feature-specific CUMI files.
+    b : int
+        The transcriptomics-scale index of the first feature in this batch.
+        0-based, inclusive.
+    e : int
+        The transcriptomics-scale index of the last feature in this batch.
+        0-based, inclusive.
+        
+    Returns
+    -------
+    Void.
+    """
+    # check args.
+    assert len(out_files) == e - b + 1
+
+    fet_fp_list = [zopen(out_fn, "w", ZF_F_PLAIN) for out_fn in out_files]
+    idx_map = {}
+    for i, fp in zip(range(b, e + 1), fet_fp_list):
+        idx_map[i] = fp
+
+    in_fp = open(in_fn, "r")
+    for line in in_fp:
+        fet, _, cumi = line.partition("\t")
+        fet = int(fet)
+        assert fet in idx_map
+        fp = idx_map[fet]
+        fp.write(cumi)
+    in_fp.close()
+    
+    for fp in fet_fp_list:
+        fp.close()

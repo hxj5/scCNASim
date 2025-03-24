@@ -14,7 +14,7 @@ from logging import info, error, debug
 from logging import warning as warn
 from .config import Config, COMMAND
 from .core import rs_features
-from .cumi import gen_cumi
+from .cumi import gen_simu_cumi
 from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
@@ -151,15 +151,15 @@ def rs_core(conf):
     
     reg_fn_list = []
     for idx, (b, e) in enumerate(td_reg_indices):
-        fn = os.path.join(data_dir, "%d.features.pickle" % idx)
+        fn = os.path.join(data_dir, "fet.b%d.features.pickle" % idx)
         reg_fn_list.append(fn)
         with open(fn, "wb") as fp:
             pickle.dump(conf.reg_list[b:e], fp)
             
-    out_cumi_files = []
-    for reg in conf.reg_list:
-        out_cumi_files.append([ale_dat.simu_cumi_fn \
-                        for ale, ale_dat in reg.allele_data.items()])
+    out_cumi_files = []      # two layers: allele - feature
+    for ale in alleles:
+        fn_list = [reg.allele_data[ale].simu_cumi_fn for reg in conf.reg_list]
+        out_cumi_files.append(fn_list)
 
     for reg in conf.reg_list:  # save memory
         del reg
@@ -172,7 +172,7 @@ def rs_core(conf):
 
     count_fn_list = []
     for idx, (b, e) in enumerate(td_reg_indices):
-        fn = os.path.join(data_dir, "%d.counts.h5ad" % idx)
+        fn = os.path.join(data_dir, "fet.b%d.counts.h5ad" % idx)
         adat = xdata[:, b:e].copy()
         save_h5ad(adat, fn)
         count_fn_list.append(fn)
@@ -189,7 +189,7 @@ def rs_core(conf):
     os.makedirs(cumi_dir, exist_ok = True)
     step += 1
 
-    gen_cumi(
+    gen_simu_cumi(
         count_fn = conf.count_fn,
         alleles = alleles,
         umi_len = conf.umi_len,
@@ -207,7 +207,7 @@ def rs_core(conf):
     sam_fn_list = []
     if conf.use_barcodes():
         for idx in range(td_m):
-            fn = os.path.join(conf.out_sam_dir, "%d.possorted.bam" % idx)
+            fn = os.path.join(conf.out_sam_dir, "fet.b%d.possorted.bam" % idx)
             sam_fn_list.append(fn)
     else:
         # currently, only support BAM with cell tag.
