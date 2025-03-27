@@ -1,6 +1,7 @@
 # mcount_feature.py - counting machine for features (all allele types).
 
 
+
 class SCount:
     """Counting for single cell.
 

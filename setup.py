@@ -29,9 +29,6 @@ if sys.version_info[0] != 3 or sys.version_info[1] < 11:
 reqs = ["anndata", "intervaltree", "matplotlib", "numpy", "pandas", "pysam",
         "scipy", "seaborn", "statsmodels"]
 
-# Dependency:
-# - samtools: used in `sam_sort_by_tag()`. However, this function is not
-#   called by any other functions.
 
 setup(
     name = "sccnasim",

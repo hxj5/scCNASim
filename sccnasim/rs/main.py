@@ -1,8 +1,6 @@
 # main.py
 
 
-import anndata as ad
-import getopt
 import multiprocessing
 import numpy as np
 import os
@@ -15,10 +13,12 @@ from logging import warning as warn
 from .config import Config, COMMAND
 from .core import rs_features
 from .cumi import gen_simu_cumi, smpl_seed_cumi
+from .sam import sam_cat_and_sort
 from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
     save_cells, save_samples
+from ..utils.xio import list2file
 from ..utils.xthread import split_n2m
 
 
@@ -234,34 +234,23 @@ def rs_core(conf):
     sam_dir = os.path.join(conf.out_step_dir, "%d_simu_bam" % step)
     os.makedirs(sam_dir, exist_ok = True)
     step += 1
+    
 
-    sam_fn_list = []
-    if conf.use_barcodes():
-        for idx in range(td_m):
-            fn = os.path.join(conf.out_sam_dir, "fet.b%d.possorted.bam" % idx)
-            sam_fn_list.append(fn)
-    else:
-        # currently, only support BAM with cell tag.
-        # For well-based data, e.g., SMART-seq2, merge input BAM files and
-        # add corresponding tag to distinguish cells, e.g., using `RG` tag.
-        raise ValueError
-    
-    
     # feature-specific read simulation (sampling) with multi-processing.
     info("start feature-specific read simulation with %d cores ..." % td_m)
 
-    thdata_list = []
     pool = multiprocessing.Pool(processes = td_m)
     mp_result = []
-    for i in range(td_m):
+    for i, (b, e) in enumerate(td_reg_indices):
         thdata = ThreadData(
             idx = i,
             conf = conf,
             reg_obj_fn = reg_fn_list[i],
-            out_samples = out_samples,
-            out_sam_fn = sam_fn_list[i]
+            reg_idx_b = b,
+            reg_idx_e = e,
+            alleles = alleles,
+            tmp_dir = os.path.join(sam_dir, str(i))
         )
-        thdata_list.append(thdata)
         if conf.debug > 0:
             debug("data of thread-%d before:" % i)
             thdata.show(fp = sys.stdout, prefix = "\t")
@@ -273,11 +262,8 @@ def rs_core(conf):
     pool.join()
 
     mp_result = [res.get() for res in mp_result]
-    retcode_list = [item[0] for item in mp_result]
-    thdata_list = [item[1] for item in mp_result]
-    if conf.debug > 0:
-        debug("returned values of multi-processing:")
-        debug("\t%s" % str(retcode_list))
+    thdata_list = [item[0] for item in mp_result]
+    td_fn_list = [item[1] for item in mp_result]
 
     # check running status of each sub-process
     for thdata in thdata_list:         
@@ -287,12 +273,28 @@ def rs_core(conf):
         if thdata.ret < 0:
             error("error code for thread-%d: %d" % (thdata.idx, thdata.ret))
             raise ValueError
-    #del thdata_list
+    del thdata_list
+            
+    # extract feature-specific BAM files.
+    reg_sam_fn_list = []
+    for fn_list in td_fn_list:
+        reg_sam_fn_list.extend(fn_list)
+    reg_sam_list_fn = os.path.join(sam_dir, "features.bam.lst")
+    list2file(reg_sam_fn_list, reg_sam_list_fn)
+    del td_fn_list
+    info("%d feature-specific BAM files saved." % len(reg_sam_fn_list))
+
     
+    # merge feature-specific BAM files.
+    info("merge feature-specific BAM files ...")
 
-
-    # tmp ...
-    out_sam_fn = None
+    sam_cat_and_sort(
+        reg_sam_fn_list, 
+        conf.out_sam_fn,
+        max_mem = "4G",
+        ncores = conf.ncores,
+        index = True
+    )
     
     
     # clean
@@ -315,7 +317,7 @@ def rs_core(conf):
 
         # out_sam_fn : str
         #   Path to output BAM file.
-        "out_sam_fn": out_sam_fn
+        "out_sam_fn": conf.out_sam_fn
     }
     return(res)
 
@@ -376,6 +378,7 @@ def prepare_config(conf):
         return(-1)
     os.makedirs(conf.out_dir, exist_ok = True)
 
+
     if conf.count_fn:
         if os.path.isfile(conf.count_fn):
             conf.adata = load_counts(conf.count_fn)
@@ -385,6 +388,7 @@ def prepare_config(conf):
     else:
         error("count file needed!")
         return(-1)
+
 
     if conf.feature_fn:
         if os.path.isfile(conf.feature_fn):
@@ -400,6 +404,10 @@ def prepare_config(conf):
         error("feature file needed!")
         return(-1)
     
+    for reg in conf.reg_list:
+        reg.out_sam_fn = os.path.join(reg.res_dir, "%s.simu.bam" % reg.name)
+
+
     if not os.path.isfile(conf.refseq_fn):
         error("refseq file needed!")
         return(-1)
@@ -409,11 +417,15 @@ def prepare_config(conf):
 
     if conf.umi_tag and conf.umi_tag.upper() == "NONE":
         conf.umi_tag = None
-        
+
+
     if conf.out_sam_dir is None:
         conf.out_sam_dir = os.path.join(conf.out_dir, "bam")
     os.makedirs(conf.out_sam_dir, exist_ok = True)
-        
+    
+    conf.out_sam_fn = os.path.join(conf.out_sam_dir, \
+                conf.out_prefix + "possorted.bam")
+    
     if conf.out_step_dir is None:
         conf.out_step_dir = os.path.join(conf.out_dir, "steps")
     os.makedirs(conf.out_step_dir, exist_ok = True)

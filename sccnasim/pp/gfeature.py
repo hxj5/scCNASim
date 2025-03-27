@@ -1,5 +1,6 @@
 # gfeature.py - genomic features pre-processing.
 
+
 import functools
 import numpy as np
 from logging import info, error
@@ -163,9 +164,10 @@ def merge_features_quantile2(
 
 
 def merge_features_union(
-    in_fn, out_fn, 
-    stranded = True, max_gap = 1, 
-    new_name_how = "join"
+    in_fn,
+    out_fn, 
+    stranded = True,
+    max_gap = 1,
 ):
     """Keep the union range of gene overlaps.
     
@@ -183,9 +185,6 @@ def merge_features_union(
     max_gap : int, default 1
         The maximum gap length that is allowed between two adjacent regions.
         `1` for strict adjacence.
-    new_name_how : str, default "join"
-        How to name the merged features.
-        "join": join the names of the two features with string "__".
     
     Returns
     -------
@@ -211,27 +210,28 @@ def merge_features_union(
         for chrom, iv_list in dat.items():
             s1, e1, f1, d1 = iv_list[0][:4]      # d: strand
             new_list = []
-            i = 0
+            i = j = 0
             while i < len(iv_list) - 1:
                 i += 1
                 s2, e2, f2, d2 = iv_list[i][:4]
                 if s2 <= e1 + max_gap:    # overlap adjacent region
                     e1 = max(e1, e2)
-                    if new_name_how == "join":
-                        if len(f1) < max_fn_len:
-                            f1 = f1 + "__" + f2
-                            if len(f1) >= max_fn_len:
-                                f1 += "__"      # as a marker of truncated string.
+                    j += 1
                 else:                     # otherwise
+                    if j > 0:
+                        f1 += "%s%d" % (marker, j)
                     new_list.append((s1, e1, f1, d1))
                     s1, e1, f1, d1 = s2, e2, f2, d2
+                    j = 0
+            if j > 0:
+                f1 += "%s%d" % (marker, j)
             new_list.append((s1, e1, f1, d1))
             dat[chrom] = new_list
         return(dat)
 
 
     sep = "\t"
-    max_fn_len = 31
+    marker = "__"     # marker of gene overlaps in new gene names.
     n_old, n_new = -1, -1
 
     # load data

@@ -1,5 +1,6 @@
 # gfeature.py - genomic features, supporting interval query.
 
+
 import os
 from .grange import Region, RegionSet
 
@@ -175,6 +176,10 @@ class Feature(Region):
         # allele_data : dict of {str : str}
         #   Keys are the alleles, values are the `AlleleData` objects.
         self.allele_data = None
+        
+        # out_sam_fn : str
+        #   Path to the output BAM file.
+        self.out_sam_fn = None
         
         
     def init_allele_data(self, alleles):

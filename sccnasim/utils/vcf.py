@@ -1,5 +1,6 @@
 # vcf.py - VCF file routine.
 
+
 import gzip
 import numpy as np
 import os

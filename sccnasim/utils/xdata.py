@@ -4,6 +4,7 @@
 # - it is non-trival to modify the anndata inplace (see
 #   https://github.com/scverse/anndata/issues/170 for details).
 
+
 import numpy as np
 
 from logging import info, error

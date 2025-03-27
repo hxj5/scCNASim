@@ -4,13 +4,17 @@
 import multiprocessing
 import os
 import pysam
-import subprocess
-from logging import error
+import shutil
+
+from .base import is_vector
+from .xio import file2list, list2file
+from .xthread import split_n2m
 
 
 
 def check_read(read, conf):
     return(check_basic(read, conf))
+
 
 
 def check_basic(read, conf):
@@ -53,6 +57,7 @@ def check_basic(read, conf):
     if len(read.positions) < conf.min_len:
         return(-21)
     return(0)
+
 
 
 def check_strand(read, feature_strand, strandness = "forward"):
@@ -105,6 +110,7 @@ def check_strand(read, feature_strand, strandness = "forward"):
         return(0 if read_strand == expected_strand else -5)
 
     
+    
 def check_included(read, start, end, min_include):
     """Check whether a read is included within specific feature.
     
@@ -133,6 +139,7 @@ def check_included(read, start, end, min_include):
     return(0)
 
 
+
 def get_include_frac(read, s, e):
     """Get the fraction of included part within specific feature.
 
@@ -158,6 +165,7 @@ def get_include_frac(read, s, e):
     return(m / float(n))
 
 
+
 def get_include_len(read, s, e):
     """Get the length of included part within specific feature.
 
@@ -177,6 +185,7 @@ def get_include_len(read, s, e):
     """
     include_pos_list = [x for x in read.positions if s - 1 <= x <= e - 2]
     return(len(include_pos_list))
+
 
 
 def get_query_bases(read, full_length = False):
@@ -216,6 +225,7 @@ def get_query_bases(read, full_length = False):
             pos += l
         # else: do nothing.
     return result
+
 
 
 def get_query_qualities(read, full_length = False):
@@ -260,6 +270,50 @@ def get_query_qualities(read, full_length = False):
     return result
 
 
+
+def sam_cat(in_fns, out_fn, ncores = 1):
+    """Concatenate a list of BAM files.
+
+    Parameters
+    ----------
+    in_fns : str or list of str
+        If str, path to the file listing BAM files to be concatenated;
+        If list of str, a list of BAM files to be concatenated.
+    out_fn : str
+        Path to the output concatenated BAM file.
+    ncores : int
+        Number of cores.
+    
+    Returns
+    -------
+    Void.
+    """
+    is_input_list = is_vector(in_fns)
+    
+    list_fn = None
+    if is_input_list:
+        list_fn = out_fn + ".lst"
+        list2file(in_fns, list_fn)
+    else:
+        list_fn = in_fns
+        
+    sam_cat_from_file(list_fn, out_fn, ncores = ncores)
+    
+    if is_input_list:
+        os.remove(list_fn)
+
+        
+        
+def sam_cat_from_file(list_fn, out_fn, ncores = 1):
+    pysam.cat(
+        "-b", list_fn,
+        "-o", out_fn,
+        "--no-PG", 
+        "-@", str(ncores-1)
+    )
+
+
+
 def sam_fetch(sam, chrom, start = None, end = None):
     """Wrapper for pysam.fetch method that could automatically handle 
     chromosome names with or without the "chr" prefix.
@@ -300,6 +354,7 @@ def sam_fetch(sam, chrom, start = None, end = None):
         return itr if itr else None
     
 
+    
 def sam_index(sam_fn_list, ncores = 1):
     """Index BAM file(s).
     
@@ -331,42 +386,194 @@ def sam_index(sam_fn_list, ncores = 1):
         pool.join()
     return(0)
 
+    
 
-def sam_merge(in_fn_list, out_fn):
-    """Merge BAM files.
+def sam_merge(in_fns, out_fn, ncores = 1):
+    """Merge a list of BAM files.
 
+    Parameters
+    ----------
+    in_fns : str or list of str
+        If str, path to the file listing BAM files to be merged;
+        If list of str, a list of BAM files to be merged.
+    out_fn : str
+        Path to the output merged BAM file.
+    ncores : int
+        Number of cores.
+    
+    Returns
+    -------
+    Void.
+    """
+    is_input_list = is_vector(in_fns)
+    
+    list_fn = None
+    if is_input_list:
+        list_fn = out_fn + ".lst"
+        list2file(in_fns, list_fn)
+    else:
+        list_fn = in_fns
+        
+    sam_merge_from_file(list_fn, out_fn, ncores = ncores)
+    
+    if is_input_list:
+        os.remove(list_fn)   
+
+
+        
+def sam_merge_from_file(list_fn, out_fn, ncores = 1):
+    """Merge BAM files listed in a file, one per line.
+    
+    Parameters
+    ----------
+    list_fn : str
+        The file listing BAM files to be merged.
+    out_fn : str
+        Path to the output merged BAM file.
+    ncores : int
+        Number of cores.
+    
+    Returns
+    -------
+    Void.
+    """
+    pysam.merge(
+        "-b", list_fn, 
+        "-f", "-c", "-p", "--no-PG", 
+        "-@", str(ncores-1), 
+        out_fn
+    )
+
+
+    
+def __sam_merge_batch(
+    list_fn,
+    n_sam,
+    out_fn, 
+    tmp_dir, 
+    batch_size = 100, ncores = 1,
+    depth = 0
+):
+    if n_sam <= batch_size:
+        sam_merge(list_fn, out_fn, ncores = ncores)
+        return
+    
+    n_batch = n_sam // batch_size
+    n_batch = max(n_batch, ncores)
+    td_m, td_n, td_indices = split_n2m(n_sam, n_batch)
+    
+    in_fn_list = file2list(list_fn)
+    
+    td_out_fn_list = []
+    if ncores <= 1:
+        for idx, (b, e) in enumerate(td_indices):
+            td_list_fn = os.path.join(tmp_dir, "%d.%d.bam.lst" % (depth, idx))
+            list2file(in_fn_list[b:e], td_list_fn)
+            td_out_fn = os.path.join(tmp_dir, "%d.%d.bam" % (depth, idx))
+            td_out_fn_list.append(td_out_fn)
+
+            sam_merge(td_list_fn, td_out_fn, ncores = 1)
+    else:
+        mp_res = []
+        pool = multiprocessing.Pool(processes = ncores)
+        for idx, (b, e) in enumerate(td_indices):
+            td_list_fn = os.path.join(tmp_dir, "%d.%d.bam.lst" % (depth, idx))
+            list2file(in_fn_list[b:e], td_list_fn)
+            td_out_fn = os.path.join(tmp_dir, "%d.%d.bam" % (depth, idx))
+            td_out_fn_list.append(td_out_fn)
+            
+            mp_res.append(pool.apply_async(
+                func = sam_merge,
+                kwds = dict(
+                    list_fn = td_list_fn,
+                    out_fn = td_out_fn,
+                    ncores = 1
+                ),
+                callback = None))
+        pool.close()
+        pool.join()
+        
+    for fn in td_out_fn_list:
+        pysam.index(fn)
+        
+    new_list_fn = os.path.join(tmp_dir, "%d.bam.lst" % (depth + 1, ))
+    list2file(td_out_fn_list, new_list_fn)
+    
+    __sam_merge_batch(
+        list_fn = new_list_fn,
+        n_sam = len(td_out_fn_list),
+        out_fn = out_fn,
+        tmp_dir = tmp_dir, 
+        batch_size = batch_size,
+        ncores = ncores,
+        depth = depth + 1
+    )
+    
+
+def sam_merge_batch(
+    in_fn_list, out_fn, 
+    tmp_dir, 
+    batch_size = 100, ncores = 1,
+    remove_tmp = False
+):
+    """Merge large number of BAM files by splitting them into batches.
+    
     Parameters
     ----------
     in_fn_list : list of str
         A list of BAM files to be merged.
     out_fn : str
         Path to the output merged BAM file.
-    
+    tmp_dir : str
+        Path to folder for storing temporary files.
+    batch_size : int, default 100
+        Number of BAM files to be merged in one batch.
+    ncores : int, default 1
+        Number of cores.
+    remove_tmp : bool, default False
+        Whether to remove tmp files and `tmp_dir` after merging.
+        
     Returns
     -------
-    Void.
+    Void.    
     """
-    pysam.merge("-f", "-o", out_fn, *in_fn_list)
+    depth = 0
+    list_fn = os.path.join(tmp_dir, "%d.bam.lst" % (depth + 1, ))
+    list2file(in_fn_list, list_fn)
+            
+    __sam_merge_batch(
+        list_fn = list_fn,
+        n_sam = len(in_fn_list),
+        out_fn = out_fn,
+        tmp_dir = tmp_dir, 
+        batch_size = batch_size,
+        ncores = ncores,
+        depth = depth + 1
+    )
+    if remove_tmp:
+        shutil.rmtree(tmp_dir)
+    
 
 
-def sam_sort_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
-    """Sort BAM file by specific tag.
+def sam_sort(in_bam, out_bam = None, tag = None, max_mem = "4G", ncores = 1):
+    """Sort BAM file by genomic position or specific tag.
 
     Parameters
     ----------
     in_bam : str
         The BAM file to be sorted.
-    tag : str
-        The tag by which the BAM alignments will be sorted, e.g., "CB" to sort
-        by cell barcodes.
     out_bam : str or None, default None
         The output BAM file.
         If `None`, sort in place.
+    tag : str or None, default None
+        The tag by which the BAM alignments will be sorted, e.g., "CB" to sort
+        by cell barcodes.
+        Set to None if do not use `tag` for sorting.
     max_mem : str
-        The maximum memory to be used.
-        This value will be passed to the "-m" option of "samtools sort".
-    nthreads : int, default 1
-        Number of threads to be used in the "-@" option of "samtools sort".
+        The maximum memory to be used per thread.
+        This value will be passed to the "-m" option of "samtools/pysam sort".
+    ncores : int, default 1
+        Number of cores.
     
     Returns
     -------
@@ -377,26 +584,22 @@ def sam_sort_by_tag(in_bam, tag, out_bam = None, max_mem = "4G", nthreads = 1):
     if out_bam is None or out_bam == in_bam:
         inplace = True
         out_bam = in_bam + ".tmp.bam"
-    try:
-        proc = subprocess.Popen(
-            args = "samtools sort -m %s -@ %d -t %s -o %s %s" % \
-                (max_mem, nthreads - 1, tag, out_bam, in_bam),
-            shell = True,
-            executable = "/bin/bash",
-            stdout = subprocess.PIPE,
-            stderr = subprocess.PIPE
-        )
-        outs, errs = proc.communicate()
-        ret = proc.returncode
-        if ret != 0:
-            error(str(errs.decode()))
-            raise RuntimeError
-    except:
-        error("Error: samtools sort failed (retcode '%s')." % str(ret))
-        return(-1)
+
+    args = ["-o", out_bam]
+    if tag is not None:
+        args.extend(["-t", tag])
+    args.extend([
+        "-m", str(max_mem),
+        "-@", str(ncores - 1),
+        "--no-PG",
+        in_bam
+    ])
+    
+    pysam.sort(*args)
+
     if inplace:
         os.replace(out_bam, in_bam)
-    return(0)  
+    return(0)
 
 
 

@@ -1,10 +1,9 @@
 # config.py
 
+
 import sys
 
-
 COMMAND = "cs"
-
 
 class Config:
     """Configuration of the `cs` (count simulation) module.

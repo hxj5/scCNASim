@@ -1,9 +1,9 @@
 # config.py - configuration
 
+
 import sys
 
 COMMAND = "afc"
-
 
 class Config:
     """Configuration of the `afc` (allele-specific counting) module.

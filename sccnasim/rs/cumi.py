@@ -13,13 +13,13 @@
 #      data.
 
 
-import anndata as ad
 import multiprocessing
 import numpy as np
 import os
 import pandas as pd
 import pickle
-from logging import info, error
+import shutil
+
 from .io import merge_tsv
 from ..io.base import load_h5ad, save_h5ad
 from ..utils.base import is_file_empty
@@ -85,10 +85,10 @@ def __split_features(
     
     in_fp = open(in_fn, "r")
     for line in in_fp:
-        fet, _, cumi = line.partition("\t")
-        fet = int(fet)
-        assert fet in idx_map
-        fp = idx_map[fet]
+        reg_idx, _, cumi = line.partition("\t")
+        reg_idx = int(reg_idx)
+        assert reg_idx in idx_map
+        fp = idx_map[reg_idx]
         fp.write(line)
     in_fp.close()
     
@@ -130,21 +130,21 @@ def extract_simu_cumi(
     # check args.
     assert len(out_files) == e - b + 1
 
-    fet_fp_list = [zopen(out_fn, "w", ZF_F_PLAIN) for out_fn in out_files]
+    reg_fp_list = [zopen(out_fn, "w", ZF_F_PLAIN) for out_fn in out_files]
     idx_map = {}
-    for i, fp in zip(range(b, e + 1), fet_fp_list):
+    for i, fp in zip(range(b, e + 1), reg_fp_list):
         idx_map[i] = fp
 
     in_fp = open(in_fn, "r")
     for line in in_fp:
-        fet, _, cumi = line.partition("\t")
-        fet = int(fet)
-        assert fet in idx_map
-        fp = idx_map[fet]
+        reg_idx, _, cumi = line.partition("\t")
+        reg_idx = int(reg_idx)
+        assert reg_idx in idx_map
+        fp = idx_map[reg_idx]
         fp.write(cumi)
     in_fp.close()
     
-    for fp in fet_fp_list:
+    for fp in reg_fp_list:
         fp.close()
         
     ret = 0
@@ -272,15 +272,13 @@ def gen_simu_cumi(
         
         
     # split features for multi-processing.
-    fet_cumi_dir = os.path.join(tmp_dir, "tmp_fet_cumi")
-    os.makedirs(fet_cumi_dir, exist_ok = True)
+    reg_cumi_dir = os.path.join(tmp_dir, "tmp_fet_cumi")
+    os.makedirs(reg_cumi_dir, exist_ok = True)
     
-    fet_cumi_fn_list = []
-    fet_ale_cumi_dirs = []
+    reg_cumi_fn_list = []
     for idx, ale in enumerate(alleles):
-        ale_cumi_dir = os.path.join(fet_cumi_dir, ale)
+        ale_cumi_dir = os.path.join(reg_cumi_dir, ale)
         os.makedirs(ale_cumi_dir, exist_ok = True)
-        fet_ale_cumi_dirs.append(ale_cumi_dir)
         
         fn_list_batch = __split_features(
             in_fn = ale_cumi_fn_list[idx],
@@ -290,14 +288,14 @@ def gen_simu_cumi(
             ncores = ncores,
             max_per_batch = 500       # to avoid "max open files" issue.
         )
-        fet_cumi_fn_list.append(fn_list_batch)
+        reg_cumi_fn_list.append(fn_list_batch)
 
 
     # multi-processing to extract feature-specific CUMIs.
     mp_res = []
     pool = multiprocessing.Pool(processes = ncores)
     for idx, ale in enumerate(alleles):
-        fn_list_batch = fet_cumi_fn_list[idx]
+        fn_list_batch = reg_cumi_fn_list[idx]
         for fn_batch in fn_list_batch:
             b, e, cumi_fn = fn_batch
             mp_res.append(pool.apply_async(
@@ -320,14 +318,7 @@ def gen_simu_cumi(
 
     
     # clean tmp files.
-    # here we do not use methods like shutil.rmtree() to remove entire folder,
-    # to avoid removing some files unexpectedly.
-    for fn_list in fet_cumi_fn_list:
-        for b, e, fn in fn_list:
-            os.remove(fn)
-    for ale_dir in fet_ale_cumi_dirs:
-        os.rmdir(ale_dir)
-    os.rmdir(fet_cumi_dir)
+    shutil.rmtree(reg_cumi_dir)
 
     ret = 0
     return(ret)

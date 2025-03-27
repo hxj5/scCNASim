@@ -1,5 +1,6 @@
 # core.py - core part of feature counting.
 
+
 import math
 import numpy as np
 import os
@@ -36,8 +37,6 @@ def fc_features(thdata):
 
     Returns
     -------
-    int
-        Return code. 0 if success, negative otherwise.
     afc.thread.ThreadData
         The thread-specific data.
     """
@@ -108,7 +107,7 @@ def fc_features(thdata):
     thdata.conf = None    # sam object cannot be pickled.
     thdata.ret = 0
             
-    return((0, thdata))
+    return(thdata)
 
 
 def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):

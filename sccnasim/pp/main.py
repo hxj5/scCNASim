@@ -60,8 +60,7 @@ def pp_core(conf):
                 in_fn = filter_chrom_feature_fn,
                 out_fn = merged_feature_fn,
                 stranded = conf.is_stranded(),
-                max_gap = 1,
-                new_name_how = "join"
+                max_gap = 1
             )
         else:
             error("invalid method '%s' to resolve overlapping features." %

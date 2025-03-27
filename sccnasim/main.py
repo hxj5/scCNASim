@@ -6,7 +6,6 @@
 # 2. filter cells of unused cell types in `pp` for well-based or bulk data.
 
 
-import anndata as ad
 import logging
 import numpy as np
 import os
@@ -379,28 +378,15 @@ def main_core(conf):
     # read simulation.
     info("start read simulation ...")
     rs_ret, rs_res = rs_wrapper(
-        sam_fn = conf.sam_fn,
-        barcode_fn = pp_res["barcode_fn_new"] if conf.use_barcodes() else None,
         count_fn = cs_res["adata_fn"],
         feature_fn = afc_res["feature_meta_fn"],
         refseq_fn = conf.refseq_fn,
         out_dir = os.path.join(conf.out_dir, "%d_rs" % step),
-        sam_list_fn = conf.sam_list_fn,
-        sample_ids = conf.sample_ids,
-        sample_id_fn = conf.sample_id_fn,
         debug_level = 0,
         ncores = conf.ncores,
-        chroms = conf.chroms,
         cell_tag = conf.cell_tag,
         umi_tag = conf.umi_tag,
-        umi_len = conf.umi_len,
-        strandness = conf.strandness,
-        min_include = conf.min_include,
-        min_mapq = conf.min_mapq,
-        min_len = conf.min_len,
-        incl_flag = conf.incl_flag,
-        excl_flag = conf.excl_flag,
-        no_orphan = conf.no_orphan
+        umi_len = conf.umi_len
     )
     if rs_ret < 0:
         error("read simulation failed (%d)." % rs_ret)

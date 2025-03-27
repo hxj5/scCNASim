@@ -8,6 +8,7 @@ from . import vcf
 from . import xbarcode
 from . import xcna
 from . import xdata
+from . import xio
 from . import xlog
 from . import xmath
 from . import xmatrix

@@ -1,5 +1,6 @@
 # config.py - configuration
 
+
 import sys
 from ..afc.config import DefaultConfig as AFC_Def_Conf
 
@@ -54,25 +55,25 @@ class Config:
         #   Tag for haplotype in the output BAM file.
         self.hap_tag = "HT"
         
-        # cell_raw_tag : str or None
+        # cell_raw_tag : str
         #   Tag for uncorrected raw cell tag in seed and simulated BAM.
-        #   Set to None if do not use it.
         self.cell_raw_tag = "CR"
-        
-        # backup_cell_raw_tag : str or None
-        #   Tag for backup uncorrected raw cell barcode (from seed BAM) 
-        #   in simulated BAM. Set to None if do not use it.
-        self.backup_cell_raw_tag = "RC"
         
         # umi_raw_tag : str or None
         #   Tag for uncorrected raw umi tag in seed and simulated BAM.
         #   Set to None if do not use it.
         self.umi_raw_tag = "UR"
         
-        # backup_umi_raw_tag : str or None
-        #   Tag for backup uncorrected raw umi barcode (from seed BAM) 
-        #   in simulated BAM. Set to None if do not use it.
-        self.backup_umi_raw_tag = "RU"
+        # backup_cell_tag : str
+        #   Tag for backuping corrected cell barcode (from seed BAM) 
+        #   in simulated BAM.
+        self.backup_cell_tag = "KC"
+        
+        # backup_umi_tag : str or None
+        #   Tag for backuping corrected umi barcode (from seed BAM) 
+        #   in simulated BAM.
+        #   Set to None if do not use it.
+        self.backup_umi_tag = "KU"
         
         # alleles : tuple of str
         #   All alleles.
@@ -81,6 +82,10 @@ class Config:
         # out_sam_dir : str
         #   Output folder for SAM/BAM file(s).
         self.out_sam_dir = None
+        
+        # out_sam_fn : str
+        #   Output BAM file.
+        self.out_sam_fn = None
         
         # out_step_dir : str
         #   Output folder for step-wise results.
@@ -117,13 +122,14 @@ class Config:
 
         s += "%shap_tag = %s\n" % (prefix, self.hap_tag)
         s += "%scell_raw_tag = %s\n" % (prefix, self.cell_raw_tag)
-        s += "%sbackup_cell_raw_tag = %s\n" % (prefix, self.backup_cell_raw_tag)
         s += "%sumi_raw_tag = %s\n" % (prefix, self.umi_raw_tag)
-        s += "%sbackup_umi_raw_tag = %s\n" % (prefix, self.backup_umi_raw_tag)
+        s += "%sbackup_cell_tag = %s\n" % (prefix, self.backup_cell_tag)
+        s += "%sbackup_umi_tag = %s\n" % (prefix, self.backup_umi_tag)
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
         s += "%s\n" % prefix
 
         s += "%sout_sam_dir = %s\n" % (prefix, self.out_sam_dir)
+        s += "%sout_sam_fn = %s\n" % (prefix, self.out_sam_fn)
         s += "%sout_step_dir = %s\n" % (prefix, self.out_step_dir)
         s += "%s\n" % prefix
 

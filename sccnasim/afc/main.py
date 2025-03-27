@@ -7,7 +7,7 @@
 #    inference of read haplotype (or read mask) in read sampling, 
 #    when based on these contained SNPs.
 
-import getopt
+
 import multiprocessing
 import os
 import pickle
@@ -207,6 +207,8 @@ def afc_core(conf):
     for reg, feature_dir in zip(conf.reg_list, conf.out_feature_dirs):
         reg.res_dir = feature_dir
         reg.init_allele_data(alleles = conf.cumi_alleles)
+    conf.out_feature_dirs.clear()
+    conf.out_feature_dirs = None
         
 
     # split feature list and save to file.
@@ -238,7 +240,6 @@ def afc_core(conf):
     # allele-specific counting with multi-processing.
     info("start allele-specific counting with %d cores ..." % td_m)
 
-    thdata_list = []
     pool = multiprocessing.Pool(processes = td_m)
     mp_result = []
     for i in range(td_m):
@@ -249,7 +250,6 @@ def afc_core(conf):
             out_ale_fns = {ale: fn + "." + str(i) for ale, fn in \
                            conf.out_ale_fns.items()}
         )
-        thdata_list.append(thdata)
         if conf.debug > 0:
             debug("data of thread-%d before:" % i)
             thdata.show(fp = sys.stdout, prefix = "\t")
@@ -260,12 +260,7 @@ def afc_core(conf):
     pool.close()
     pool.join()
 
-    mp_result = [res.get() for res in mp_result]
-    retcode_list = [item[0] for item in mp_result]
-    thdata_list = [item[1] for item in mp_result]
-    if conf.debug > 0:
-        debug("returned values of multi-processing:")
-        debug("\t%s" % str(retcode_list))
+    thdata_list = [res.get() for res in mp_result]
 
     # check running status of each sub-process
     for thdata in thdata_list:         
