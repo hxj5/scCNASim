@@ -1,4 +1,4 @@
-# read simulation/sampling in single cells.
+# read simulation/sampling in single-cell and spatial transcriptomics.
 
 from . import config
 from . import main

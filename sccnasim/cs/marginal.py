@@ -340,8 +340,8 @@ def fit_RD_feature(
     s : float or None, default None
         The size factor, typically library size.
         Set to `None` if do not use it.
-    marginal : {"auto", "poisson", "nb", "zinb"}
-        One of "auto" (auto select), "poisson" (Poisson), 
+    marginal : {"auto", "poi", "nb", "zinb"}
+        One of "auto" (auto select), "poi" (Poisson), 
         "nb" (Negative Binomial),
         and "zinb" (Zero-Inflated Negative Binomial).
     max_iter : int, default 1000
@@ -396,7 +396,7 @@ def fit_RD_feature(
     >>> res = rdr.mar.fit_RD_feature(x, max_iter = 1000, verbose = False)
     >>> print(res)
     """
-    if marginal not in ("auto", "zinb", "nb", "poisson"):
+    if marginal not in ("auto", "zinb", "nb", "poi"):
         error("invalid marginal '%s'." % marginal)
         raise ValueError
 
@@ -528,7 +528,7 @@ def fit_RD_feature(
                 model, par, mres = "nb", par_nb, mres_nb
                 break
         
-        elif marginal == "poisson":
+        elif marginal == "poi":
             model, par = "poi", estimate_dist_poi(x, s)
             break
         
@@ -587,9 +587,9 @@ def fit_RD_cell_type(
         The type of size factors.
         Currently only "libsize" is supported.
         Set to `None` if do not use size factors for fitting.
-    marginal : {"auto", "poisson", "nb", "zinb"}
+    marginal : {"auto", "poi", "nb", "zinb"}
         Type of marginal distribution.
-        One of "auto" (auto select), "poisson" (Poisson), 
+        One of "auto" (auto select), "poi" (Poisson), 
         "nb" (Negative Binomial),
         and "zinb" (Zero-Inflated Negative Binomial).
     min_nonzero_num : int, default 3
@@ -613,7 +613,7 @@ def fit_RD_cell_type(
     if verbose:
         info("start ...")
 
-    if marginal not in ("auto", "zinb", "nb", "poisson"):
+    if marginal not in ("auto", "zinb", "nb", "poi"):
         error("invalid marginal '%s'." % marginal)
         raise ValueError
     
@@ -743,9 +743,9 @@ def fit_RD(
         Its length and order should match the rows of `X`.
     cell_type_fit : list of str
         The cell types to be fitted.
-    marginal : {"auto", "poisson", "nb", "zinb"}
+    marginal : {"auto", "poi", "nb", "zinb"}
         Type of marginal distribution.
-        One of "auto" (auto select), "poisson" (Poisson), 
+        One of "auto" (auto select), "poi" (Poisson), 
         "nb" (Negative Binomial),
         and "zinb" (Zero-Inflated Negative Binomial).
     min_nonzero_num : int, default 3
@@ -783,7 +783,7 @@ def fit_RD(
     assert len(cell_type_fit) == len(set(cell_type_fit)) and \
         np.all(np.isin(cell_type_fit, all_cell_types))
 
-    if marginal not in ("auto", "zinb", "nb", "poisson"):
+    if marginal not in ("auto", "zinb", "nb", "poi"):
         error("invalid marginal '%s'." % marginal)
         raise ValueError
 
@@ -850,9 +850,9 @@ def fit_RD_wrapper(
         The type of size factor. 
         Currently, only support "libsize" (library size).
         Set to `None` if do not use size factors for model fitting.
-    marginal : {"auto", "poisson", "nb", "zinb"}
+    marginal : {"auto", "poi", "nb", "zinb"}
         Type of marginal distribution.
-        One of "auto" (auto select), "poisson" (Poisson), 
+        One of "auto" (auto select), "poi" (Poisson), 
         "nb" (Negative Binomial),
         and "zinb" (Zero-Inflated Negative Binomial).
     min_nonzero_num : int, default 3
@@ -901,7 +901,7 @@ def fit_RD_wrapper(
         error("invalid size factor type '%s'." % size_factor)
         raise ValueError
     
-    if marginal not in ("auto", "zinb", "nb", "poisson"):
+    if marginal not in ("auto", "zinb", "nb", "poi"):
         error("invalid marginal '%s'." % marginal)
         raise ValueError
 

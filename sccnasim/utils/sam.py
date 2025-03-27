@@ -8,7 +8,7 @@ import shutil
 
 from .base import is_vector
 from .xio import file2list, list2file
-from .xthread import split_n2m
+from .xthread import split_n2batch
 
 
 
@@ -451,25 +451,32 @@ def __sam_merge_batch(
     n_sam,
     out_fn, 
     tmp_dir, 
-    batch_size = 100, ncores = 1,
+    max_per_batch = 100, ncores = 1,
     depth = 0
 ):
-    if n_sam <= batch_size:
+    if n_sam <= max_per_batch:
         sam_merge(list_fn, out_fn, ncores = ncores)
         return
     
-    n_batch = n_sam // batch_size
-    n_batch = max(n_batch, ncores)
-    td_m, td_n, td_indices = split_n2m(n_sam, n_batch)
+    # Note, here
+    # - max_n_batch: to account for the max allowed files and subfolders in
+    #   one folder.
+    # - max_per_batch: to account for the max number of BAM files that
+    #   pysam.merge() allows.
+    td_m, td_n, td_indices = split_n2batch(
+            n_sam, ncores, max_n_batch = 10000, max_per_batch = max_per_batch)
     
     in_fn_list = file2list(list_fn)
+    
+    res_dir = os.path.join(tmp_dir, str(depth))
+    os.makedirs(res_dir, exist_ok = True)
     
     td_out_fn_list = []
     if ncores <= 1:
         for idx, (b, e) in enumerate(td_indices):
-            td_list_fn = os.path.join(tmp_dir, "%d.%d.bam.lst" % (depth, idx))
+            td_list_fn = os.path.join(res_dir, "%d.%d.bam.lst" % (depth, idx))
             list2file(in_fn_list[b:e], td_list_fn)
-            td_out_fn = os.path.join(tmp_dir, "%d.%d.bam" % (depth, idx))
+            td_out_fn = os.path.join(res_dir, "%d.%d.bam" % (depth, idx))
             td_out_fn_list.append(td_out_fn)
 
             sam_merge(td_list_fn, td_out_fn, ncores = 1)
@@ -477,9 +484,9 @@ def __sam_merge_batch(
         mp_res = []
         pool = multiprocessing.Pool(processes = ncores)
         for idx, (b, e) in enumerate(td_indices):
-            td_list_fn = os.path.join(tmp_dir, "%d.%d.bam.lst" % (depth, idx))
+            td_list_fn = os.path.join(res_dir, "%d.%d.bam.lst" % (depth, idx))
             list2file(in_fn_list[b:e], td_list_fn)
-            td_out_fn = os.path.join(tmp_dir, "%d.%d.bam" % (depth, idx))
+            td_out_fn = os.path.join(res_dir, "%d.%d.bam" % (depth, idx))
             td_out_fn_list.append(td_out_fn)
             
             mp_res.append(pool.apply_async(
@@ -504,7 +511,7 @@ def __sam_merge_batch(
         n_sam = len(td_out_fn_list),
         out_fn = out_fn,
         tmp_dir = tmp_dir, 
-        batch_size = batch_size,
+        max_per_batch = max_per_batch,
         ncores = ncores,
         depth = depth + 1
     )
@@ -513,7 +520,7 @@ def __sam_merge_batch(
 def sam_merge_batch(
     in_fn_list, out_fn, 
     tmp_dir, 
-    batch_size = 100, ncores = 1,
+    max_per_batch = 100, ncores = 1,
     remove_tmp = False
 ):
     """Merge large number of BAM files by splitting them into batches.
@@ -526,8 +533,8 @@ def sam_merge_batch(
         Path to the output merged BAM file.
     tmp_dir : str
         Path to folder for storing temporary files.
-    batch_size : int, default 100
-        Number of BAM files to be merged in one batch.
+    max_per_batch : int, default 100
+        Maximum number of BAM files to be merged in one batch.
     ncores : int, default 1
         Number of cores.
     remove_tmp : bool, default False
@@ -537,7 +544,7 @@ def sam_merge_batch(
     -------
     Void.    
     """
-    depth = 0
+    depth = -1
     list_fn = os.path.join(tmp_dir, "%d.bam.lst" % (depth + 1, ))
     list2file(in_fn_list, list_fn)
             
@@ -546,7 +553,7 @@ def sam_merge_batch(
         n_sam = len(in_fn_list),
         out_fn = out_fn,
         tmp_dir = tmp_dir, 
-        batch_size = batch_size,
+        max_per_batch = max_per_batch,
         ncores = ncores,
         depth = depth + 1
     )

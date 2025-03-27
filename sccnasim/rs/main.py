@@ -12,14 +12,14 @@ from logging import info, error, debug
 from logging import warning as warn
 from .config import Config, COMMAND
 from .core import rs_features
-from .cumi import gen_simu_cumi, smpl_seed_cumi
+from .cumi import cumi_simu_main, cumi_sample_seed_main
 from .sam import sam_cat_and_sort
 from .thread import ThreadData
 from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
     save_cells, save_samples
 from ..utils.xio import list2file
-from ..utils.xthread import split_n2m
+from ..utils.xthread import split_n2batch
 
 
 
@@ -63,7 +63,7 @@ def rs_wrapper(
     umi_tag : str or None, default "UB"
         Tag for UMI, set to None when reads only.
     umi_len : int, default 10
-        Length of output UMI barcode.
+        Length of output UMI barcodes.
 
     Returns
     -------
@@ -141,7 +141,13 @@ def rs_core(conf):
     step += 1
     
     m_reg = len(conf.reg_list)
-    td_m, td_n, td_reg_indices = split_n2m(m_reg, conf.ncores)
+    
+    # Note, here
+    # - max_n_batch: to account for the max allowed files and subfolders in
+    #   one folder.
+    #   Currently, 2 files output in each batch.
+    td_m, td_n, td_reg_indices = split_n2batch(
+                m_reg, conf.ncores, max_n_batch = 15000)
     info("m_reg=%d; td_m=%d; td_n=%d;" % (m_reg, td_m, td_n))
 
     
@@ -190,7 +196,7 @@ def rs_core(conf):
     mp_result = []
     for i in range(td_m):
         mp_result.append(pool.apply_async(
-            func = smpl_seed_cumi, 
+            func = cumi_sample_seed_main, 
             kwds = dict(
                 count_fn = count_fn_list[i],
                 feature_fn = reg_fn_list[i],
@@ -217,8 +223,10 @@ def rs_core(conf):
     os.makedirs(simu_cumi_dir, exist_ok = True)
     step += 1
 
-    ret = gen_simu_cumi(
+    ret = cumi_simu_main(
         count_fn = conf.count_fn,
+        n = n,
+        p = p,
         alleles = alleles,
         umi_len = conf.umi_len,
         out_files = out_cumi_files,

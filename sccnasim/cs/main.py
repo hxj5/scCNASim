@@ -37,6 +37,7 @@ def cs_core(conf):
     info("there are %d CNA clones in all %d clones." % (
         len(cna_clones), len(all_clones)))
 
+
     # subset adata (count matrices) by cell types.
     # only keep cell types listed in clone annotations.
     clone_cell_types = np.unique(conf.clone_meta["cell_type"])
@@ -236,7 +237,7 @@ def cs_core(conf):
         #   The cell-wise simulated size factors.
         size_factors_simu = size_factors_simu,
 
-        # marginal : {"auto", "poisson", "nb", "zinb"}
+        # marginal : {"auto", "poi", "nb", "zinb"}
         #   Type of marginal distribution.
         marginal = conf.marginal,
 
@@ -354,11 +355,11 @@ def cs_wrapper(
         The type of size factor.
         Currently, only support "libsize" (library size).
         Set to `None` if do not use size factors for model fitting.
-    marginal : {"auto", "poisson", "nb", "zinb"}
+    marginal : {"auto", "poi", "nb", "zinb"}
         Type of marginal distribution.
         One of
         - "auto" (auto select).
-        - "poisson" (Poisson).
+        - "poi" (Poisson).
         - "nb" (Negative Binomial).
         - "zinb" (Zero-Inflated Negative Binomial).
     ncores : int, default 1
@@ -446,7 +447,7 @@ def prepare_config(conf):
     if conf.size_factor is not None:
         assert conf.size_factor in ("libsize", )
     
-    assert conf.marginal in ("auto", "poisson", "nb", "zinb")
+    assert conf.marginal in ("auto", "poi", "nb", "zinb")
 
     kwargs_fit_sf = conf.def_kwargs_fit_sf.copy()
     for k, v in kwargs_fit_sf.items():
@@ -503,7 +504,7 @@ def gen_clone_core(
         The cell-wise size factors from trainning data.
     size_factors_simu : list of float
         The cell-wise simulated size factors.
-    marginal : {"auto", "poisson", "nb", "zinb"}
+    marginal : {"auto", "poi", "nb", "zinb"}
         Type of marginal distribution.
     kwargs_fit_rd : dict
         The additional kwargs passed to function 

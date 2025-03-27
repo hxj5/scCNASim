@@ -26,9 +26,13 @@ def fc_features(thdata):
     """Feature counting for a list of features.
 
     This function does feature counting for a list of features. When iterating
-    one feature, it (1) generates *allele x cell* counts and output them into
-    allele-specific count matrix file. (2) outputs the corresponding cell and
-    UMI IDs into each allele-specific CUMI file.
+    one feature, it 
+    (1) calculates UMI/read counts of this feature in single cells and output 
+        them into each allele-specific count matrix file.
+    (2) outputs post-filtering reads of this feature into each allele-specific
+        BAM file.
+    (3) outputs the corresponding pileuped cell and UMI IDs (CUMIs) into each
+        allele-specific CUMI file.
     
     Parameters
     ----------
@@ -44,8 +48,8 @@ def fc_features(thdata):
     thdata.ret = -1
 
     sam_list = []
-    for sam_fn in conf.sam_fn_list:
-        sam = pysam.AlignmentFile(sam_fn, "r", require_index = True)
+    for fn in conf.sam_fn_list:
+        sam = pysam.AlignmentFile(fn, "r", require_index = True)
         sam_list.append(sam)
 
     reg_list = None
@@ -112,12 +116,6 @@ def fc_features(thdata):
 
 def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
     """Feature counting for one feature.
-
-    This function generates *allele x cell* counts for one feature, and output
-    the corresponding cell (cell barcodes or sample IDs) and UMI (UMI barcodes
-    or query name) IDs into each allele-specific CUMI file.
-    These output cell and UMI IDs (CUMIs) will be used by the `rs` module for
-    read (CUMI) sampling.
     
     Parameters
     ----------

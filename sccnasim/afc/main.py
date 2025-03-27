@@ -29,7 +29,7 @@ from ..io.counts import load_xdata
 from ..utils.base import assert_e
 from ..utils.gfeature import assign_feature_batch
 from ..utils.xlog import init_logging
-from ..utils.xthread import split_n2m
+from ..utils.xthread import split_n2batch
 from ..utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
 
 
@@ -110,9 +110,11 @@ def afc_wrapper(
         Minimum minor allele fraction for SNP.
     strandness : {"forward", "reverse", "unstranded"}
         Strandness of the sequencing protocol.
-        "forward" - read strand same as the source RNA molecule;
-        "reverse" - read strand opposite to the source RNA molecule;
-        "unstranded" - no strand information.
+        - "forward": SE sense; PE R1 antisense and R2 sense;
+            e.g., 10x 3' data.
+        - "reverse": SE antisense; PE R1 sense and R2 antisense;
+            e.g., 10x 5' data.
+        - "unstranded": no strand information.
     min_include : int or float, default 0.9
         Minimum length of included part within specific feature.
         If float between (0, 1), it is the minimum fraction of included length.
@@ -187,18 +189,18 @@ def afc_core(conf):
     if conf.debug > 0:
         debug("extract SNPs for each feature.")
 
-    n_reg_with_snp = 0
+    n = 0
     for reg in conf.reg_list:
         snp_list = conf.snp_set.fetch(reg.chrom, reg.start, reg.end)
         if snp_list and len(snp_list) > 0:
             reg.snp_list = snp_list
-            n_reg_with_snp += 1
+            n += 1
         else:
             reg.snp_list = []
             if conf.debug > 0:
                 debug("no SNP fetched for feature '%s'." % reg.name)
 
-    info("%d features extracted with SNPs." % n_reg_with_snp)
+    info("%d features extracted with SNPs." % n)
 
 
     # assign features to several batches of result folders, to avoid exceeding
@@ -218,15 +220,21 @@ def afc_core(conf):
         pickle.dump(conf.reg_list, fp)
 
     m_reg = len(conf.reg_list)
-    td_m, td_n, td_reg_indices = split_n2m(m_reg, conf.ncores)
+    
+    # Note, here
+    # - max_n_batch: to account for the max allowed files and subfolders in
+    #   one folder.
+    #   Currently, 6 files output in each batch.
+    td_m, td_n, td_reg_indices = split_n2batch(
+            m_reg, conf.ncores, max_n_batch = 5000)
     info("m_reg=%d; td_m=%d; td_n=%d;" % (m_reg, td_m, td_n))
 
     reg_fn_list = []
     for idx, (b, e) in enumerate(td_reg_indices):
-        reg_fn = conf.out_prefix + "feature.pickle." + str(idx)
-        reg_fn = os.path.join(conf.out_dir, reg_fn)
-        reg_fn_list.append(reg_fn)
-        with open(reg_fn, "wb") as fp:
+        fn = conf.out_prefix + "feature.pickle." + str(idx)
+        fn = os.path.join(conf.out_dir, fn)
+        reg_fn_list.append(fn)
+        with open(fn, "wb") as fp:
             pickle.dump(conf.reg_list[b:e], fp)
 
     for reg in conf.reg_list:  # save memory

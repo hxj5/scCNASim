@@ -1,10 +1,6 @@
 # main.py - cmdline interface.
 
 
-# TODO:
-# 1. filter regions based on the input chrom list at the very beginning.
-# 2. filter cells of unused cell types in `pp` for well-based or bulk data.
-
 
 import logging
 import numpy as np
@@ -64,13 +60,15 @@ def main_wrapper(
         - "cell_type" (str): cell type.
     feature_fn : str
         A TSV file listing target features. 
-        It is header-free and its first 4 columns shoud be: 
+        It is header-free and its first 5 columns shoud be: 
         - "chrom" (str): chromosome name of the feature.
         - "start" (int): start genomic position of the feature, 1-based
           and inclusive.
         - "end" (int): end genomic position of the feature, 1-based and
           inclusive.
         - "feature" (str): feature name.
+        - "strand" (str): feature strand, either "+" (positive) or 
+          "-" (negative).
     phased_snp_fn : str
         A TSV or VCF file listing phased SNPs.
         If TSV, it is a header-free file containing SNP annotations, whose
@@ -121,8 +119,8 @@ def main_wrapper(
         "quantile" - alias to "quantile2".
         "quantile2" - remove highly overlapping genes.
             Remove genes with number of overlapping genes larger than a given
-            value. Default is the 0.99 quantile among all genes that have 
-            overlaps.
+            value (default is the 0.99 quantile among all genes that have 
+            overlaps).
         "union" - keep the union range of gene overlaps.
             Replace consecutive overlapping genes with their union genomic 
             range, i.e., aggregate overlapping genes into non-overlapping
@@ -131,11 +129,11 @@ def main_wrapper(
         The type of size factor.
         Currently, only support "libsize" (library size).
         Set to `None` if do not use size factors for model fitting.
-    marginal : {"auto", "poisson", "nb", "zinb"}
+    marginal : {"auto", "poi", "nb", "zinb"}
         Type of marginal distribution.
         One of
         - "auto" (auto select).
-        - "poisson" (Poisson).
+        - "poi" (Poisson).
         - "nb" (Negative Binomial).
         - "zinb" (Zero-Inflated Negative Binomial).
     kwargs_fit_sf : dict or None, default None
@@ -178,9 +176,11 @@ def main_wrapper(
         Whether to show detailed logging information.
     strandness : {"forward", "reverse", "unstranded"}
         Strandness of the sequencing protocol.
-        "forward" - read strand same as the source RNA molecule;
-        "reverse" - read strand opposite to the source RNA molecule;
-        "unstranded" - no strand information.
+        - "forward": SE sense; PE R1 antisense and R2 sense;
+            e.g., 10x 3' data.
+        - "reverse": SE antisense; PE R1 sense and R2 antisense;
+            e.g., 10x 5' data.
+        - "unstranded": no strand information.
     min_include : int or float, default 0.9
         Minimum length of included part within specific feature.
         If float between (0, 1), it is the minimum fraction of included length.

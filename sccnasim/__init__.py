@@ -1,4 +1,4 @@
-# CNA simulation in single cells.
+# CNA simulation in single-cell and spatial transcriptomics.
 
 from . import afc
 from . import app

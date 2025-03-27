@@ -21,10 +21,12 @@ def pp_core(conf):
     info("configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
 
+    
     # process feature file.
     raw_feature_fn = os.path.join(conf.out_dir, conf.out_prefix_raw + "features.tsv")
     shutil.copy(conf.feature_fn, raw_feature_fn)
     info("feature file copied to '%s'." % raw_feature_fn)
+
     
     # filter features based on input chromosomes.
     filter_chrom_feature_fn = os.path.join(conf.out_dir,
@@ -38,6 +40,7 @@ def pp_core(conf):
         error("filter features by chroms failed (%d)." % r)
         raise ValueError
     info("%d features kept from %d old ones after filtering by chroms." % (n_new, n_old))
+
     
     # merge overlapping features.
     merged_feature_fn = os.path.join(conf.out_dir, 
@@ -280,9 +283,11 @@ def pp_wrapper(
         If None, it will be set as "1,2,...22".
     strandness : {"forward", "reverse", "unstranded"}
         Strandness of the sequencing protocol.
-        "forward" - read strand same as the source RNA molecule;
-        "reverse" - read strand opposite to the source RNA molecule;
-        "unstranded" - no strand information.
+        - "forward": SE sense; PE R1 antisense and R2 sense;
+            e.g., 10x 3' data.
+        - "reverse": SE antisense; PE R1 sense and R2 antisense;
+            e.g., 10x 5' data.
+        - "unstranded": no strand information.
     merge_features_how : str, default "quantile"
         How to merge overlapping features.
         "none" - Leave all input gene annotations unchanged.
