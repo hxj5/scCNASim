@@ -1,7 +1,7 @@
 # snp.py
 
 
-from logging import error, debug
+from logging import error, debug, info
 from ..utils.grange import format_chrom
 
 

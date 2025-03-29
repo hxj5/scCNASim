@@ -31,7 +31,14 @@ def rs_features(thdata):
     
     os.makedirs(tmp_dir, exist_ok = True)
     
-    hap_idx_list = [hap2idx(ale) for ale in alleles]
+    # FIX ME!!
+    # here we use a trick that hap 'A' and 'B' is one-to-one mapping to their
+    # haplotype index.
+    hap_idx_list = []
+    for ale in alleles:
+        idx = hap2idx(ale)
+        hap_idx_list.append(idx[0] if len(idx) == 1 else None)
+
     for idx, reg in enumerate(reg_list):
         ale_sam_fn_list = []
         snps = SNPSet(reg.snp_list)
