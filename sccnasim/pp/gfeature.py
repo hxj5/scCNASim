@@ -275,3 +275,34 @@ def merge_features_union(
             n_new += 1
     fp.close()
     return((0, n_old, n_new))
+
+
+def sort_features(in_fn, out_fn):
+    sep = "\t"
+
+    # load data
+    df = load_features(in_fn, sep = sep)
+    
+    dat = {}
+    for i in range(df.shape[0]):
+        rec = df.loc[i, ]
+        chrom = rec["chrom"]
+        if chrom not in dat:
+            dat[chrom] = []
+        dat[chrom].append((
+            rec["start"], rec["end"], rec["feature"], rec["strand"]))
+        
+    # sort features.
+    for chrom, ch_dat in dat.items():
+        iv_list = sorted(ch_dat,
+                    key = functools.cmp_to_key(cmp_two_intervals))
+
+    # save data.
+    fp = open(out_fn, "w")
+    for chrom in sorted(dat.keys()):
+        ch_dat = dat[chrom]
+        for s, e, f, d in ch_dat:
+            fp.write("\t".join([chrom, str(s), str(e), f, d]) + "\n")
+    fp.close()
+    
+    return(0)

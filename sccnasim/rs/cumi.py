@@ -20,11 +20,12 @@ import pandas as pd
 import pickle
 import shutil
 
+from logging import info
 from .io import merge_tsv
 from ..io.base import load_h5ad, save_h5ad
 from ..utils.base import is_file_empty
 from ..utils.xbarcode import Barcode
-from ..utils.xthread import split_n2batch
+from ..utils.xthread import split_n2batch, mp_error_handler
 from ..utils.zfile import zopen, ZF_F_PLAIN
 
 
@@ -194,7 +195,7 @@ def cumi_simu_cs_main(
 
     # multi-processing for generating CUMIs in each batch.
     mp_res = []
-    pool = multiprocessing.Pool(processes = td_m)
+    pool = multiprocessing.Pool(processes = min(ncores, td_m))
     for idx in range(td_m):
         mp_res.append(pool.apply_async(
             func = cumi_simu_cs,
@@ -202,10 +203,10 @@ def cumi_simu_cs_main(
                 count_fn = cell_count_fn_list[idx],
                 alleles = alleles,
                 umi_len = umi_len,
-                out_files = cell_cumi_fn_list[idx],
-                idx = idx
+                out_files = cell_cumi_fn_list[idx]
             ),
-            callback = None
+            callback = None,
+            error_callback = mp_error_handler
         ))
     pool.close()
     pool.join()
@@ -333,7 +334,7 @@ def cumi_extract_fs_main(
     ret = __cumi_extract_fs_batch(
         in_fn = in_fn,
         b0 = 0,
-        e0 = len(out_files),
+        e0 = len(out_files) - 1,
         out_files = out_files,
         tmp_dir = tmp_dir,
         ncores = ncores,
@@ -441,31 +442,33 @@ def __cumi_extract_fs_batch(
         for b, e, fn in td_batches:
             __cumi_extract_fs_batch(
                 in_fn = fn,
-                b = b,
-                e = e,
+                b0 = b,
+                e0 = e,
                 out_files = out_files[(b-b0):(e-b0+1)],
                 tmp_dir = tmp_dir,
                 ncores = 1,
                 max_per_batch = max_per_batch,
                 depth = depth + 1
-            )            
+            )
     else:
         mp_res = []
-        pool = multiprocessing.Pool(processes = ncores)
+        pool = multiprocessing.Pool(processes = min(ncores, td_m))
         for b, e, fn in td_batches:
             mp_res.append(pool.apply_async(
                 func = __cumi_extract_fs_batch,
                 kwds = dict(
                     in_fn = fn,
-                    b = b,
-                    e = e,
+                    b0 = b,
+                    e0 = e,
                     out_files = out_files[(b-b0):(e-b0+1)],
                     tmp_dir = tmp_dir,
                     ncores = 1,
                     max_per_batch = max_per_batch,
                     depth = depth + 1
                 ),
-                callback = None))
+                callback = None,
+                error_callback = mp_error_handler
+            ))
         pool.close()
         pool.join()
 

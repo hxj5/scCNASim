@@ -94,6 +94,10 @@ class Config:
         # cumi_alleles : tuple of str
         #   Alleles whose CUMIs will be outputed for read sampling.
         self.cumi_alleles = ("A", "B", "U")
+        
+        # hap_idx_tag : int
+        #   Tag for haplotype index.
+        self.hap_idx_tag = "HI"
 
         # out_prefix : str
         #   The prefix of the output files.
@@ -184,6 +188,7 @@ class Config:
 
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
         s += "%scumi_alleles = %s\n" % (prefix, str(self.cumi_alleles))
+        s += "%shap_idx_tag = %s\n" % (prefix, self.hap_idx_tag)
         s += "%s\n" % prefix
 
         s += "%soutput_feature_file = %s\n" % (prefix, self.out_feature_fn)

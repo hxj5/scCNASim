@@ -3,6 +3,7 @@
 from . import base
 from . import gfeature
 from . import grange
+from . import hapidx
 from . import sam
 from . import vcf
 from . import xbarcode

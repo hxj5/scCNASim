@@ -2,6 +2,15 @@
 
 
 
+from logging import error
+
+
+def mp_error_handler(e):
+    error("%s" % dir(e))
+    error("--> %s <--" % str(e.__cause__))
+    #raise RuntimeError
+    
+    
 
 def split_n2m(N, M):
     """Split N elements into at most M batches.
@@ -42,7 +51,7 @@ def split_n2m(N, M):
 
 def split_n2batch(
     N,
-    ncores, batch_per_core = 20,
+    ncores, batch_per_core = None,
     min_n_batch = None, max_n_batch = None,
     min_per_batch = None, max_per_batch = None
 ):
@@ -54,8 +63,9 @@ def split_n2batch(
         Number of elements to be splitted.
     ncores : int
         Number of cores.
-    batch_per_core : int, default 20
+    batch_per_core : int or None, default None
         Expected number of batches per core.
+        None means use default ncores-dependent strategy.
     min_n_batch : int or None, default None
         Minimum number of batches.
         None means do not use it.
@@ -84,6 +94,9 @@ def split_n2batch(
         The start (inclusive) and end (exclusive) indices of `N` elements for
         each batch.
     """
+    if batch_per_core is None:
+        batch_per_core = min(max(15, round(1.1 * ncores)), 50)
+        
     if min_n_batch is None:
         if max_per_batch is None:
             pass

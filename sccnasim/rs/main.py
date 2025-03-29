@@ -19,7 +19,7 @@ from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
     save_cells, save_samples
 from ..utils.xio import list2file
-from ..utils.xthread import split_n2batch
+from ..utils.xthread import split_n2batch, mp_error_handler
 
 
 
@@ -192,7 +192,7 @@ def rs_core(conf):
     os.makedirs(smpl_cumi_dir, exist_ok = True)
     step += 1
 
-    pool = multiprocessing.Pool(processes = td_m)
+    pool = multiprocessing.Pool(processes = min(conf.ncores, td_m))
     mp_result = []
     for i in range(td_m):
         mp_result.append(pool.apply_async(
@@ -202,7 +202,9 @@ def rs_core(conf):
                 feature_fn = reg_fn_list[i],
                 alleles = alleles
             ),
-            callback = None))
+            callback = None,
+            error_callback = mp_error_handler
+        ))
     pool.close()
     pool.join()
     
@@ -245,9 +247,9 @@ def rs_core(conf):
     
 
     # feature-specific read simulation (sampling) with multi-processing.
-    info("start feature-specific read simulation with %d cores ..." % td_m)
+    info("start feature-specific read simulation with %d cores ..." % conf.ncores)
 
-    pool = multiprocessing.Pool(processes = td_m)
+    pool = multiprocessing.Pool(processes = min(conf.ncores, td_m))
     mp_result = []
     for i, (b, e) in enumerate(td_reg_indices):
         thdata = ThreadData(
@@ -257,6 +259,7 @@ def rs_core(conf):
             reg_idx_b = b,
             reg_idx_e = e,
             alleles = alleles,
+            refseq_fn = conf.refseq_fn,
             tmp_dir = os.path.join(sam_dir, str(i))
         )
         if conf.debug > 0:
@@ -265,7 +268,9 @@ def rs_core(conf):
         mp_result.append(pool.apply_async(
             func = rs_features, 
             args = (thdata, ), 
-            callback = None))
+            callback = None,
+            error_callback = mp_error_handler
+        ))
     pool.close()
     pool.join()
 
@@ -307,6 +312,17 @@ def rs_core(conf):
     
     # clean
     info("clean ...")
+    
+    for fn in reg_fn_list:
+        os.remove(fn)
+    reg_fn_list.clear()
+    reg_fn_list = None
+    
+    for fn in count_fn_list:
+        os.remove(fn)
+    count_fn_list.clear()
+    count_fn_list = None
+
 
     res = {
         # out_sample_fn : str

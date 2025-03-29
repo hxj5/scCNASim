@@ -18,6 +18,7 @@ from ..utils.xmath import   \
     fit_dist_nb, fit_dist_poi, fit_dist_zinb, fit_dist_zip,   \
     fit_dist_t
 from ..utils.xmatrix import sparse2array
+from ..utils.xthread import mp_error_handler
 
 
 ### Library size
@@ -649,8 +650,9 @@ def fit_RD_cell_type(
                     "max_iter": max_iter,
                     "pval_cutoff": pval_cutoff
                 },
-                callback = None)
-            )
+                callback = None,
+                error_callback = mp_error_handler
+            ))
         else:
             fet_idx["oth"].add(i)
     pool.close()
@@ -1031,8 +1033,9 @@ def simu_RD_cell_type(
                 "s_type": params["size_factor_type"],
                 "index": fet_params["index"] + 0
             },
-            callback = None)
-        )
+            callback = None,
+            error_callback = mp_error_handler
+        ))
     pool.close()
     pool.join()
     result = [res.get() for res in result]

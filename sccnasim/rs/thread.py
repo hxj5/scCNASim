@@ -13,6 +13,7 @@ class ThreadData:
         reg_idx_b,
         reg_idx_e,
         alleles,
+        refseq_fn,
         tmp_dir
     ):
         """
@@ -33,6 +34,8 @@ class ThreadData:
             in this batch. 0-based and exclusive.
         alleles : list of str
             A list of alleles.
+        refseq_fn : str
+            A FASTA file storing reference genome sequence.
         tmp_dir : str
             Path to the folder storing temporary files.
         """
@@ -44,6 +47,8 @@ class ThreadData:
         self.reg_idx_e = reg_idx_e
         
         self.alleles = alleles
+        
+        self.refseq_fn = refseq_fn
 
         self.tmp_dir = tmp_dir
         
@@ -70,6 +75,8 @@ class ThreadData:
         s += "%sreg_idx_e = %d\n" % (prefix, self.reg_idx_e)
         
         s += "%salleles = %s\n" % (prefix, self.alleles)
+        
+        s += "%srefseq_fn = %s\n" % (prefix, self.refseq_fn)
 
         s += "%stmp_dir = %s\n" % (prefix, self.tmp_dir)
 

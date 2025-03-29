@@ -50,10 +50,6 @@ class Config:
         self.out_prefix = COMMAND + "."
 
         # internal parameters.
-
-        # hap_tag : str
-        #   Tag for haplotype in the output BAM file.
-        self.hap_tag = "HT"
         
         # cell_raw_tag : str
         #   Tag for uncorrected raw cell tag in seed and simulated BAM.
@@ -120,7 +116,6 @@ class Config:
         
         # internal parameters.
 
-        s += "%shap_tag = %s\n" % (prefix, self.hap_tag)
         s += "%scell_raw_tag = %s\n" % (prefix, self.cell_raw_tag)
         s += "%sumi_raw_tag = %s\n" % (prefix, self.umi_raw_tag)
         s += "%sbackup_cell_tag = %s\n" % (prefix, self.backup_cell_tag)

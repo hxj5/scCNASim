@@ -8,7 +8,7 @@ import shutil
 
 from .base import is_vector
 from .xio import file2list, list2file
-from .xthread import split_n2batch
+from .xthread import split_n2batch, mp_error_handler
 
 
 
@@ -380,7 +380,8 @@ def sam_index(sam_fn_list, ncores = 1):
             mp_res.append(pool.apply_async(
                 func = pysam.index,
                 args = (sam_fn, ),
-                callback = None
+                callback = None,
+                error_callback = mp_error_handler
             ))
         pool.close()
         pool.join()
@@ -482,7 +483,7 @@ def __sam_merge_batch(
             sam_merge(td_list_fn, td_out_fn, ncores = 1)
     else:
         mp_res = []
-        pool = multiprocessing.Pool(processes = ncores)
+        pool = multiprocessing.Pool(processes = min(ncores, td_m))
         for idx, (b, e) in enumerate(td_indices):
             td_list_fn = os.path.join(res_dir, "%d.%d.bam.lst" % (depth, idx))
             list2file(in_fn_list[b:e], td_list_fn)
@@ -496,7 +497,9 @@ def __sam_merge_batch(
                     out_fn = td_out_fn,
                     ncores = 1
                 ),
-                callback = None))
+                callback = None,
+                error_callback = mp_error_handler
+            ))
         pool.close()
         pool.join()
         

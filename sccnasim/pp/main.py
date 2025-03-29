@@ -10,7 +10,8 @@ from logging import info, error
 from .config import Config
 from .gcna import merge_cna_profile
 from .gfeature import filter_features_by_chroms, \
-    merge_features_quantile2, merge_features_union
+    merge_features_quantile2, merge_features_union, \
+    sort_features
 from ..io.base import load_cells, load_cnas, load_clones
 from ..utils.grange import format_chrom
 
@@ -73,6 +74,12 @@ def pp_core(conf):
             error("resolve overlapping features failed (%d)." % r)
             raise ValueError
         info("%d features left after resolving feature overlaps in %d old ones." % (n_new, n_old))
+        
+        
+    # sort features.
+    sorted_feature_fn = os.path.join(conf.out_dir, 
+        conf.out_prefix_pp + "features.filter_chrom.resolve_overlap.sort.tsv")
+    sort_features(merged_feature_fn, sorted_feature_fn)
 
 
     # process SNP file.
@@ -186,7 +193,7 @@ def pp_core(conf):
 
         # feature_fn_new : str
         #   Path to the file storing the merged (overlapping) features.
-        "feature_fn_new": merged_feature_fn,
+        "feature_fn_new": sorted_feature_fn,
 
         # clone_meta_fn_new : str
         #   Path to the file storing the annotations of (phased) SNPs.

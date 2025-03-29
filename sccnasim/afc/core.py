@@ -8,10 +8,10 @@ import pickle
 import pysam
 
 from logging import debug, error, info
-from .hapidx import hap2idx, idx2hap
 from .mcount_ab import MCount as ABFeatureMCount
 from .mcount_feature import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
+from ..utils.hapidx import hap2idx, idx2hap
 from ..utils.sam import check_read, check_strand, check_included, \
     sam_fetch
 from ..utils.zfile import zopen, ZF_F_GZIP
@@ -174,6 +174,8 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
                 continue
             if (not smp) or (not umi) or ale_idx is None:
                 continue
+                
+            read.set_tag(conf.hap_idx_tag, ale_idx)
             
             # output reads to feature-allele-specific SAM/BAM file.
             # Note that these reads are superset of the reads used for read

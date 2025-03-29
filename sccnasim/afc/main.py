@@ -29,7 +29,7 @@ from ..io.counts import load_xdata
 from ..utils.base import assert_e
 from ..utils.gfeature import assign_feature_batch
 from ..utils.xlog import init_logging
-from ..utils.xthread import split_n2batch
+from ..utils.xthread import split_n2batch, mp_error_handler
 from ..utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
 
 
@@ -248,7 +248,7 @@ def afc_core(conf):
     # allele-specific counting with multi-processing.
     info("start allele-specific counting with %d cores ..." % td_m)
 
-    pool = multiprocessing.Pool(processes = td_m)
+    pool = multiprocessing.Pool(processes = min(conf.ncores, td_m))
     mp_result = []
     for i in range(td_m):
         thdata = ThreadData(
@@ -264,7 +264,9 @@ def afc_core(conf):
         mp_result.append(pool.apply_async(
             func = fc_features, 
             args = (thdata, ), 
-            callback = show_progress))   # TODO: error_callback?
+            callback = show_progress,
+            error_callback = mp_error_handler
+        ))   # TODO: error_callback?
     pool.close()
     pool.join()
 

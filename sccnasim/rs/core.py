@@ -7,7 +7,10 @@ import pysam
 import shutil
 
 from .cumi import load_cumi
+from .fa import FastFA
 from .sam import sam_cat_and_sort
+from .snp import SNPSet, mask_read
+from ..utils.hapidx import hap2idx
 
 
 
@@ -17,25 +20,32 @@ def rs_features(thdata):
     reg_idx_b = thdata.reg_idx_b
     reg_idx_e = thdata.reg_idx_e
     alleles = thdata.alleles
+    refseq_fn = thdata.refseq_fn
     tmp_dir = thdata.tmp_dir
     
     with open(reg_obj_fn, "rb") as fp:
         reg_list = pickle.load(fp)
     assert len(reg_list) == reg_idx_e - reg_idx_b
     
+    fa = FastFA(refseq_fn)
+    
     os.makedirs(tmp_dir, exist_ok = True)
-        
+    
+    hap_idx_list = [hap2idx(ale) for ale in alleles]
     for idx, reg in enumerate(reg_list):
         ale_sam_fn_list = []
-        for ale in alleles:
+        snps = SNPSet(reg.snp_list)
+        for ale, hap_idx in zip(alleles, hap_idx_list):
             dat = reg.allele_data[ale]
-            gen_simu_sam(
-                reg = reg,
+            sam_simu_reg(
                 reg_idx = reg_idx_b + idx,
                 seed_sam_fn = dat.seed_sam_fn,
                 simu_sam_fn = dat.simu_sam_fn,
                 seed_cumi_fn = dat.seed_smpl_cumi_fn,
                 simu_cumi_fn = dat.simu_cumi_fn,
+                snps = snps,
+                fa = fa,
+                hap_idx = hap_idx,
                 conf = conf
             )
             pysam.index(dat.simu_sam_fn)
@@ -72,21 +82,21 @@ def __gen_cumi_map(seed_cumis, simu_cumis):
     
 
 
-def gen_simu_sam(
-    reg,
+def sam_simu_reg(
     reg_idx,
     seed_sam_fn,
     simu_sam_fn,
     seed_cumi_fn,
     simu_cumi_fn,
+    snps,
+    fa,
+    hap_idx,
     conf
 ):
-    """Generate simulated feature-specific BAM file.
+    """Simulate allele-specific BAM file for one feature.
     
     Parameters
     ----------
-    reg : utils.gfeature.Feature
-        The feature object.
     reg_idx : int
         The 0-based index (within transcriptomics scale) of the feature.
     seed_sam_fn : str
@@ -97,6 +107,12 @@ def gen_simu_sam(
         Path to the CUMI file of seed data.
     simu_cumi_fn : str
         Path to the CUMI file of simulated data.
+    snps : snp.SNPSet
+        SNP set used in read masking.
+    fa : fa.FastFA
+        The reference genome object.
+    hap_idx : int
+        Haplotype index.
     conf : rs.config.Config object
         An `~rs.config.Config` object.
         
@@ -105,8 +121,6 @@ def gen_simu_sam(
     int
         Return code. 0 if success, negative otherwise.
     """
-    ret = -1
-    
     # check args.
     seed_sam = pysam.AlignmentFile(seed_sam_fn, "r", require_index = True)
     simu_sam = pysam.AlignmentFile(simu_sam_fn, "wb", template = seed_sam)
@@ -133,6 +147,8 @@ def gen_simu_sam(
             continue
         hits = mapping[seed_cell][seed_umi]
         
+        read = mask_read(read, snps, hap_idx, fa)
+        
         qname = read.query_name
         for rep_idx, (simu_cell, simu_umi) in enumerate(hits):
             if rep_idx == 0:
@@ -152,5 +168,4 @@ def gen_simu_sam(
     seed_sam.close()
     simu_sam.close()
     
-    ret = 0
-    return(ret)
+    return(0)
