@@ -107,6 +107,9 @@ def fc_features(thdata):
     for sam in sam_list:
         sam.close()
     sam_list.clear()
+    
+    with open(thdata.reg_obj_fn, "wb") as fp:
+        pickle.dump(reg_list, fp)      # reg objects, each containing post-filtering SNPs.
 
     thdata.conf = None    # sam object cannot be pickled.
     thdata.ret = 0
@@ -250,6 +253,7 @@ def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
         Return code. 0 if success, negative otherwise.
     """
     mcnt.add_feature(reg)
+    snp_list = []
     for snp in reg.snp_list:
         ret = plp_snp(snp, sam_list, snp_mcnt, conf, reg)
         if ret < 0:
@@ -261,6 +265,8 @@ def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
         else:
             if mcnt.push_snp(snp_mcnt) < 0:
                 return(-5)
+        snp_list.append(snp)
+    reg.snp_list = snp_list
     if mcnt.stat() < 0:
         return(-7)
     return(0)

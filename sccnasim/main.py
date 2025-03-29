@@ -379,7 +379,7 @@ def main_core(conf):
     info("start read simulation ...")
     rs_ret, rs_res = rs_wrapper(
         count_fn = cs_res["adata_fn"],
-        feature_fn = afc_res["feature_meta_fn"],
+        feature_fn = afc_res["feature_obj_fn"],
         refseq_fn = conf.refseq_fn,
         out_dir = os.path.join(conf.out_dir, "%d_rs" % step),
         debug_level = 0,

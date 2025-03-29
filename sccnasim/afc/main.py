@@ -1,12 +1,6 @@
 # main.py - allele-specific feature counting.
 
 
-# TODO:
-# 1. update the SNP list contained in each feature by removing the filtered 
-#    SNPs (e.g., when aggregated counts < min_count). It may affect the
-#    inference of read haplotype (or read mask) in read sampling, 
-#    when based on these contained SNPs.
-
 
 import multiprocessing
 import os
@@ -216,7 +210,7 @@ def afc_core(conf):
     # split feature list and save to file.
     info("split feature list and save to file ...")
 
-    with open(conf.out_feature_meta_fn, "wb") as fp:
+    with open(conf.feature_obj_fn, "wb") as fp:
         pickle.dump(conf.reg_list, fp)
 
     m_reg = len(conf.reg_list)
@@ -266,7 +260,7 @@ def afc_core(conf):
             args = (thdata, ), 
             callback = show_progress,
             error_callback = mp_error_handler
-        ))   # TODO: error_callback?
+        ))
     pool.close()
     pool.join()
 
@@ -280,6 +274,18 @@ def afc_core(conf):
         if thdata.ret < 0:
             error("error code for thread-%d: %d" % (thdata.idx, thdata.ret))
             raise ValueError
+            
+            
+    # merge feature objects containing post-filtering SNPs.
+    out_feature_obj_fn = conf.feature_obj_fn.replace(".pickle", ".snp_filter.pickle")
+    reg_list = []
+    for fn in reg_fn_list:
+        with open(fn, "rb") as fp:
+            td_reg_list = pickle.load(fp)
+        reg_list.extend(td_reg_list)
+        os.remove(fn)
+    with open(out_feature_obj_fn, "wb") as fp:
+        pickle.dump(reg_list, fp)
 
 
     # merge count matrices.
@@ -324,10 +330,10 @@ def afc_core(conf):
     info("clean ...")
 
     res = {
-        # feature_meta_fn : str
+        # feature_obj_fn : str
         #   Path to a python pickle file storing the `reg_list`.
         #   It will be re-loaded for read sampling.
-        "feature_meta_fn": conf.out_feature_meta_fn,
+        "feature_obj_fn": out_feature_obj_fn,
 
         # out_adata_fn : str
         #   Path to a ".adata" file storing a :class:`~anndata.Anndata`
@@ -445,6 +451,9 @@ def prepare_config(conf):
     os.makedirs(conf.out_dir, exist_ok = True)
     conf.count_dir = os.path.join(conf.out_dir, "matrix")
     os.makedirs(conf.count_dir, exist_ok = True)
+    
+    conf.feature_obj_fn = os.path.join(
+        conf.out_dir, conf.out_prefix + "features.pickle")
 
     conf.out_feature_fn = os.path.join(
         conf.count_dir, conf.out_prefix + "features.tsv")
@@ -453,9 +462,7 @@ def prepare_config(conf):
     for ale in conf.out_ale_fns.keys():
         conf.out_ale_fns[ale] = os.path.join(
             conf.count_dir, conf.out_prefix + "%s.mtx" % ale)
-    
-    conf.out_feature_meta_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "features.meta.pickle")
+
     conf.out_adata_fn = os.path.join(
         conf.out_dir, conf.out_prefix + "counts.h5ad")
 

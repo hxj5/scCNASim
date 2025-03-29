@@ -87,6 +87,10 @@ class Config:
         #   The output folder for count matrices.
         self.count_dir = None
 
+        # feature_obj_fn : str
+        #   Path to a python pickle file storing the `reg_list`.
+        self.feature_obj_fn = None
+
         # alleles : tuple of str
         #   All alleles.
         self.alleles = ("A", "B", "D", "O", "U")
@@ -116,12 +120,6 @@ class Config:
         #   Keys are allele names and values are pathes to the count matrix
         #   files.
         self.out_ale_fns = {ale:None for ale in self.alleles}
-
-        # out_feature_meta_fn : str
-        #   Path to a python pickle file storing the `reg_list`.
-        #   It will be saved after extracting reads from input BAM(s), and
-        #   re-loaded for read sampling.
-        self.out_feature_meta_fn = None
 
         # out_adata_fn : str
         #   Path to a ".adata" file storing a :class:`~anndata.Anndata`
@@ -184,6 +182,7 @@ class Config:
         s += "%s\n" % prefix
 
         s += "%scount_dir = %s\n" % (prefix, self.count_dir)
+        s += "%sfeature_obj_fn = %s\n" % (prefix, self.feature_obj_fn)
         s += "%s\n" % prefix
 
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
@@ -197,7 +196,6 @@ class Config:
             s += "%soutput_ale_%s_file = %s\n" % (prefix, ale, fn)
         s += "%s\n" % prefix
 
-        s += "%sout_feature_meta_fn = %s\n" % (prefix, self.out_feature_meta_fn)
         s += "%sout_adata_fn = %s\n" % (prefix, self.out_adata_fn)
         s += "%s\n" % prefix
 
