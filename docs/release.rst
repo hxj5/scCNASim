@@ -4,6 +4,35 @@
    =======
 
 
+Release v0.4.0 (30/03/2025)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This version restructure the afc and rs modules by using the feature (gene)
+as unit.
+Specifically,
+
+* afc: output the allele-specific alignments for each feature.
+* rs: read sampling is performed in each feature instead of in each chromosome.
+* all feature-specific data and results are stored inside feature-specific
+  folders.
+
+Implementation:
+
+* rs: only use post-filtering SNPs (by min_count and min_maf) for read masking.
+* main: add interface to ``min_count`` and ``min_maf``.
+
+Others:
+
+* improve the batch assignment to take full advantage of multiprocessing pool,
+  e.g., when ncores=10, split features into more batches (e.g., 150) than the
+  usual 10 batches.
+
+Warning:
+
+* significant API changes: quite a few functions, classes, and modules have
+  been renamed.
+
+
+
 Release v0.3.0 (18/03/2025)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This version takes strandness into account.
