@@ -3,8 +3,8 @@
 
 import sys
 
-class ThreadData:
-    """Thread Data for processing chrom-specific reads."""
+class BatchData:
+    """Batch data."""
 
     def __init__(self, 
         idx,
@@ -20,7 +20,7 @@ class ThreadData:
         Parameters
         ----------
         idx : int
-            The 0-based index of thread.
+            The 0-based index of batch.
         conf : rs.config.Config
             The configuration object.
         reg_obj_fn : str
@@ -53,7 +53,7 @@ class ThreadData:
         self.tmp_dir = tmp_dir
         
         # ret : int
-        #   Return code of this thread. 0 if success, negative otherwise.
+        #   Return code of this batch. 0 if success, negative otherwise.
         self.ret = -1
         
         # reg_sam_fns : list of str

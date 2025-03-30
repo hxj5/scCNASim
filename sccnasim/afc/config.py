@@ -35,6 +35,8 @@ class Config:
         self.cell_tag = self.defaults.CELL_TAG
         self.umi_tag = self.defaults.UMI_TAG
         self.ncores = self.defaults.NCORES
+        
+        # snp filtering.
         self.min_count = self.defaults.MIN_COUNT
         self.min_maf = self.defaults.MIN_MAF
                 
@@ -42,6 +44,7 @@ class Config:
         self.strandness = self.defaults.STRANDNESS
         self.min_include = self.defaults.MIN_INCLUDE
         
+        # read filtering.
         self.min_mapq = self.defaults.MIN_MAPQ
         self.min_len = self.defaults.MIN_LEN
         self.incl_flag = self.defaults.INCL_FLAG
@@ -146,6 +149,9 @@ class Config:
         s += "%scell_tag = %s\n" % (prefix, self.cell_tag)
         s += "%sumi_tag = %s\n" % (prefix, self.umi_tag)
         s += "%snumber_of_cores = %d\n" % (prefix, self.ncores)
+        s += "%s\n" % prefix
+        
+        # snp filtering.
         s += "%smin_count = %d\n" % (prefix, self.min_count)
         s += "%smin_maf = %f\n" % (prefix, self.min_maf)
         s += "%s\n" % prefix
@@ -155,6 +161,7 @@ class Config:
         s += "%smin_include = %f\n" % (prefix, self.min_include)
         s += "%s\n" % prefix
 
+        # read filtering.
         s += "%smin_mapq = %d\n" % (prefix, self.min_mapq)
         s += "%smin_len = %d\n" % (prefix, self.min_len)
         s += "%sinclude_flag = %d\n" % (prefix, self.incl_flag)
@@ -219,6 +226,7 @@ class DefaultConfig:
         self.UMI_TAG = "UB"
         self.UMI_TAG_BC = "UB"    # the default umi tag for 10x data.
         self.NCORES = 1
+        
         self.MIN_COUNT = 20
         self.MIN_MAF = 0.1
         

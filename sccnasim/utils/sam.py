@@ -464,7 +464,7 @@ def __sam_merge_batch(
     #   one folder.
     # - max_per_batch: to account for the max number of BAM files that
     #   pysam.merge() allows.
-    td_m, td_n, td_indices = split_n2batch(
+    bd_m, bd_n, bd_indices = split_n2batch(
             n_sam, ncores, max_n_batch = 10000, max_per_batch = max_per_batch)
     
     in_fn_list = file2list(list_fn)
@@ -472,29 +472,29 @@ def __sam_merge_batch(
     res_dir = os.path.join(tmp_dir, str(depth))
     os.makedirs(res_dir, exist_ok = True)
     
-    td_out_fn_list = []
+    bd_out_fn_list = []
     if ncores <= 1:
-        for idx, (b, e) in enumerate(td_indices):
-            td_list_fn = os.path.join(res_dir, "%d.%d.bam.lst" % (depth, idx))
-            list2file(in_fn_list[b:e], td_list_fn)
-            td_out_fn = os.path.join(res_dir, "%d.%d.bam" % (depth, idx))
-            td_out_fn_list.append(td_out_fn)
+        for idx, (b, e) in enumerate(bd_indices):
+            bd_list_fn = os.path.join(res_dir, "%d.%d.bam.lst" % (depth, idx))
+            list2file(in_fn_list[b:e], bd_list_fn)
+            bd_out_fn = os.path.join(res_dir, "%d.%d.bam" % (depth, idx))
+            bd_out_fn_list.append(bd_out_fn)
 
-            sam_merge(td_list_fn, td_out_fn, ncores = 1)
+            sam_merge(bd_list_fn, bd_out_fn, ncores = 1)
     else:
         mp_res = []
-        pool = multiprocessing.Pool(processes = min(ncores, td_m))
-        for idx, (b, e) in enumerate(td_indices):
-            td_list_fn = os.path.join(res_dir, "%d.%d.bam.lst" % (depth, idx))
-            list2file(in_fn_list[b:e], td_list_fn)
-            td_out_fn = os.path.join(res_dir, "%d.%d.bam" % (depth, idx))
-            td_out_fn_list.append(td_out_fn)
+        pool = multiprocessing.Pool(processes = min(ncores, bd_m))
+        for idx, (b, e) in enumerate(bd_indices):
+            bd_list_fn = os.path.join(res_dir, "%d.%d.bam.lst" % (depth, idx))
+            list2file(in_fn_list[b:e], bd_list_fn)
+            bd_out_fn = os.path.join(res_dir, "%d.%d.bam" % (depth, idx))
+            bd_out_fn_list.append(bd_out_fn)
             
             mp_res.append(pool.apply_async(
                 func = sam_merge,
                 kwds = dict(
-                    list_fn = td_list_fn,
-                    out_fn = td_out_fn,
+                    list_fn = bd_list_fn,
+                    out_fn = bd_out_fn,
                     ncores = 1
                 ),
                 callback = None,
@@ -503,15 +503,15 @@ def __sam_merge_batch(
         pool.close()
         pool.join()
         
-    for fn in td_out_fn_list:
+    for fn in bd_out_fn_list:
         pysam.index(fn)
         
     new_list_fn = os.path.join(tmp_dir, "%d.bam.lst" % (depth + 1, ))
-    list2file(td_out_fn_list, new_list_fn)
+    list2file(bd_out_fn_list, new_list_fn)
     
     __sam_merge_batch(
         list_fn = new_list_fn,
-        n_sam = len(td_out_fn_list),
+        n_sam = len(bd_out_fn_list),
         out_fn = out_fn,
         tmp_dir = tmp_dir, 
         max_per_batch = max_per_batch,

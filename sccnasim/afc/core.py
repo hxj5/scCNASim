@@ -22,7 +22,7 @@ from ..utils.zfile import zopen, ZF_F_GZIP
 #    multiprocessing): https://github.com/pysam-developers/pysam/issues/397
 
 
-def fc_features(thdata):
+def fc_features(bdata):
     """Feature counting for a list of features.
 
     This function does feature counting for a list of features. When iterating
@@ -36,16 +36,19 @@ def fc_features(thdata):
     
     Parameters
     ----------
-    thdata : afc.thread.ThreadData
-        The object containing thread-specific data.
+    bdata : afc.thread.BatchData
+        The object containing batch-specific data.
 
     Returns
     -------
-    afc.thread.ThreadData
-        The thread-specific data.
+    afc.thread.BatchData
+        The batch-specific data.
     """
-    conf = thdata.conf
-    thdata.ret = -1
+    if conf.debug > 0:
+        debug("[Batch-%d] start ..." % bdata.idx)
+    
+    conf = bdata.conf
+    bdata.ret = -1
 
     sam_list = []
     for fn in conf.sam_fn_list:
@@ -53,13 +56,13 @@ def fc_features(thdata):
         sam_list.append(sam)
 
     reg_list = None
-    with open(thdata.reg_obj_fn, "rb") as fp:
+    with open(bdata.reg_obj_fn, "rb") as fp:
         reg_list = pickle.load(fp)
-    os.remove(thdata.reg_obj_fn)
+    os.remove(bdata.reg_obj_fn)
 
     fp_ale = {ale: zopen(fn, "wt", ZF_F_GZIP, is_bytes = False) \
-                for ale, fn in thdata.out_ale_fns.items()}
-    alleles = thdata.out_ale_fns.keys()
+                for ale, fn in bdata.out_ale_fns.items()}
+    alleles = bdata.out_ale_fns.keys()
 
     snp_mcnt = SNPMCount(conf.samples, conf)
     ab_mcnt = ABFeatureMCount(conf.samples, conf)
@@ -69,8 +72,8 @@ def fc_features(thdata):
     l_reg = 0         # fraction of processed genes, used for verbose.
     for reg_idx, reg in enumerate(reg_list):
         if conf.debug > 0:
-            debug("[Thread-%d] processing feature '%s' ..." % \
-                (thdata.idx, reg.name))
+            debug("[Batch-%d] processing feature '%s' ..." % \
+                (bdata.idx, reg.name))
 
         ret, reg_ale_cnt = \
             fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf)
@@ -87,7 +90,7 @@ def fc_features(thdata):
                 if nu_ale[ale] > 0:
                     str_ale[ale] += "%d\t%d\t%d\n" % \
                         (reg_idx + 1, i + 1, nu_ale[ale])
-                    thdata.nr_ale[ale] += 1
+                    bdata.nr_ale[ale] += 1
 
         if np.any([len(s) > 0 for s in str_ale.values()]):
             for ale in alleles:
@@ -96,11 +99,12 @@ def fc_features(thdata):
         n_reg = reg_idx + 1
         frac_reg = n_reg / m_reg
         if frac_reg - l_reg >= 0.1 or n_reg == m_reg:
-            info("[Thread-%d] %d%% genes processed" % 
-                (thdata.idx, math.floor(frac_reg * 100)))
+            if conf.debug > 0:
+                debug("[Batch-%d] %d%% genes processed" % 
+                    (bdata.idx, math.floor(frac_reg * 100)))
             l_reg = frac_reg
 
-    thdata.nr_reg = len(reg_list)
+    bdata.nr_reg = len(reg_list)
 
     for ale in alleles:
         fp_ale[ale].close()
@@ -108,13 +112,13 @@ def fc_features(thdata):
         sam.close()
     sam_list.clear()
     
-    with open(thdata.reg_obj_fn, "wb") as fp:
+    with open(bdata.reg_obj_fn, "wb") as fp:
         pickle.dump(reg_list, fp)      # reg objects, each containing post-filtering SNPs.
 
-    thdata.conf = None    # sam object cannot be pickled.
-    thdata.ret = 0
+    bdata.conf = None    # sam object cannot be pickled.
+    bdata.ret = 0
             
-    return(thdata)
+    return(bdata)
 
 
 def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):

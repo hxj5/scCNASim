@@ -40,6 +40,7 @@ def main_wrapper(
     chroms = "human_autosome",
     cell_tag = "CB", umi_tag = "UB", umi_len = 10,
     ncores = 1, seed = 123, verbose = False,
+    min_count = 1, min_maf = 0,
     strandness = "forward", min_include = 0.9,
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
@@ -174,6 +175,10 @@ def main_wrapper(
         None means not using a fixed seed.
     verbose : bool, default False
         Whether to show detailed logging information.
+    min_count : int, default 1
+        Minimum aggragated count for SNP.
+    min_maf : float, default 0
+        Minimum minor allele fraction for SNP.
     strandness : {"forward", "reverse", "unstranded"}
         Strandness of the sequencing protocol.
         - "forward": SE sense; PE R1 antisense and R2 sense;
@@ -248,6 +253,11 @@ def main_wrapper(
     conf.ncores = ncores
     conf.seed = seed
     conf.verbose = verbose
+    
+    
+    # SNP filtering.
+    conf.min_count = min_count
+    conf.min_maf = min_maf
     
     
     # read assignment.
@@ -327,6 +337,8 @@ def main_core(conf):
         ncores = conf.ncores,
         cell_tag = conf.cell_tag,
         umi_tag = conf.umi_tag,
+        min_count = conf.min_count,
+        min_maf = conf.min_maf,
         strandness = conf.strandness,
         min_include = conf.min_include,
         min_mapq = conf.min_mapq,

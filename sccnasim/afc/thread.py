@@ -3,8 +3,8 @@
 
 import sys
 
-class ThreadData:
-    """Thread Data"""
+class BatchData:
+    """Batch Data"""
     def __init__(self, 
         idx, conf, 
         reg_obj_fn,
@@ -15,14 +15,14 @@ class ThreadData:
         Parameters
         ----------
         idx : int
-            The 0-based index of thread.
+            The 0-based index of batch.
         conf : afc.config.Config
             The global configuration.
         reg_obj_fn : str
             Path to the python pickle file storing a list of features (
             :class:`~utils.gfeature.Feature` objects).
         out_feature_fn : str
-            Path to the output feature TSV file in this thread.
+            Path to the output feature TSV file in this batch.
         out_ale_fns : dict of {str : str}
             Path to the allele-specific count matrix file in this read.
             Keys are allele names, values are pathes to the count matrix file.

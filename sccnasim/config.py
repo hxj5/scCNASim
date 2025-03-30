@@ -45,6 +45,10 @@ class Config:
         self.ncores = self.afc_def_conf.NCORES
         self.seed = 123
         self.verbose = False
+
+        # snp filtering
+        self.min_count = 1
+        self.min_maf = 0
         
         # read assignment
         self.strandness = self.afc_def_conf.STRANDNESS
@@ -94,6 +98,10 @@ class Config:
         s += "%snumber_of_cores = %d\n" % (prefix, self.ncores)
         s += "%sseed = %s\n" % (prefix, str(self.seed))
         s += "%sverbose = %s\n" % (prefix, self.verbose)
+        s += "%s\n" % prefix
+
+        s += "%smin_count = %d\n" % (prefix, self.min_count)
+        s += "%smin_maf = %f\n" % (prefix, self.min_maf)
         s += "%s\n" % prefix
 
         s += "%sstrandness = %s\n" % (prefix, self.strandness)

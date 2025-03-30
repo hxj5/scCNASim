@@ -8,7 +8,7 @@ from logging import error
 def mp_error_handler(e):
     error("%s" % dir(e))
     error("--> %s <--" % str(e.__cause__))
-    #raise RuntimeError
+    return(e)
     
     
 
@@ -95,7 +95,7 @@ def split_n2batch(
         each batch.
     """
     if batch_per_core is None:
-        batch_per_core = min(max(15, round(1.1 * ncores)), 50)
+        batch_per_core = min(max(10, round(1.5 * ncores)), 50)
         
     if min_n_batch is None:
         if max_per_batch is None:

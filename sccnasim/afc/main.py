@@ -15,7 +15,7 @@ from .core import fc_features
 from .io import load_feature_from_txt, \
     load_snp_from_vcf, load_snp_from_tsv, \
     merge_mtx
-from .thread import ThreadData
+from .thread import BatchData
 from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str, save_h5ad
@@ -150,6 +150,7 @@ def afc_wrapper(
     conf.cell_tag = cell_tag
     conf.umi_tag = umi_tag
     conf.ncores = ncores
+
     conf.min_count = min_count
     conf.min_maf = min_maf
 
@@ -219,12 +220,12 @@ def afc_core(conf):
     # - max_n_batch: to account for the max allowed files and subfolders in
     #   one folder.
     #   Currently, 6 files output in each batch.
-    td_m, td_n, td_reg_indices = split_n2batch(
+    bd_m, bd_n, bd_reg_indices = split_n2batch(
             m_reg, conf.ncores, max_n_batch = 5000)
-    info("m_reg=%d; td_m=%d; td_n=%d;" % (m_reg, td_m, td_n))
+    info("m_reg=%d; bd_m=%d; bd_n=%d;" % (m_reg, bd_m, bd_n))
 
     reg_fn_list = []
-    for idx, (b, e) in enumerate(td_reg_indices):
+    for idx, (b, e) in enumerate(bd_reg_indices):
         fn = conf.out_prefix + "feature.pickle." + str(idx)
         fn = os.path.join(conf.out_dir, fn)
         reg_fn_list.append(fn)
@@ -240,12 +241,12 @@ def afc_core(conf):
 
 
     # allele-specific counting with multi-processing.
-    info("start allele-specific counting with %d cores ..." % td_m)
+    info("start allele-specific counting with %d cores ..." % bd_m)
 
-    pool = multiprocessing.Pool(processes = min(conf.ncores, td_m))
+    pool = multiprocessing.Pool(processes = min(conf.ncores, bd_m))
     mp_result = []
-    for i in range(td_m):
-        thdata = ThreadData(
+    for i in range(bd_m):
+        bdata = BatchData(
             idx = i, conf = conf,
             reg_obj_fn = reg_fn_list[i],
             out_feature_fn = conf.out_feature_fn + "." + str(i),
@@ -253,36 +254,38 @@ def afc_core(conf):
                            conf.out_ale_fns.items()}
         )
         if conf.debug > 0:
-            debug("data of thread-%d before:" % i)
-            thdata.show(fp = sys.stdout, prefix = "\t")
+            debug("data of batch-%d before:" % i)
+            bdata.show(fp = sys.stdout, prefix = "\t")
         mp_result.append(pool.apply_async(
             func = fc_features, 
-            args = (thdata, ), 
+            args = (bdata, ), 
             callback = show_progress,
             error_callback = mp_error_handler
         ))
     pool.close()
     pool.join()
 
-    thdata_list = [res.get() for res in mp_result]
+    bdata_list = [res.get() for res in mp_result]
 
-    # check running status of each sub-process
-    for thdata in thdata_list:         
+    # check running status of each batch
+    for bdata in bdata_list:         
         if conf.debug > 0:
-            debug("data of thread-%d after:" %  thdata.idx)
-            thdata.show(fp = sys.stdout, prefix = "\t")
-        if thdata.ret < 0:
-            error("error code for thread-%d: %d" % (thdata.idx, thdata.ret))
+            debug("data of batch-%d after:" %  bdata.idx)
+            bdata.show(fp = sys.stdout, prefix = "\t")
+        if bdata.ret < 0:
+            error("error code for batch-%d: %d" % (bdata.idx, bdata.ret))
             raise ValueError
             
             
     # merge feature objects containing post-filtering SNPs.
+    info("merge feature objects ...")
+    
     out_feature_obj_fn = conf.feature_obj_fn.replace(".pickle", ".snp_filter.pickle")
     reg_list = []
     for fn in reg_fn_list:
         with open(fn, "rb") as fp:
-            td_reg_list = pickle.load(fp)
-        reg_list.extend(td_reg_list)
+            bd_reg_list = pickle.load(fp)
+        reg_list.extend(bd_reg_list)
         os.remove(fn)
     with open(out_feature_obj_fn, "wb") as fp:
         pickle.dump(reg_list, fp)
@@ -291,13 +294,13 @@ def afc_core(conf):
     # merge count matrices.
     info("merge output count matrices ...")
 
-    nr_reg_list = [td.nr_reg for td in thdata_list]
+    nr_reg_list = [td.nr_reg for td in bdata_list]
     for ale in conf.out_ale_fns.keys():
         if merge_mtx(
-            [td.out_ale_fns[ale] for td in thdata_list], ZF_F_GZIP,
+            [td.out_ale_fns[ale] for td in bdata_list], ZF_F_GZIP,
             conf.out_ale_fns[ale], "w", ZF_F_PLAIN,
             nr_reg_list, len(conf.samples),
-            sum([td.nr_ale[ale] for td in thdata_list]),
+            sum([td.nr_ale[ale] for td in bdata_list]),
             remove = True
         ) < 0:
             error("errcode -17")

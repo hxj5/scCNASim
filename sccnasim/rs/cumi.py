@@ -172,10 +172,10 @@ def cumi_simu_cs_main(
     # - max_n_batch: to account for the max allowed files and subfolders in
     #   one folder.
     #   Currently, 4 files output in each batch.
-    td_m, td_n, td_cell_indices = split_n2batch(
+    bd_m, bd_n, bd_cell_indices = split_n2batch(
         n, ncores, max_n_batch = 7000)
     cell_count_fn_list = []
-    for idx, (b, e) in enumerate(td_cell_indices):
+    for idx, (b, e) in enumerate(bd_cell_indices):
         fn = os.path.join(tmp_dir, "cell.b%d.adata.h5ad" % idx)
         xdata_batch = xdata[b:e, :]
         save_h5ad(xdata_batch, fn)
@@ -185,7 +185,7 @@ def cumi_simu_cs_main(
     
     # prepare CUMI files for each batch.
     cell_cumi_fn_list = []      # two layers: batch - allele
-    for idx in range(td_m):
+    for idx in range(bd_m):
         fn_list = []
         for ale in alleles:
             fn = os.path.join(tmp_dir, "cell.b%d.%s.cumi.tsv" % (idx, ale))
@@ -195,8 +195,8 @@ def cumi_simu_cs_main(
 
     # multi-processing for generating CUMIs in each batch.
     mp_res = []
-    pool = multiprocessing.Pool(processes = min(ncores, td_m))
-    for idx in range(td_m):
+    pool = multiprocessing.Pool(processes = min(ncores, bd_m))
+    for idx in range(bd_m):
         mp_res.append(pool.apply_async(
             func = cumi_simu_cs,
             kwds = dict(
@@ -406,40 +406,40 @@ def __cumi_extract_fs_batch(
     #   splitting the large combined file into smaller batches.
     #   It will open every batch-specific splitted file simultaneously, 
     #   in total `n_batch` files.
-    td_m, td_n, td_indices = split_n2batch(
+    bd_m, bd_n, bd_indices = split_n2batch(
         p, ncores, max_n_batch = 900)
     
     res_dir = os.path.join(tmp_dir, str(depth))
     os.makedirs(res_dir, exist_ok = True)
     
-    td_fp_list = []
+    bd_fp_list = []
     idx_map = {}
-    td_batches = []
-    for idx, (b, e) in enumerate(td_indices):
-        td_fn = os.path.join(res_dir, "%d.%d.cumi.tsv" % (depth, idx))
-        td_fp = zopen(td_fn, "w", ZF_F_PLAIN)
-        td_fp_list.append(td_fp)
+    bd_batches = []
+    for idx, (b, e) in enumerate(bd_indices):
+        bd_fn = os.path.join(res_dir, "%d.%d.cumi.tsv" % (depth, idx))
+        bd_fp = zopen(bd_fn, "w", ZF_F_PLAIN)
+        bd_fp_list.append(bd_fp)
         for reg_idx in range(b, e):
             assert reg_idx not in idx_map
-            idx_map[reg_idx] = td_fp
-        td_batches.append((b, e - 1, td_fn))
+            idx_map[reg_idx] = bd_fp
+        bd_batches.append((b, e - 1, bd_fn))
     
     in_fp = open(in_fn, "r")
     for line in in_fp:
         reg_idx, _, cumi = line.partition("\t")
         reg_idx = int(reg_idx)
         assert reg_idx in idx_map
-        td_fp = idx_map[reg_idx]
-        td_fp.write(line)
+        bd_fp = idx_map[reg_idx]
+        bd_fp.write(line)
     in_fp.close()
     
-    for fp in td_fp_list:
+    for fp in bd_fp_list:
         fp.close()
         
 
     # next round of extracting and splitting.
     if ncores <= 1:
-        for b, e, fn in td_batches:
+        for b, e, fn in bd_batches:
             __cumi_extract_fs_batch(
                 in_fn = fn,
                 b0 = b,
@@ -452,8 +452,8 @@ def __cumi_extract_fs_batch(
             )
     else:
         mp_res = []
-        pool = multiprocessing.Pool(processes = min(ncores, td_m))
-        for b, e, fn in td_batches:
+        pool = multiprocessing.Pool(processes = min(ncores, bd_m))
+        for b, e, fn in bd_batches:
             mp_res.append(pool.apply_async(
                 func = __cumi_extract_fs_batch,
                 kwds = dict(

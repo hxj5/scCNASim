@@ -14,7 +14,7 @@ from .config import Config, COMMAND
 from .core import rs_features
 from .cumi import cumi_simu_main, cumi_sample_seed_main
 from .sam import sam_cat_and_sort
-from .thread import ThreadData
+from .thread import BatchData
 from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
     save_cells, save_samples
@@ -136,7 +136,7 @@ def rs_core(conf):
     # prepare data for multi-processing
     info("prepare data for multi-processing ...")
     
-    data_dir = os.path.join(conf.out_step_dir, "%d_thread_data" % step)
+    data_dir = os.path.join(conf.out_step_dir, "%d_batch_data" % step)
     os.makedirs(data_dir, exist_ok = True)
     step += 1
     
@@ -146,16 +146,16 @@ def rs_core(conf):
     # - max_n_batch: to account for the max allowed files and subfolders in
     #   one folder.
     #   Currently, 2 files output in each batch.
-    td_m, td_n, td_reg_indices = split_n2batch(
+    bd_m, bd_n, bd_reg_indices = split_n2batch(
                 m_reg, conf.ncores, max_n_batch = 15000)
-    info("m_reg=%d; td_m=%d; td_n=%d;" % (m_reg, td_m, td_n))
+    info("m_reg=%d; bd_m=%d; bd_n=%d;" % (m_reg, bd_m, bd_n))
 
     
     # split features.
     info("split features ...")
     
     reg_fn_list = []
-    for idx, (b, e) in enumerate(td_reg_indices):
+    for idx, (b, e) in enumerate(bd_reg_indices):
         fn = os.path.join(data_dir, "fet.b%d.features.pickle" % idx)
         reg_fn_list.append(fn)
         with open(fn, "wb") as fp:
@@ -176,7 +176,7 @@ def rs_core(conf):
     info("split count adata ...")
 
     count_fn_list = []
-    for idx, (b, e) in enumerate(td_reg_indices):
+    for idx, (b, e) in enumerate(bd_reg_indices):
         fn = os.path.join(data_dir, "fet.b%d.counts.h5ad" % idx)
         adat = xdata[:, b:e].copy()
         save_h5ad(adat, fn)
@@ -192,9 +192,9 @@ def rs_core(conf):
     os.makedirs(smpl_cumi_dir, exist_ok = True)
     step += 1
 
-    pool = multiprocessing.Pool(processes = min(conf.ncores, td_m))
+    pool = multiprocessing.Pool(processes = min(conf.ncores, bd_m))
     mp_result = []
-    for i in range(td_m):
+    for i in range(bd_m):
         mp_result.append(pool.apply_async(
             func = cumi_sample_seed_main, 
             kwds = dict(
@@ -211,7 +211,7 @@ def rs_core(conf):
     ret_list = [res.get() for res in mp_result]
     for i, ret in enumerate(ret_list):
         if ret != 0:
-            error("sampling seed CUMIs failed in thread-%d (errcode %d)." % \
+            error("sampling seed CUMIs failed in batch-%d (errcode %d)." % \
                  (i, ret))
             raise ValueError
 
@@ -240,7 +240,7 @@ def rs_core(conf):
         raise ValueError
     
     
-    # prepare thread-specific BAM files.
+    # prepare batch-specific BAM files.
     sam_dir = os.path.join(conf.out_step_dir, "%d_simu_bam" % step)
     os.makedirs(sam_dir, exist_ok = True)
     step += 1
@@ -249,10 +249,10 @@ def rs_core(conf):
     # feature-specific read simulation (sampling) with multi-processing.
     info("start feature-specific read simulation with %d cores ..." % conf.ncores)
 
-    pool = multiprocessing.Pool(processes = min(conf.ncores, td_m))
+    pool = multiprocessing.Pool(processes = min(conf.ncores, bd_m))
     mp_result = []
-    for i, (b, e) in enumerate(td_reg_indices):
-        thdata = ThreadData(
+    for i, (b, e) in enumerate(bd_reg_indices):
+        bdata = BatchData(
             idx = i,
             conf = conf,
             reg_obj_fn = reg_fn_list[i],
@@ -263,11 +263,11 @@ def rs_core(conf):
             tmp_dir = os.path.join(sam_dir, str(i))
         )
         if conf.debug > 0:
-            debug("data of thread-%d before:" % i)
-            thdata.show(fp = sys.stdout, prefix = "\t")
+            debug("data of batch-%d before:" % i)
+            bdata.show(fp = sys.stdout, prefix = "\t")
         mp_result.append(pool.apply_async(
             func = rs_features, 
-            args = (thdata, ), 
+            args = (bdata, ), 
             callback = None,
             error_callback = mp_error_handler
         ))
@@ -275,26 +275,26 @@ def rs_core(conf):
     pool.join()
 
     mp_result = [res.get() for res in mp_result]
-    thdata_list = [item[0] for item in mp_result]
-    td_fn_list = [item[1] for item in mp_result]
+    bdata_list = [item[0] for item in mp_result]
+    bd_fn_list = [item[1] for item in mp_result]
 
     # check running status of each sub-process
-    for thdata in thdata_list:         
+    for bdata in bdata_list:         
         if conf.debug > 0:
-            debug("data of thread-%d after:" %  thdata.idx)
-            thdata.show(fp = sys.stdout, prefix = "\t")
-        if thdata.ret < 0:
-            error("error code for thread-%d: %d" % (thdata.idx, thdata.ret))
+            debug("data of batch-%d after:" %  bdata.idx)
+            bdata.show(fp = sys.stdout, prefix = "\t")
+        if bdata.ret < 0:
+            error("error code for batch-%d: %d" % (bdata.idx, bdata.ret))
             raise ValueError
-    del thdata_list
+    del bdata_list
             
     # extract feature-specific BAM files.
     reg_sam_fn_list = []
-    for fn_list in td_fn_list:
+    for fn_list in bd_fn_list:
         reg_sam_fn_list.extend(fn_list)
     reg_sam_list_fn = os.path.join(sam_dir, "features.bam.lst")
     list2file(reg_sam_fn_list, reg_sam_list_fn)
-    del td_fn_list
+    del bd_fn_list
     info("%d feature-specific BAM files saved." % len(reg_sam_fn_list))
 
     
