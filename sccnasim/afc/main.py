@@ -241,7 +241,7 @@ def afc_core(conf):
 
 
     # allele-specific counting with multi-processing.
-    info("start allele-specific counting with %d cores ..." % bd_m)
+    info("start allele-specific counting with %d cores ..." % conf.ncores)
 
     pool = multiprocessing.Pool(processes = min(conf.ncores, bd_m))
     mp_result = []
@@ -264,6 +264,9 @@ def afc_core(conf):
         ))
     pool.close()
     pool.join()
+    
+    if conf.debug > 0:
+        debug("multiprocessing done!")
 
     bdata_list = [res.get() for res in mp_result]
 

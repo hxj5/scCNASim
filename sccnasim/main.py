@@ -44,7 +44,8 @@ def main_wrapper(
     strandness = "forward", min_include = 0.9,
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
-    no_orphan = True
+    no_orphan = True,
+    debug_level = 0
 ):
     """Wrapper for running the main pipeline.
 
@@ -271,6 +272,8 @@ def main_wrapper(
     conf.incl_flag = incl_flag
     conf.excl_flag = excl_flag
     conf.no_orphan = no_orphan
+    
+    conf.debug_level = debug_level
 
 
     ret, res = main_run(conf)
@@ -333,7 +336,7 @@ def main_core(conf):
         sam_list_fn = conf.sam_list_fn,
         sample_ids = conf.sample_ids, 
         sample_id_fn = conf.sample_id_fn,
-        debug_level = 0,
+        debug_level = conf.debug_level,
         ncores = conf.ncores,
         cell_tag = conf.cell_tag,
         umi_tag = conf.umi_tag,
@@ -394,7 +397,7 @@ def main_core(conf):
         feature_fn = afc_res["feature_obj_fn"],
         refseq_fn = conf.refseq_fn,
         out_dir = os.path.join(conf.out_dir, "%d_rs" % step),
-        debug_level = 0,
+        debug_level = conf.debug_level,
         ncores = conf.ncores,
         cell_tag = conf.cell_tag,
         umi_tag = conf.umi_tag,

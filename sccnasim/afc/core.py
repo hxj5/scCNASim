@@ -44,11 +44,11 @@ def fc_features(bdata):
     afc.thread.BatchData
         The batch-specific data.
     """
-    if conf.debug > 0:
-        debug("[Batch-%d] start ..." % bdata.idx)
-    
     conf = bdata.conf
     bdata.ret = -1
+    
+    if conf.debug > 0:
+        debug("[Batch-%d] start ..." % bdata.idx)
 
     sam_list = []
     for fn in conf.sam_fn_list:
@@ -117,6 +117,9 @@ def fc_features(bdata):
 
     bdata.conf = None    # sam object cannot be pickled.
     bdata.ret = 0
+    
+    if conf.debug > 0:
+        debug("[Batch-%d] done!" % bdata.idx)
             
     return(bdata)
 
