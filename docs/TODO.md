@@ -7,14 +7,22 @@
 
 
 ## Implementation
+### cs
+- Save memory - split adata by features and save splitted adata into
+  files for each thread (batch).
+- Write a wrapper function for cs module to make it an independent tool for
+  count(RDR)-based CNA simulatioin, to take CNA profile and clone annotation
+  files as input.
 - Add an option about `total library size` to enable simulation of various
   read depth.
   Refer to the `total number of reads` in scDesign2.
-- cs: save memory - split adata by features and save splitted adata into
-  files for each thread (batch).
 
 
 ## Docs
+
+
+## Tests
+- Prepare notebooks & scripts to test each module.
 
 
 ## Scripts
@@ -39,4 +47,3 @@ Noise: both signals of copy gain and copy loss shown in a strip of genes.
     arises from.
 (2) process (e.g., remove) the special features (e.g., overlapping features) 
     that the noise arises from.
-
