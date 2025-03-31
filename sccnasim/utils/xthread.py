@@ -6,7 +6,7 @@ from logging import error
 
 
 def mp_error_handler(e):
-    error("%s" % dir(e))
+    #error("%s" % dir(e))
     error("--> %s <--" % str(e.__cause__))
     return(e)
     

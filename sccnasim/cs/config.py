@@ -15,7 +15,7 @@ class Config:
     def __init__(self):
         # command-line arguments/parameters.
         self.count_fn = None
-        self.clone_meta_fn = None
+        self.clone_anno_fn = None
         self.cna_profile_fn = None
         self.out_dir = None
 
@@ -33,9 +33,9 @@ class Config:
         #   The loaded allele-specific count matrices.
         self.adata = None
 
-        # clone_meta : pandas.DataFrame
+        # clone_anno : pandas.DataFrame
         #   The loaded clone annotations.
-        self.clone_meta = None
+        self.clone_anno = None
 
         # cna_profile : pandas.DataFrame
         #   The loaded clonal CNA profile.
@@ -47,6 +47,16 @@ class Config:
 
 
         # internal parameters.
+        
+        # cn_mode : {"hap-aware", "hap-unknown"}
+        #   The mode of copy numbers in CNA profiles.
+        #   - hap-aware: haplotype/allele aware.
+        #   - hap-unknown: haplotype/allele unknown.
+        self.cn_mode = "hap-aware"
+        
+        # alleles : list of str
+        #   The alleles to be used for count simulation.
+        self.alleles = ("A", "B", "U")
         
         # def_kwargs_fit_sf : dict
         #   Default settings passing to `kwargs_fit_sf`.
@@ -78,11 +88,11 @@ class Config:
         
         # qc_cw_low_quantile : float
         #   The lower quantile of cell-wise statistics.
-        self.qc_cw_low_quantile = 0.01
+        self.qc_cw_low_quantile = 0.005
         
         # qc_cw_up_quantile : float
         #   The upper quantile of cell-wise statistics.
-        self.qc_cw_up_quantile = 0.99
+        self.qc_cw_up_quantile = 0.995
         
 
     def show(self, fp = None, prefix = ""):
@@ -92,7 +102,7 @@ class Config:
         # command-line arguments/parameters.
         s =  "%s\n" % prefix
         s += "%scount_fn = %s\n" % (prefix, self.count_fn)
-        s += "%sclone_meta_fn = %s\n" % (prefix, self.clone_meta_fn)
+        s += "%sclone_anno_fn = %s\n" % (prefix, self.clone_anno_fn)
         s += "%scna_profile_fn = %s\n" % (prefix, self.cna_profile_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
 
@@ -109,6 +119,8 @@ class Config:
         s += "%s\n" % prefix
         
         # internal parameters.
+        s += "%scn_mode = %s\n" % (prefix, self.cn_mode)
+        s += "%salleles = %s\n" % (prefix, str(self.alleles))
         s += "%sqc_min_library_size = %s\n" % (prefix, self.qc_min_library_size)
         s += "%sqc_max_library_size = %s\n" % (prefix, self.qc_max_library_size)
         s += "%sqc_min_features = %s\n" % (prefix, self.qc_min_features)

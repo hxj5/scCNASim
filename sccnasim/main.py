@@ -28,7 +28,7 @@ def main():
 def main_wrapper(
     sam_fn,
     cell_anno_fn, feature_fn, phased_snp_fn,
-    clone_meta_fn, cna_profile_fn, 
+    clone_anno_fn, cna_profile_fn, 
     refseq_fn,
     out_dir,
     sam_list_fn = None, sample_ids = None, sample_id_fn = None,
@@ -82,8 +82,8 @@ def main_wrapper(
         - "ref_hap" (int): the haplotype index of `ref`, one of {0, 1}.
         - "alt_hap" (int): the haplotype index of `alt`, one of {1, 0}.
         If VCF, it should contain "GT" in its "FORMAT" field.
-    clone_meta_fn : str
-        A TSV file listing clonal meta information.
+    clone_anno_fn : str
+        A TSV file listing clonal anno information.
         It is header-free and its first 3 columns are:
         - "clone" (str): clone ID.
         - "source_cell_type" (str): the source cell type of `clone`.
@@ -217,7 +217,7 @@ def main_wrapper(
     conf.cell_anno_fn = cell_anno_fn
     conf.feature_fn = feature_fn
     conf.snp_fn = phased_snp_fn
-    conf.clone_meta_fn = clone_meta_fn
+    conf.clone_anno_fn = clone_anno_fn
     conf.cna_profile_fn = cna_profile_fn
     conf.refseq_fn = refseq_fn
     conf.out_dir = out_dir
@@ -299,7 +299,7 @@ def main_core(conf):
         cell_anno_fn = conf.cell_anno_fn,
         feature_fn = conf.feature_fn,
         snp_fn = conf.snp_fn,
-        clone_meta_fn = conf.clone_meta_fn,
+        clone_anno_fn = conf.clone_anno_fn,
         cna_profile_fn = conf.cna_profile_fn,
         out_dir = os.path.join(conf.out_dir, "%d_pp" % step),
         chroms = conf.chroms,
@@ -372,7 +372,7 @@ def main_core(conf):
 
     cs_ret, cs_res = cs_wrapper(
         count_fn = adata_fn_new,
-        clone_meta_fn = pp_res["clone_meta_fn_new"],
+        clone_anno_fn = pp_res["clone_anno_fn_new"],
         cna_profile_fn = pp_res["cna_profile_fn_new"],
         out_dir = os.path.join(conf.out_dir, "%d_cs" % step),
         size_factor = conf.size_factor,
@@ -471,7 +471,7 @@ def prepare_config(conf):
     assert_e(conf.cell_anno_fn)
     assert_e(conf.feature_fn)
     assert_e(conf.snp_fn)
-    assert_e(conf.clone_meta_fn)
+    assert_e(conf.clone_anno_fn)
     assert_e(conf.cna_profile_fn)
     assert_e(conf.refseq_fn)
     

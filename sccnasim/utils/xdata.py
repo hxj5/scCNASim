@@ -207,3 +207,32 @@ def sparse_to_array(xdata, layer = None, inplace = False):
     else:
         xdata.layers[layer] = sparse2array(xdata.layers[layer])
         return((xdata, xdata.layers[layer]))
+
+    
+def sum_layers(xdata, layers = None):
+    """Calculate the sum of specific layers.
+
+    Parameters
+    ----------
+    xdata : anndata.AnnData
+        The adata object.
+    layers : list of str or None, default None
+        Name of layers in `xdata`.
+        If None, all layers will be used.
+    
+    Returns
+    -------
+    sparse matrix
+        The sum matrix of input layers.
+    """
+    if layers is None:
+        layers = xdata.layers.keys()
+    
+    X = None
+    for i, y in enumerate(layers):
+        assert y in xdata.layers
+        if i == 0:
+            X = xdata.layers[y].copy()
+        else:
+            X += xdata.layers[y]
+    return(X)

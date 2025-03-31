@@ -25,6 +25,7 @@ from .io import merge_tsv
 from ..io.base import load_h5ad, save_h5ad
 from ..utils.base import is_file_empty
 from ..utils.xbarcode import Barcode
+from ..utils.xdata import sum_layers
 from ..utils.xthread import split_n2batch, mp_error_handler
 from ..utils.zfile import zopen, ZF_F_PLAIN
 
@@ -271,13 +272,7 @@ def cumi_simu_cs(
     
     assert len(out_files) == len(alleles) 
     
-    RD = None
-    for i, ale in enumerate(alleles):
-        assert ale in xdata.layers
-        if i == 0:
-            RD = xdata.layers[ale].copy()
-        else:
-            RD += xdata.layers[ale]
+    RD = sum_layers(xdata, layers = alleles)
 
     # UMIs are generated in a cell-specific manner, mimicking real data that
     # the UMI of each transcript should be unique within one cell.
@@ -300,9 +295,8 @@ def cumi_simu_cs(
                 
     for fp in fp_list:
         fp.close()
-        
-    ret = 0
-    return(ret)
+
+    return(0)
 
 
 

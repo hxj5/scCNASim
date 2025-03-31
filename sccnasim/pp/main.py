@@ -110,17 +110,17 @@ def pp_core(conf):
     info("SNP file copied to '%s'." % raw_snp_fn)
 
 
-    # process clone meta information file.
+    # process clone anno information file.
     # check duplicate records.
-    raw_clone_meta_fn = os.path.join(
-        conf.out_dir, conf.out_prefix_raw + "clone_meta.tsv")
-    shutil.copy(conf.clone_meta_fn, raw_clone_meta_fn)
-    clone_meta = load_clones(conf.clone_meta_fn)
-    clones = clone_meta["clone"].unique()
-    if len(clones) != clone_meta.shape[0]:
-        error("duplicate clones in meta file '%s'." % conf.clone_meta_fn)
+    raw_clone_anno_fn = os.path.join(
+        conf.out_dir, conf.out_prefix_raw + "clone_anno.tsv")
+    shutil.copy(conf.clone_anno_fn, raw_clone_anno_fn)
+    clone_anno = load_clones(conf.clone_anno_fn)
+    clones = clone_anno["clone"].unique()
+    if len(clones) != clone_anno.shape[0]:
+        error("duplicate clones in anno file '%s'." % conf.clone_anno_fn)
         raise ValueError
-    cell_types = clone_meta["cell_type"].unique()
+    cell_types = clone_anno["cell_type"].unique()
     info("%d clones use %d cell types." % (len(clones), len(cell_types)))
     
 
@@ -145,8 +145,8 @@ def pp_core(conf):
     cna_clones = cna_profile["clone"].unique()
     for c in cna_clones:
         if c not in clones:
-            error("cna clone '%s' not in meta file '%s'." % \
-                (c, conf.clone_meta_fn))
+            error("cna clone '%s' not in anno file '%s'." % \
+                (c, conf.clone_anno_fn))
             raise ValueError
     info("there are %d CNA clones." % len(cna_clones))
 
@@ -183,9 +183,9 @@ def pp_core(conf):
         #   cell type).
         "cell_anno_fn_new": cell_anno_fn_new,
 
-        # clone_meta_fn_new : str
+        # clone_anno_fn_new : str
         #   Path to the file storing the clone annotations.
-        "clone_meta_fn_new": raw_clone_meta_fn,
+        "clone_anno_fn_new": raw_clone_anno_fn,
 
         # cna_profile_fn_new : str
         #   Path to the file storing the merged CNA profiles.
@@ -195,7 +195,7 @@ def pp_core(conf):
         #   Path to the file storing the merged (overlapping) features.
         "feature_fn_new": sorted_feature_fn,
 
-        # clone_meta_fn_new : str
+        # clone_anno_fn_new : str
         #   Path to the file storing the annotations of (phased) SNPs.
         "snp_fn_new": raw_snp_fn
     }
@@ -232,7 +232,7 @@ def pp_run(conf):
 
 def pp_wrapper(
     cell_anno_fn, feature_fn, snp_fn,
-    clone_meta_fn, cna_profile_fn,
+    clone_anno_fn, cna_profile_fn,
     out_dir, chroms = None, strandness = "forward",
     merge_features_how = "quantile"
 ):
@@ -265,8 +265,8 @@ def pp_wrapper(
         - "ref_hap" (int): the haplotype index of `ref`, one of {0, 1}.
         - "alt_hap" (int): the haplotype index of `alt`, one of {1, 0}.
         If VCF, it should contain "GT" in its "FORMAT" field.
-    clone_meta_fn : str
-        A TSV file listing clonal meta information.
+    clone_anno_fn : str
+        A TSV file listing clonal anno information.
         It is header-free and its first 3 columns are:
         - "clone" (str): clone ID.
         - "source_cell_type" (str): the source cell type of `clone`.
@@ -319,7 +319,7 @@ def pp_wrapper(
     conf.cell_anno_fn = cell_anno_fn
     conf.feature_fn = feature_fn
     conf.snp_fn = snp_fn
-    conf.clone_meta_fn = clone_meta_fn
+    conf.clone_anno_fn = clone_anno_fn
     conf.cna_profile_fn = cna_profile_fn
     conf.out_dir = out_dir
     

@@ -293,42 +293,65 @@ def load_clones(fn, sep = "\t"):
     return(df)
 
 
-def load_cnas(fn, sep = "\t"):
+def load_cnas(fn, sep = "\t", cn_mode = "hap-aware"):
     """Load clonal CNA profile from a header-free file.
     
     Parameters
     ----------
     fn : str
         Path to a a header-free file containing clonal CNA profile, whose
-        first 6 columns should be:
+        first several columns should be:
         - "chrom" (str): chromosome name of the CNA region.
         - "start" (int): start genomic position of the CNA region, 1-based
           and inclusive.
         - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
         - "clone" (str): clone ID.
+        if `cn_mode` is "hap-aware":
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
+        otherwise:
+        - "cn" (int): copy number of both alleles.
     sep : str, default "\t"
         File delimiter.
+    cn_mode : {"hap-aware", "hap-unknown"}
+        The mode of copy numbers in CNA profiles.
+        - "hap-aware": haplotype/allele aware.
+        - "hap-unknown": haplotype/allele unknown.
 
     Returns
     -------
     pandas.DataFrame
-        The loaded clonal CNA profile, whose first seven columns are "chrom",
-        "start", "end", "clone", "cn_ale0", and "cn_ale1", "region".
+        The loaded clonal CNA profile, whose first several columns are
+        "chrom", "start", "end", "clone", 
+        and
+        - if `cn_mode` is "hap-aware": "cn_ale0", and "cn_ale1", "region";
+        - otherwise: "cn", "region".
         Note that "region" is a formatted string combining "chrom", "start",
         and "end".
     """
+    df = None
     if is_file_empty(fn):
-        df = pd.DataFrame(columns = [
-            "chrom", "start", "end", "clone", "cn_ale0", "cn_ale1", "region"])
+        if cn_mode == "hap-aware":
+            df = pd.DataFrame(columns = ["chrom", "start", "end", "clone", \
+                        "cn_ale0", "cn_ale1", "region"])
+        else:
+            df = pd.DataFrame(columns = ["chrom", "start", "end", "clone", \
+                        "cn", "region"])
         return(df)
+    
     df = pd.read_csv(fn, sep = sep, header = None, dtype = {0: str})
     df.columns = df.columns.astype(str)
-    df.columns.values[:6] = [
-        "chrom", "start", "end", "clone", "cn_ale0", "cn_ale1"]
-    #df["chrom"] = df["chrom"].astype(str)
+    
+    if cn_mode == "hap-aware":
+        assert df.shape[1] >= 6
+        df.columns.values[:6] = [
+            "chrom", "start", "end", "clone", "cn_ale0", "cn_ale1"]
+    else:
+        assert df.shape[1] >= 5
+        df.columns.values[:5] = [
+            "chrom", "start", "end", "clone", "cn"]        
+
     df["chrom"] = df["chrom"].map(format_chrom)
     df["start"] = df["start"].map(format_start)
     df["end"] = df["end"].map(format_end)

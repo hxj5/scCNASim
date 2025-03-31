@@ -20,7 +20,7 @@ class Config:
         self.cell_anno_fn = None
         self.feature_fn = None
         self.snp_fn = None
-        self.clone_meta_fn = None
+        self.clone_anno_fn = None
         self.cna_profile_fn = None
         self.refseq_fn = None
         self.out_dir = None
@@ -73,7 +73,7 @@ class Config:
         s += "%scell_anno_file = %s\n" % (prefix, self.cell_anno_fn)
         s += "%sfeature_file = %s\n" % (prefix, self.feature_fn)
         s += "%sphased_snp_file = %s\n" % (prefix, self.snp_fn)
-        s += "%sclone_meta_file = %s\n" % (prefix, self.clone_meta_fn)
+        s += "%sclone_anno_file = %s\n" % (prefix, self.clone_anno_fn)
         s += "%scna_profile_file = %s\n" % (prefix, self.cna_profile_fn)
         s += "%srefseq_file = %s\n" % (prefix, self.refseq_fn)
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
