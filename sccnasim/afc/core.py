@@ -4,13 +4,13 @@
 import math
 import numpy as np
 import os
-import pickle
 import pysam
 
 from logging import debug, error, info
 from .mcount_ab import MCount as ABFeatureMCount
 from .mcount_feature import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
+from ..io.base import load_feature_objects, save_feature_objects
 from ..utils.hapidx import hap2idx, idx2hap
 from ..utils.sam import check_read, check_strand, check_included, \
     sam_fetch
@@ -55,9 +55,7 @@ def fc_features(bdata):
         sam = pysam.AlignmentFile(fn, "r", require_index = True)
         sam_list.append(sam)
 
-    reg_list = None
-    with open(bdata.reg_obj_fn, "rb") as fp:
-        reg_list = pickle.load(fp)
+    reg_list = load_feature_objects(bdata.reg_obj_fn)
     os.remove(bdata.reg_obj_fn)
 
     fp_ale = {ale: zopen(fn, "wt", ZF_F_GZIP, is_bytes = False) \
@@ -112,8 +110,8 @@ def fc_features(bdata):
         sam.close()
     sam_list.clear()
     
-    with open(bdata.reg_obj_fn, "wb") as fp:
-        pickle.dump(reg_list, fp)      # reg objects, each containing post-filtering SNPs.
+    # reg objects, each containing post-filtering SNPs.
+    save_feature_objects(reg_list, bdata.reg_obj_fn)
 
     bdata.conf = None    # sam object cannot be pickled.
     bdata.ret = 0

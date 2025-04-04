@@ -10,7 +10,7 @@ class Config:
 
     Attributes
     ----------
-    See `cs::main::cs_wrapper()`.
+    See :func:`~.main.cs_wrapper()`.
     """
     def __init__(self):
         # command-line arguments/parameters.
@@ -27,32 +27,18 @@ class Config:
         self.kwargs_fit_sf = dict()
         self.kwargs_fit_rd = dict()
 
-        # derived parameters.
 
-        # adata : anndata.AnnData
-        #   The loaded allele-specific count matrices.
-        self.adata = None
-
-        # clone_anno : pandas.DataFrame
-        #   The loaded clone annotations.
-        self.clone_anno = None
-
-        # cna_profile : pandas.DataFrame
-        #   The loaded clonal CNA profile.
-        self.cna_profile = None
+        # internal parameters.
 
         # out_prefix : str
         #   Prefix to the output files.
-        self.out_prefix = COMMAND + "."
-
-
-        # internal parameters.
+        self.out_prefix = COMMAND
         
-        # cn_mode : {"hap-aware", "hap-unknown"}
-        #   The mode of copy numbers in CNA profiles.
+        # cna_mode : {"hap-aware", "hap-unknown"}
+        #   The mode of CNA profiles.
         #   - hap-aware: haplotype/allele aware.
         #   - hap-unknown: haplotype/allele unknown.
-        self.cn_mode = "hap-aware"
+        self.cna_mode = "hap-aware"
         
         # alleles : list of str
         #   The alleles to be used for count simulation.
@@ -94,6 +80,11 @@ class Config:
         #   The upper quantile of cell-wise statistics.
         self.qc_cw_up_quantile = 0.995
         
+        # loss_allele_freq : float
+        #   The frequency of the lost allele, to mimic real error rate, i.e.,
+        #   sometimes we observe reads from the lost allele.
+        self.loss_allele_freq = 0.001
+        
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -113,19 +104,17 @@ class Config:
 
         s += "%skwargs_fit_sf = %s\n" % (prefix, self.kwargs_fit_sf)
         s += "%skwargs_fit_rd = %s\n" % (prefix, self.kwargs_fit_rd)
-
-        # derived parameters.
-        s += "%sout_prefix = %s\n" % (prefix, self.out_prefix)
-        s += "%s\n" % prefix
         
         # internal parameters.
-        s += "%scn_mode = %s\n" % (prefix, self.cn_mode)
+        s += "%sout_prefix = %s\n" % (prefix, self.out_prefix)        
+        s += "%scna_mode = %s\n" % (prefix, self.cna_mode)
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
         s += "%sqc_min_library_size = %s\n" % (prefix, self.qc_min_library_size)
         s += "%sqc_max_library_size = %s\n" % (prefix, self.qc_max_library_size)
         s += "%sqc_min_features = %s\n" % (prefix, self.qc_min_features)
         s += "%sqc_cw_low_quantile = %s\n" % (prefix, self.qc_cw_low_quantile)
         s += "%sqc_cw_up_quantile = %s\n" % (prefix, self.qc_cw_up_quantile)
-        s += "%s\n" % prefix        
+        s += "%sloss_allele_freq = %f\n" % (prefix, self.loss_allele_freq)
+        s += "%s\n" % prefix
 
         fp.write(s)

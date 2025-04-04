@@ -72,7 +72,7 @@ def load_10x_data(
         if feature_columns is None:
             feature_columns = ["chrom", "start", "end", "feature", "arm", "band"]
     
-    xdata = load_xdata(
+    adata = load_adata(
         mtx_fn = mtx_fn,
         cell_fn = cell_fn,
         feature_fn = feature_fn,
@@ -83,12 +83,12 @@ def load_10x_data(
         row_is_cell = False
     )      # feature x cell
 
-    xdata = xdata.transpose()      # cell x feature
-    return(xdata)
+    adata = adata.transpose()      # cell x feature
+    return(adata)
 
 
 def save_10x_data(
-    xdata, out_dir,
+    adata, out_dir,
     layer = None, row_is_cell = True,
     cell_columns = None, feature_columns = None, barcode_columns = None           
 ):
@@ -96,25 +96,25 @@ def save_10x_data(
 
     Parameters
     ----------
-    xdata : anndata.AnnData
+    adata : anndata.AnnData
         An anndata object.
     out_dir : str
         Path to the output folder.
     layer : str or None, default None
-        Name of the layer in `xdata` to be outputted.
-        If `None`, then `xdata.X` will be outputted.
+        Name of the layer in `adata` to be outputted.
+        If `None`, then `adata.X` will be outputted.
     row_is_cell : bool, default True
-        Whether the rows of the matrix in `xdata` are cells.
+        Whether the rows of the matrix in `adata` are cells.
     cell_columns : list of str or None, default None
-        Selected columns of cell annotations in `xdata`, to be outputted
+        Selected columns of cell annotations in `adata`, to be outputted
         to "<out_dir>/cell_anno.tsv".
         If `None`, use all columns.
     feature_columns : list of str or None, default None
-        Selected columns of feature annotations in `xdata`, to be outputted
+        Selected columns of feature annotations in `adata`, to be outputted
         to "<out_dir>/genes.tsv".
         If `None`, use all columns.
     barcode_columns : list of str or None, default None
-        Selected columns of cell annotations in `xdata`, to be outputted
+        Selected columns of cell annotations in `adata`, to be outputted
         to "<out_dir>/barcodes.tsv".
         If `None`, use the first column of `cell_columns` (when `cell_columns`
         is not `None`) or the first column of cell annotation (otherwise).
@@ -131,10 +131,10 @@ def save_10x_data(
     barcode_fn = os.path.join(out_dir, "barcodes.tsv")
 
     if row_is_cell:
-        xdata = xdata.transpose()
+        adata = adata.transpose()
 
-    save_xdata(
-        xdata = xdata,
+    save_adata(
+        adata = adata,
         mtx_fn = mtx_fn, cell_fn = cell_fn, feature_fn = feature_fn, 
         barcode_fn = barcode_fn,
         layer = layer, row_is_cell = False,
@@ -205,7 +205,7 @@ def load_xcltk_data(
         if feature_columns is None:
             feature_columns = ["chrom", "start", "end", "feature", "arm", "band"]
     
-    xdata = load_xdata(
+    adata = load_adata(
         mtx_fn = mtx_fn,
         cell_fn = cell_fn,
         feature_fn = feature_fn,
@@ -216,12 +216,12 @@ def load_xcltk_data(
         row_is_cell = False
     )      # feature x cell
 
-    xdata = xdata.transpose()      # cell x feature
-    return(xdata)
+    adata = adata.transpose()      # cell x feature
+    return(adata)
 
 
 def save_xcltk_data(
-    xdata, out_dir,
+    adata, out_dir,
     layer = None, row_is_cell = True,
     cell_columns = None, feature_columns = None, barcode_columns = None
 ):
@@ -229,25 +229,25 @@ def save_xcltk_data(
 
     Parameters
     ----------
-    xdata : anndata.AnnData
+    adata : anndata.AnnData
         An anndata object.
     out_dir : str
         Path to the output folder.
     layer : str or None, default None
-        Name of the layer in `xdata` to be outputted.
-        If `None`, then `xdata.X` will be outputted.
+        Name of the layer in `adata` to be outputted.
+        If `None`, then `adata.X` will be outputted.
     row_is_cell : bool, default True
-        Whether the rows of the matrix in `xdata` are cells.
+        Whether the rows of the matrix in `adata` are cells.
     cell_columns : list of str or None, default None
-        Selected columns of cell annotations in `xdata`, to be outputted
+        Selected columns of cell annotations in `adata`, to be outputted
         to "<out_dir>/cell_anno.tsv".
         If `None`, use all columns.
     feature_columns : list of str or None, default None
-        Selected columns of feature annotations in `xdata`, to be outputted
+        Selected columns of feature annotations in `adata`, to be outputted
         to "<out_dir>/features.tsv".
         If `None`, use all columns.
     barcode_columns : list of str or None, default None
-        Selected columns of cell annotations in `xdata`, to be outputted
+        Selected columns of cell annotations in `adata`, to be outputted
         to "<out_dir>/barcodes.tsv".
         If `None`, use the first column of `cell_columns` (when `cell_columns`
         is not `None`) or the first column of cell annotation (otherwise).
@@ -264,10 +264,10 @@ def save_xcltk_data(
     barcode_fn = os.path.join(out_dir, "barcodes.tsv")
 
     if row_is_cell:
-        xdata = xdata.transpose()
+        adata = adata.transpose()
 
-    save_xdata(
-        xdata = xdata,
+    save_adata(
+        adata = adata,
         mtx_fn = mtx_fn, cell_fn = cell_fn, feature_fn = feature_fn, 
         barcode_fn = barcode_fn,
         layer = layer, row_is_cell = False,
@@ -277,7 +277,7 @@ def save_xcltk_data(
     )
     
     
-def load_xdata_ml(mtx_fn_list, layers,
+def load_adata_ml(mtx_fn_list, layers,
     cell_fn, feature_fn, 
     cell_columns, feature_columns,
     cell_sep = "\t", feature_sep = "\t",
@@ -326,27 +326,27 @@ def load_xdata_ml(mtx_fn_list, layers,
         mtx = load_matrix(mtx_fn)
         if idx == 0:
             if row_is_cell:
-                xdata = ad.AnnData(
+                adata = ad.AnnData(
                     X = mtx, 
                     obs = cells,
                     var = features)
             else:
-                xdata = ad.AnnData(
+                adata = ad.AnnData(
                     X = mtx, 
                     obs = features,
                     var = cells)
             if layers is not None:
-                xdata.layers[layers[idx]] = xdata.X
-                xdata.X = None
+                adata.layers[layers[idx]] = adata.X
+                adata.X = None
         else:
-            xdata.layers[layers[idx]] = mtx
+            adata.layers[layers[idx]] = mtx
 
-    xdata = format_anndata(xdata, row_is_cell = row_is_cell)
-    return(xdata)
+    adata = format_anndata(adata, row_is_cell = row_is_cell)
+    return(adata)
 
 
-def save_xdata_ml(
-    xdata, layers, mtx_fn_list,
+def save_adata_ml(
+    adata, layers, mtx_fn_list,
     cell_fn, feature_fn, barcode_fn = None,
     row_is_cell = True,
     cell_columns = None, feature_columns = None, barcode_columns = None,
@@ -356,10 +356,10 @@ def save_xdata_ml(
 
     Parameters
     ----------
-    xdata : anndata.AnnData
+    adata : anndata.AnnData
         An anndata object.
     layers : list of str or None
-        A list of layers in `xdata` to be outputted.
+        A list of layers in `adata` to be outputted.
         None means to output `adata.X`, while it only works when
         there is only one output matrix.
     mtx_fn_list : list of str
@@ -373,20 +373,20 @@ def save_xdata_ml(
         Path to the output barcode file.
         If `None`, do not output this file.
     layer : str or None, default None
-        Name of the layer in `xdata` to be outputted.
-        If `None`, then `xdata.X` will be outputted.
+        Name of the layer in `adata` to be outputted.
+        If `None`, then `adata.X` will be outputted.
     row_is_cell : bool, default True
-        Whether the rows of `xdata` are cells.
+        Whether the rows of `adata` are cells.
     cell_columns : list of str or None, default None
-        Selected columns of cell annotations in `xdata`, to be outputted
+        Selected columns of cell annotations in `adata`, to be outputted
         to `cell_fn`.
         If `None`, use all columns.
     feature_columns : list of str or None, default None
-        Selected columns of feature annotations in `xdata`, to be outputted
+        Selected columns of feature annotations in `adata`, to be outputted
         to `feature_fn`.
         If `None`, use all columns.
     barcode_columns : list of str or None, default None
-        Selected columns of cell annotations in `xdata`, to be outputted
+        Selected columns of cell annotations in `adata`, to be outputted
         to `barcode_fn`.
         If `None`, use the first column of `cell_columns` (when `cell_columns`
         is not `None`) or the first column of cell annotation (otherwise).
@@ -409,20 +409,20 @@ def save_xdata_ml(
     mtx = None
     for idx, mtx_fn in enumerate(mtx_fn_list):
         if layers is None:
-            mtx = xdata.X
+            mtx = adata.X
         else:
-            mtx = xdata.layers[layers[idx]]
+            mtx = adata.layers[layers[idx]]
         save_matrix(mtx, mtx_fn)
 
     cells = features = barcodes = None
     if row_is_cell:
-        cells = xdata.obs
-        features = xdata.var
-        barcodes = xdata.obs
+        cells = adata.obs
+        features = adata.var
+        barcodes = adata.obs
     else:
-        cells = xdata.var
-        features = xdata.obs
-        barcodes = xdata.var
+        cells = adata.var
+        features = adata.obs
+        barcodes = adata.var
 
     if cell_columns is not None:
         cells = cells[cell_columns]
@@ -447,9 +447,9 @@ def save_xdata_ml(
 
 
 # TODO: 
-# - rewrite `load_xdata()` and `save_xdata()` with `load_xdata_ml()` and
-#   `save_xdata_ml()`, respectively.
-def load_xdata(mtx_fn, cell_fn, feature_fn, 
+# - rewrite `load_adata()` and `save_adata()` with `load_adata_ml()` and
+#   `save_adata_ml()`, respectively.
+def load_adata(mtx_fn, cell_fn, feature_fn, 
     cell_columns, feature_columns,
     cell_sep = "\t", feature_sep = "\t",
     row_is_cell = True
@@ -484,21 +484,21 @@ def load_xdata(mtx_fn, cell_fn, feature_fn,
     cells = load_cells(cell_fn, cell_columns, sep = cell_sep)
     features = load_features(feature_fn, feature_columns, sep = feature_sep)
     if row_is_cell:
-        xdata = ad.AnnData(
+        adata = ad.AnnData(
             X = mtx, 
             obs = cells,
             var = features)
     else:
-        xdata = ad.AnnData(
+        adata = ad.AnnData(
             X = mtx, 
             obs = features,
             var = cells)
-    xdata = format_anndata(xdata, row_is_cell = row_is_cell)
-    return(xdata)
+    adata = format_anndata(adata, row_is_cell = row_is_cell)
+    return(adata)
 
 
-def save_xdata(
-    xdata, 
+def save_adata(
+    adata, 
     mtx_fn, cell_fn, feature_fn, barcode_fn = None,
     layer = None, row_is_cell = True,
     cell_columns = None, feature_columns = None, barcode_columns = None,
@@ -508,7 +508,7 @@ def save_xdata(
 
     Parameters
     ----------
-    xdata : anndata.AnnData
+    adata : anndata.AnnData
         An anndata object.
     mtx_fn : str
         Path to the output sparse matrix file.
@@ -520,20 +520,20 @@ def save_xdata(
         Path to the output barcode file.
         If `None`, do not output this file.
     layer : str or None, default None
-        Name of the layer in `xdata` to be outputted.
-        If `None`, then `xdata.X` will be outputted.
+        Name of the layer in `adata` to be outputted.
+        If `None`, then `adata.X` will be outputted.
     row_is_cell : bool, default True
-        Whether the rows of `xdata` are cells.
+        Whether the rows of `adata` are cells.
     cell_columns : list of str or None, default None
-        Selected columns of cell annotations in `xdata`, to be outputted
+        Selected columns of cell annotations in `adata`, to be outputted
         to `cell_fn`.
         If `None`, use all columns.
     feature_columns : list of str or None, default None
-        Selected columns of feature annotations in `xdata`, to be outputted
+        Selected columns of feature annotations in `adata`, to be outputted
         to `feature_fn`.
         If `None`, use all columns.
     barcode_columns : list of str or None, default None
-        Selected columns of cell annotations in `xdata`, to be outputted
+        Selected columns of cell annotations in `adata`, to be outputted
         to `barcode_fn`.
         If `None`, use the first column of `cell_columns` (when `cell_columns`
         is not `None`) or the first column of cell annotation (otherwise).
@@ -549,19 +549,19 @@ def save_xdata(
     Void.
     """
     if layer is None:
-        mtx = xdata.X
+        mtx = adata.X
     else:
-        mtx = xdata.layers[layer]
+        mtx = adata.layers[layer]
 
     cells = features = barcodes = None
     if row_is_cell:
-        cells = xdata.obs
-        features = xdata.var
-        barcodes = xdata.obs
+        cells = adata.obs
+        features = adata.var
+        barcodes = adata.obs
     else:
-        cells = xdata.var
-        features = xdata.obs
-        barcodes = xdata.var
+        cells = adata.var
+        features = adata.obs
+        barcodes = adata.var
 
     if cell_columns is not None:
         cells = cells[cell_columns]

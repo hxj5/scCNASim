@@ -4,7 +4,6 @@
 import multiprocessing
 import numpy as np
 import os
-import pickle
 import sys
 import time
 
@@ -17,7 +16,8 @@ from .sam import sam_cat_and_sort
 from .thread import BatchData
 from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
-    save_cells, save_samples
+    save_cells, save_samples,    \
+    load_feature_objects, save_feature_objects
 from ..utils.xio import list2file
 from ..utils.xthread import split_n2batch, mp_error_handler
 
@@ -102,35 +102,35 @@ def rs_core(conf):
     info("check args ...")
 
     alleles = conf.alleles
-    xdata = conf.adata
+    adata = conf.adata
 
-    assert "cell" in xdata.obs.columns
-    assert "cell_type" in xdata.obs.columns
-    assert "feature" in xdata.var.columns
-    assert "chrom" in xdata.var.columns
+    assert "cell" in adata.obs.columns
+    assert "cell_type" in adata.obs.columns
+    assert "feature" in adata.var.columns
+    assert "chrom" in adata.var.columns
     for ale in alleles:
-        assert ale in xdata.layers
-    n, p = xdata.shape
+        assert ale in adata.layers
+    n, p = adata.shape
 
     assert len(conf.reg_list) == p
     for i in range(p):
-        assert xdata.var["feature"].iloc[i] == conf.reg_list[i].name
+        assert adata.var["feature"].iloc[i] == conf.reg_list[i].name
 
     assert conf.umi_len <= 31
     RD = 0
     for ale in alleles:
-        RD += xdata.layers[ale]
+        RD += adata.layers[ale]
     assert np.max(RD.sum(axis = 1)) <= 4 ** conf.umi_len    # cell library size
     del RD
     RD = None
 
-    out_samples = xdata.obs["cell"].to_numpy()
+    out_samples = adata.obs["cell"].to_numpy()
     out_sample_fn = os.path.join(
         conf.out_dir, conf.out_prefix + "samples.tsv")
     out_cell_anno_fn = os.path.join(
         conf.out_dir, conf.out_prefix + "cell_anno.tsv")
-    save_samples(xdata.obs[["cell"]], out_sample_fn)
-    save_cells(xdata.obs[["cell", "cell_type"]], out_cell_anno_fn)
+    save_samples(adata.obs[["cell"]], out_sample_fn)
+    save_cells(adata.obs[["cell", "cell_type"]], out_cell_anno_fn)
 
 
     # prepare data for multi-processing
@@ -158,8 +158,7 @@ def rs_core(conf):
     for idx, (b, e) in enumerate(bd_reg_indices):
         fn = os.path.join(data_dir, "fet.b%d.features.pickle" % idx)
         reg_fn_list.append(fn)
-        with open(fn, "wb") as fp:
-            pickle.dump(conf.reg_list[b:e], fp)
+        save_feature_objects(conf.reg_list[b:e], fn)
             
     out_cumi_files = []      # two layers: allele - feature
     for ale in alleles:
@@ -178,8 +177,8 @@ def rs_core(conf):
     count_fn_list = []
     for idx, (b, e) in enumerate(bd_reg_indices):
         fn = os.path.join(data_dir, "fet.b%d.counts.h5ad" % idx)
-        adat = xdata[:, b:e].copy()
-        save_h5ad(adat, fn)
+        dat = adata[:, b:e].copy()
+        save_h5ad(dat, fn)
         count_fn_list.append(fn)
     del conf.adata
     conf.adata = None
@@ -405,7 +404,7 @@ def prepare_config(conf):
 
     if conf.count_fn:
         if os.path.isfile(conf.count_fn):
-            conf.adata = load_counts(conf.count_fn)
+            conf.adata = load_h5ad(conf.count_fn)
         else:
             error("count file '%s' does not exist." % conf.count_fn)
             return(-1)
@@ -416,7 +415,7 @@ def prepare_config(conf):
 
     if conf.feature_fn:
         if os.path.isfile(conf.feature_fn):
-            conf.reg_list = load_features(conf.feature_fn)
+            conf.reg_list = load_feature_objects(conf.feature_fn)
             if not conf.reg_list:
                 error("failed to load feature file.")
                 return(-1)
@@ -455,14 +454,3 @@ def prepare_config(conf):
     os.makedirs(conf.out_step_dir, exist_ok = True)
 
     return(0)
-
-
-def load_counts(fn):
-    dat = load_h5ad(fn)
-    return(dat)
-
-
-def load_features(fn):
-    with open(fn, "rb") as fp:
-        dat = pickle.load(fp)
-    return(dat)

@@ -3,20 +3,29 @@
 
 import anndata as ad
 import copy
+import gc
 import multiprocessing
 import numpy as np
+import os
 import pandas as pd
 import scipy as sp
 
 from collections import OrderedDict
 from logging import info, error, debug
+from .io import load_params, save_params
+from ..io.base import load_h5ad, save_h5ad
 from ..utils import base as xbase
 from ..utils import xmath
+from ..utils.xio import load_pickle, save_pickle
 from ..utils.xmath import   \
     estimate_dist_nb, estimate_dist_poi,  \
     fit_dist_nb, fit_dist_poi, fit_dist_zinb, fit_dist_zip
 from ..utils.xmatrix import sparse2array
-from ..utils.xthread import mp_error_handler
+from ..utils.xthread import mp_error_handler, split_n2batch
+
+
+
+ALL_DIST = ("auto", "zinb", "nb", "poi")
 
 
 
@@ -52,6 +61,7 @@ def __fit_dist_zip(*args, **kwargs):
     return(__fit_dist_wrapper("zip", *args, **kwargs))
     
 
+
 # TODO: check the significance level of over-dispersion (parameter alpha)?
 def fit_RD_feature(
     x,
@@ -65,18 +75,14 @@ def fit_RD_feature(
     Parameters
     ----------
     x : numpy.ndarray
-        The vector containing sample values.
+        The vector of counts.
     s : float or None, default None
         The size factor, typically library size.
         Set to `None` if do not use it.
-    marginal : {"auto", "poi", "nb", "zinb"}
-        One of "auto" (auto select), "poi" (Poisson), 
-        "nb" (Negative Binomial),
-        and "zinb" (Zero-Inflated Negative Binomial).
-    max_iter : int, default 1000
-        Number of maximum iterations in model fitting.
-    pval_cutoff : float, default 0.05
-        The p-value cutoff for model selection with GLR test.
+    marginal
+    max_iter
+    pval_cutoff
+        See :func:`fit_RD()` for details.
 
     Returns
     -------
@@ -98,7 +104,7 @@ def fit_RD_feature(
         12 - ZIP not converged?
         13 - ZINB not converged?
     model : str
-        Model name, should be one of "poi", "nb", "zip", and "zinb".
+        Model name, should be one of {"poi", "nb", "zip", "zinb"}.
     par : dict
         Fitted parameters.
     mres : dict
@@ -125,7 +131,7 @@ def fit_RD_feature(
     >>> res = rdr.mar.fit_RD_feature(x, max_iter = 1000, verbose = False)
     >>> print(res)
     """
-    if marginal not in ("auto", "zinb", "nb", "poi"):
+    if marginal not in ALL_DIST:
         error("invalid marginal '%s'." % marginal)
         raise ValueError
 
@@ -279,7 +285,7 @@ def __fit_RD_feature(
     s = None,
     marginal = "auto",
     max_iter = 100,
-    pval_cutoff = 0.05   
+    pval_cutoff = 0.05
 ):
     flag, model, par, mres, stat = fit_RD_feature(
         x = x,
@@ -291,8 +297,48 @@ def __fit_RD_feature(
     return((flag, model, par, mres, stat, index))
 
 
+
+def __fit_RD_cell_type_batch(
+    count_fn,
+    idx_b = None,      # 0-based transcriptomics-scale index of the first feature in this batch.
+    s = None,
+    marginal = "auto",
+    min_nonzero_num = 3,
+    max_iter = 100,
+    pval_cutoff = 0.05    
+):
+    adata = load_h5ad(count_fn)
+    X = adata.X
+    n, p = X.shape
+    
+    result = []
+    fet_idx = {
+        "nz": set(),               # Indexes of non-zero features.
+        "oth": set()               # Indexes of other features.
+    }
+    for i in range(p):
+        x = X[:, i]
+        idx = idx_b + i
+        if np.sum(x > 0) >= min_nonzero_num:
+            fet_idx["nz"].add(idx)
+            res = __fit_RD_feature(
+                x = x,
+                index = idx,
+                s = s,
+                marginal = marginal,
+                max_iter = max_iter,
+                pval_cutoff = pval_cutoff
+            )
+            result.append(res)
+        else:
+            fet_idx["oth"].add(idx)
+    return((result, fet_idx))
+    
+
+
 def fit_RD_cell_type(
-    X,
+    count_fn,
+    tmp_dir,
     s,
     s_type,
     marginal = "auto",
@@ -302,37 +348,23 @@ def fit_RD_cell_type(
     pval_cutoff = 0.05,
     verbose = True
 ):
-    """Fit all features for one cell type.
+    """Fit all features in one cell type.
 
     Parameters
     ----------
-    X : numpy.ndarray
-        The *cell x feature* matrix containing sample values.
-    s : list of float or None
-        Size factors. 
-        Its length and order should match rows of `X`.
-        Set to `None` if do not use size factors for fitting.
-    s_type : str or None
-        The type of size factors.
-        Currently only "libsize" is supported.
-        Set to `None` if do not use size factors for fitting.
-    marginal : {"auto", "poi", "nb", "zinb"}
-        Type of marginal distribution.
-        One of "auto" (auto select), "poi" (Poisson), 
-        "nb" (Negative Binomial),
-        and "zinb" (Zero-Inflated Negative Binomial).
-    min_nonzero_num : int, default 3
-        The minimum number of cells that have non-zeros for one feature.
-        If smaller than the cutoff, then the feature will not be fitted
-        (i.e., its mean will be directly treated as 0).
-    ncores : int, default 1
-        The number of cores/sub-processes.
-    max_iter : int, default 100
-        Number of maximum iterations in model fitting.
-    pval_cutoff : float, default 0.05
-        The p-value cutoff for model selection with GLR test.
-    verbose : bool, default True
-        Whether to show detailed logging information.
+    count_fn : str
+        AnnData file storing *cell x feature* count matrix.
+    tmp_dir : str
+        Folder to store temporary data.
+    s
+    s_type
+    marginal
+    min_nonzero_num
+    ncores
+    max_iter
+    pval_cutoff
+    verbose
+        See :func:`fit_RD()` for details.
 
     Returns
     -------
@@ -341,55 +373,87 @@ def fit_RD_cell_type(
     """
     if verbose:
         info("start ...")
+    
+    # check args.
+    adata = load_h5ad(count_fn)
+    os.makedirs(tmp_dir, exist_ok = True)
 
-    if marginal not in ("auto", "zinb", "nb", "poi"):
+    if marginal not in ALL_DIST:
         error("invalid marginal '%s'." % marginal)
         raise ValueError
     
-    n, p = X.shape
+    n, p = adata.shape
     if s is None:
         assert s_type is None
     if s_type is None:
         assert s is None
     if s is not None:
         assert len(s) == n
+        
+    n_read = np.sum(adata.X)
 
+    
+    # feature-specific counts fitting.
     if verbose:
         info("processing %d features in %d cells (ncores = %d) ..." % \
             (p, n, ncores))
     
-    pool = multiprocessing.Pool(processes = ncores)
-    result = []
-    fet_idx = {
-        "nz": set(),               # Indexes of non-zero features.
-        "oth": set()               # Indexes of other features.
-    }
-    for i in range(p):
-        x = X[:, i]
-        if np.sum(x > 0) >= min_nonzero_num:
-            fet_idx["nz"].add(i)
-            result.append(pool.apply_async(
-                __fit_RD_feature,
-                kwds = {
-                    "x": x,
-                    "index": i,
-                    "s": s,
-                    "marginal": marginal,
-                    "max_iter": max_iter,
-                    "pval_cutoff": pval_cutoff
-                },
-                callback = None,
-                error_callback = mp_error_handler
-            ))
-        else:
-            fet_idx["oth"].add(i)
+    # split features into batches.
+    # here, max_n_batch to account for max number of open files.
+    bd_m, bd_n, bd_indices = split_n2batch(p, ncores, max_n_batch = 1000)
+
+    if verbose:
+        info("split features into %d batches for multiprocessing." % bd_m)
+
+    count_fn_list = []
+    for i, (b, e) in enumerate(bd_indices):
+        fn = os.path.join(tmp_dir, "fet.b%d.counts.h5ad" % i)
+        save_h5ad(adata[:, b:e], fn)
+        count_fn_list.append(fn)
+    del adata
+    gc.collect()
+    adata = None
+
+
+    # multi-processing features.
+    if verbose:
+        info("begin multiprocessing with %d cores." % min(ncores, bd_m))
+        
+    mp_res = []
+    pool = multiprocessing.Pool(processes = min(ncores, bd_m))
+    for i, (b, e) in enumerate(bd_indices):
+        fn = count_fn_list[i]
+        mp_res.append(pool.apply_async(
+            __fit_RD_cell_type_batch,
+            kwds = dict(
+                count_fn = fn,
+                idx_b = b,
+                s = s,
+                marginal = marginal,
+                min_nonzero_num = min_nonzero_num,
+                max_iter = max_iter,
+                pval_cutoff = pval_cutoff
+            ),
+            callback = None,
+            error_callback = mp_error_handler
+        ))
     pool.close()
     pool.join()
-    result = [res.get() for res in result]
+    mp_res = [res.get() for res in mp_res]
 
     if verbose:
         info("multi-processing finished.")
         info("merge results ...")
+
+    result = []
+    fet_idx = {}
+    for res, idx in mp_res:
+        result.extend(res)
+        for k in idx.keys():
+            if k not in fet_idx:
+                fet_idx[k] = set()
+            fet_idx[k].update(idx[k])
+    
 
     # TODO: implement a class for cell type specific params.
     params_nz = []
@@ -401,7 +465,7 @@ def fit_RD_cell_type(
         "size_factor_value": s,               # size factor values (np.array or None).
         "min_nonzero_num": min_nonzero_num,   # min number of non-zero entries (int).
         "n_cell": n,                          # number of cells (int).
-        "n_read": np.sum(X)                   # number of reads (int).
+        "n_read": n_read                      # number of reads (int).
     }
     for flag, model, par, mres, stat, index in result:
         if flag & 0x1:      # any model is selected.
@@ -440,124 +504,14 @@ def fit_RD_cell_type(
     return(params)
 
 
+
 # TODO: consider Cox–Reid bias adjustment (e.g., in the DESeq2 paper).
 def fit_RD(
-    X,
-    s,
-    s_type,
-    cell_types,
-    cell_type_fit,
-    marginal = "auto",
-    min_nonzero_num = 3,
-    ncores = 1,
-    max_iter = 100,
-    pval_cutoff = 0.05,
-    verbose = True
-):
-    """Fit all features for all cell types.
-
-    Parameters
-    ----------
-    X : numpy.ndarray
-        It contains the *cell x feature* matrix of sample values.
-    s : list of float or None
-        Size factors.
-        Its length and order should match rows of `X`.
-        Set to `None` if do not use size factors for fitting.
-    s_type : str or None
-        The type of size factors.
-        Currently only "libsize" is supported.
-        Set to `None` if do not use size factors for fitting.
-    cell_types : list of str
-        The cell types.
-        Its length and order should match the rows of `X`.
-    cell_type_fit : list of str
-        The cell types to be fitted.
-    marginal : {"auto", "poi", "nb", "zinb"}
-        Type of marginal distribution.
-        One of "auto" (auto select), "poi" (Poisson), 
-        "nb" (Negative Binomial),
-        and "zinb" (Zero-Inflated Negative Binomial).
-    min_nonzero_num : int, default 3
-        The minimum number of cells that have non-zeros for one feature.
-        If smaller than the cutoff, then the feature will not be fitted
-        (i.e., its mean will be directly treated as 0).
-    ncores : int, default 1
-        The number of cores/sub-processes.
-    max_iter : int, default 100
-        Number of maximum iterations in model fitting.
-    pval_cutoff : float, default 0.05
-        The p-value cutoff for model selection with GLR test.
-    verbose : bool, default True
-        Whether to show detailed logging information.
-
-    Returns
-    -------
-    OrderedDict
-        The fitted parameters, will be used by downstream simulation.
-        In each item (pair), the key is the cell type (str) and the value
-        is the cell-type-specific parameters returned by 
-        :func:`~cs.marginal.fit_RD_cell_type`.
-    """
-    # check args
-    n, p = X.shape
-    if s is None:
-        assert s_type is None
-    if s_type is None:
-        assert s is None
-    if s is not None:
-        assert len(s) == n
-
-    cell_types = np.array(cell_types)
-    all_cell_types = list(set(cell_types))
-    assert len(cell_type_fit) == len(set(cell_type_fit)) and \
-        np.all(np.isin(cell_type_fit, all_cell_types))
-
-    if marginal not in ("auto", "zinb", "nb", "poi"):
-        error("invalid marginal '%s'." % marginal)
-        raise ValueError
-
-    # model fitting
-    if verbose:
-        info("fitting %d features in %d cell types (ncores = %d) ..." %  \
-            (p, len(cell_type_fit), ncores))
-
-    params = OrderedDict()
-    for c_type in cell_type_fit:
-        if verbose:
-            info("processing cell type '%s'." % c_type)
-        c_idx = cell_types == c_type
-        c_X = X[c_idx, :]
-        c_par = fit_RD_cell_type(
-            X = c_X,
-            s = s[c_idx] if s is not None else None,
-            s_type = s_type,
-            marginal = marginal,
-            min_nonzero_num = min_nonzero_num,
-            ncores = ncores,
-            max_iter = max_iter,
-            pval_cutoff = pval_cutoff,
-            verbose = verbose
-        )
-        assert len(c_par["fet_idx_nz"]) + len(c_par["fet_idx_oth"]) == p
-        params[c_type] = c_par
-
-    if verbose:
-        info("fitting statistics:")
-        fet_idx_df = pd.DataFrame(data = {
-            "cell_type": cell_type_fit,
-            "fet_idx_nz": [len(r["fet_idx_nz"]) for r in params.values()],
-            "fet_idx_oth": [len(r["fet_idx_oth"]) for r in params.values()]
-        })
-        info("\n" + str(fet_idx_df))
-    
-    return(params)
-
-
-def fit_RD_wrapper(
-    xdata,
+    count_fn,
+    tmp_dir,
     cell_type_fit = None,
-    size_factor = "libsize",
+    s = None,
+    s_type = None,
     marginal = "auto",
     min_nonzero_num = 3,
     ncores = 1,
@@ -565,21 +519,25 @@ def fit_RD_wrapper(
     pval_cutoff = 0.05,
     verbose = True
 ):
-    """Wrapper of fitting all features for all cell types.
+    """Fit all features in all cell types.
 
     Parameters
     ----------
-    xdata : anndata.AnnData
-        It contains the *cell x feature* matrix of sample values.
-        It should have a column `cell_type` in `xdata.obs`, and a column
-        `feature` in `xdata.var`.
+    count_fn : str
+        AnnData file containing the *cell x feature* count matrix.
+        It should have a column `cell_type` in `.obs`, and a column `feature`
+        in `.var`.
+    tmp_dir : str
+        Folder to store temporary data.
     cell_type_fit : list of str or None, default None
         A list of cell types (str) whose features will be fitted.
-        If `None`, use all unique cell types in `xdata`.
-    size_factor : str or None, default "libsize"
-        The type of size factor. 
-        Currently, only support "libsize" (library size).
-        Set to `None` if do not use size factors for model fitting.
+        If `None`, use all unique cell types in `count_fn`.
+    s : numpy.ndarray of float or None, default None
+        The size factors of cells in `count_fn`.
+        None means do not use it.
+    s_type : str or None, default None
+        The type of size factors.
+        None means do not use it.
     marginal : {"auto", "poi", "nb", "zinb"}
         Type of marginal distribution.
         One of "auto" (auto select), "poi" (Poisson), 
@@ -606,50 +564,100 @@ def fit_RD_wrapper(
         is the cell-type-specific parameters returned by 
         :func:`~cs.marginal.fit_RD_cell_type`.
     numpy.ndarray of str
-        The feature names.
-        Its order matches with the `index`.
+        The feature names from `count_fn`.
     """
     if verbose:
         info("start ...")
 
     # check args
-    X = sparse2array(xdata.X)
+    adata = load_h5ad(count_fn)
+    os.makedirs(tmp_dir, exist_ok = True)
 
-    assert "cell_type" in xdata.obs.columns
-    assert "feature" in xdata.var.columns
+    #X = sparse2array(adata.X)
+    X = adata.X
+    n, p = X.shape
 
-    all_cell_types = set(xdata.obs["cell_type"].unique())
+    assert "cell_type" in adata.obs.columns
+    assert "feature" in adata.var.columns
+
+    cell_types = adata.obs["cell_type"].values
+    all_cell_types = list(set(cell_types))
     if cell_type_fit is None:
-        cell_type_fit = sorted(list(all_cell_types))
+        cell_type_fit = sorted(all_cell_types)
+    else:
+        assert len(cell_type_fit) == len(set(cell_type_fit))
+        assert np.all(np.isin(cell_type_fit, all_cell_types))
 
+        
     s = None
-    if size_factor is None:
+    if s_type is None:
         pass
-    elif size_factor == "libsize":
+    elif s_type == "libsize":
         s = np.sum(X, axis = 1)
     else:
-        error("invalid size factor type '%s'." % size_factor)
-        raise ValueError
-    
-    if marginal not in ("auto", "zinb", "nb", "poi"):
-        error("invalid marginal '%s'." % marginal)
+        error("invalid size factor type '%s'." % s_type)
         raise ValueError
 
+        
+    if marginal not in ALL_DIST:
+        error("invalid marginal '%s'." % marginal)
+        raise ValueError
+        
+    features = np.array(adata.var["feature"])
+
+    
+    # process by cell type.
+    if verbose:
+        info("fit %d features in %d cell types (ncores = %d) ..." %  \
+            (p, len(cell_type_fit), ncores))
+
+    # split cells into batches by cell types.
+    count_fn_list = []
+    for i, c in enumerate(cell_type_fit):
+        fn = os.path.join(tmp_dir, "celltype.b%d.counts.h5ad" % i)
+        adata_s = adata[cell_types == c, :]
+        save_h5ad(adata_s, fn)
+        count_fn_list.append(fn)
+    del adata
+    gc.collect()
+    adata = None
+
+
     # model fitting
-    params = fit_RD(
-        X = X,
-        s = s,
-        s_type = size_factor,
-        cell_types = xdata.obs["cell_type"],
-        cell_type_fit = cell_type_fit,
-        marginal = marginal,
-        min_nonzero_num = min_nonzero_num,
-        ncores = ncores,
-        max_iter = max_iter,
-        pval_cutoff = pval_cutoff,
-        verbose = verbose      
-    )    
-    return((params, np.array(xdata.var["feature"])))
+    params = OrderedDict()
+    for c, fn in zip(cell_type_fit, count_fn_list):
+        if verbose:
+            info("processing cell type '%s'." % c)
+
+        c_dir = os.path.join(tmp_dir, c)
+        os.makedirs(c_dir, exist_ok = True)
+        
+        idx = cell_types == c
+        par = fit_RD_cell_type(
+            count_fn = fn,
+            tmp_dir = c_dir,
+            s = s[idx] if s is not None else None,
+            s_type = s_type,
+            marginal = marginal,
+            min_nonzero_num = min_nonzero_num,
+            ncores = ncores,
+            max_iter = max_iter,
+            pval_cutoff = pval_cutoff,
+            verbose = verbose
+        )
+        assert len(par["fet_idx_nz"]) + len(par["fet_idx_oth"]) == p
+        params[c] = par
+
+    if verbose:
+        info("fitting statistics:")
+        df = pd.DataFrame(data = {
+            "cell_type": cell_type_fit,
+            "fet_idx_nz": [len(r["fet_idx_nz"]) for r in params.values()],
+            "fet_idx_oth": [len(r["fet_idx_oth"]) for r in params.values()]
+        })
+        info(str(df))
+
+    return((params, features))
 
 
 
@@ -692,24 +700,61 @@ def simu_RD_feature(params, n, s = None, s_type = None):
     return(dat)
 
 
+
 def __simu_RD_feature(params, n, s, s_type, index):
     dat = simu_RD_feature(params, n, s, s_type)
     return((dat, index))
 
 
+
+def __simu_RD_cell_type_batch(
+    params_fn,
+    n,
+    s = None,
+    s_type = None
+):  
+    params = load_params(params_fn)
+    df = params
+    info(params_fn)
+    info(str(df.shape))
+    info(str(df.head()))
+    p = df.shape[0]
+    
+    result = []
+    for i in range(p):
+        par = df.iloc[i, ]           # feature-specific params.
+        res = __simu_RD_feature(
+            params = par,
+            n = n,
+            s = s,
+            s_type = s_type,
+            index = par["index"] + 0
+        )
+        result.append(res)
+
+    return(result)
+
+
+
 def simu_RD_cell_type(
-    params, n, s = None, dtype = np.int32, ncores = 1, verbose = False
+    params_fn, 
+    tmp_dir,
+    n,
+    s = None, dtype = np.int32, ncores = 1, verbose = False
 ):
     """Simulate RD values for all features in one cell type.
     
     Parameters
     ----------
-    params : dict
-        The cell-type-specific parameters fitted in :func:`fit_RD`.
+    params_fn : str
+        File storing the cell-type-specific parameters fitted in
+        :func:`fit_RD_cell_type`.
+    tmp_dir : str
+        Folder to store temporary data.
     n : int
         Number of cells to be simulated in this cell type.
     s : numpy.ndarray of float or None, default None
-        The size factor.
+        The size factors for simulated cells of this cell type.
         Its length should be `n`.
         Set to `None` if do not use it.
     dtype
@@ -722,56 +767,88 @@ def simu_RD_cell_type(
     Returns
     -------
     numpy.ndarray of int
-        Simulated RD values of *cell x feature*.
+        Simulated *cell x feature* RD values.
     """
     if verbose:
         info("start ...")
 
     # check args
+    params = load_params(params_fn)
+    os.makedirs(tmp_dir, exist_ok = True)
+
     assert len(params["params_nz"]) == len(params["fet_idx_nz"])
     p_nz = len(params["fet_idx_nz"])
     p_oth = len(params["fet_idx_oth"])
     p = p_nz + p_oth
 
-    if params["size_factor_type"] is None and s is not None:
+    s_type = params["size_factor_type"]
+    if s_type is None and s is not None:
         error("size factors unused.")
         raise ValueError
-    elif params["size_factor_type"] is not None and s is None:
+    elif s_type is not None and s is None:
         error("size factors missing.")
         raise ValueError
 
-    if verbose:
-        info("simulating on %d features in %d cells (ncores = %d) ..." %  \
-            (p, n, ncores))
-
-    mtx = np.zeros((n, p))
-    if p_nz <= 0:
-        return(mtx)
+    if s is not None:
+        assert len(s) == n
     
-    pool = multiprocessing.Pool(processes = ncores)
-    result = []
-    for i in range(p_nz):
-        fet_params = params["params_nz"].loc[i, ]
-        result.append(pool.apply_async(
-            __simu_RD_feature,
-            kwds = {
-                "params": fet_params,
-                "n": n,
-                "s": s,
-                "s_type": params["size_factor_type"],
-                "index": fet_params["index"] + 0
-            },
+    if p_nz <= 0:
+        return(np.zeros((n, p)))
+
+
+    # feature-specific count simulation.
+    if verbose:
+        info("simulate %d features in %d cells (ncores = %d) ..." %  \
+            (p, n, ncores))
+        
+    # split features into batches.
+    # here, max_n_batch to account for max number of open files.
+    bd_m, bd_n, bd_indices = split_n2batch(p_nz, ncores, max_n_batch = 1000)
+
+    if verbose:
+        info("split features into %d batches for multiprocessing." % bd_m)
+               
+    params_fn_list = []
+    for i, (b, e) in enumerate(bd_indices):
+        fn = os.path.join(tmp_dir, "fet.b%d.pickle" % i)
+        save_params(params["params_nz"].iloc[b:e, ], fn)
+        params_fn_list.append(fn)
+    del params
+    params = None
+
+
+    # multiprocessing.
+    if verbose:
+        info("begin multiprocessing with %d cores." % min(ncores, bd_m))
+
+    pool = multiprocessing.Pool(processes = min(ncores, bd_m))
+    mp_res = []
+    for fn in params_fn_list:
+        mp_res.append(pool.apply_async(
+            __simu_RD_cell_type_batch,
+            kwds = dict(
+                params_fn = fn,
+                n = n,
+                s = s,
+                s_type = s_type
+            ),
             callback = None,
             error_callback = mp_error_handler
         ))
     pool.close()
     pool.join()
-    result = [res.get() for res in result]
+    mp_res = [res.get() for res in mp_res]
 
     if verbose:
         info("multi-processing finished.")
         info("merge results ...")
+               
+    result = []
+    for res in mp_res:
+        result.extend(res)
 
+    # TODO: construct matrix in each batch and then merge here.
+    mtx = np.zeros((n, p))
     for dat, index in result:
         mtx[:, index] = dat
     mtx = mtx.astype(dtype)
@@ -779,8 +856,11 @@ def simu_RD_cell_type(
     return(mtx)
 
 
+
 def simu_RD(
-    params,
+    params_fn,
+    features,
+    tmp_dir,
     cell_type_new = None,
     cell_type_old = None,
     n_cell_each = None,
@@ -795,194 +875,14 @@ def simu_RD(
     
     Parameters
     ----------
-    params : dict
-        The fitted parameters returned by :func:`~cs.marginal.fit_RD`.
-    cell_type_new : list of str or None, default None
-        Cell type names for newly simulated cell clusters.
-        Set to `None` to use all the old cell types (in training data).
-    cell_type_old : list of str or None, default None
-        The old cell types whose parameters (in `params`) will be used by 
-        `cell_type_new`.
-        Its length and order should match `cell_type_new`.
-        Set to `None` to use all the old cell types (in training data).
-        Note that when `cell_type_new` is not None, `cell_type_old` must be 
-        specified with valid values.
-    n_cell_each : list of int or None, default None
-        Number of cells in each new cell type (`cell_type_new`).
-        Its length and order should match `cell_type_new`.
-        Set to `None` to use #cells of old cell types (in training data).
-    s : list of float or None, default None
-        Cell-type-specific size factors.
-        Its length and order should match `cell_type_new`.
-        Its elements are vectors whose lengths matching elements of 
-        `n_cell_each`.
-        Set to `None` if do not use it.
-    cn_fold : list or None, default None
-        The copy number (CN) fold, e.g., 1.0 for copy neutral; >1.0 for copy
-        gain; and <1.0 for copy loss.
-        Its length and order should match `cell_type_new`.
-        Each elements is a vector of CN fold, length and order matching
-        `feature`.
-        Set to `None` to use fold 1.0 on all features in all cell types.
-    total_count_new : int, list of int or None, default None
-        The total read counts to be simulated.
-        If a int, it is the total libray size of all simulated cells; 
-        If a list, it is a list of cell-type-specific total read counts whose 
-        length and order should match `cell_type_new`.
-        Set to `None` to set the scaling factor of total library size to 1.
-    dtype
-        The dtype of the simulated matrix.
-    ncores : int, default 1
-        Number of cores/sub-processes.
-    verbose : bool, default False
-        Whether to show detailed logging information.
-    
-    Returns
-    -------
-    numpy.ndarray of int
-        Simulated RD values of *cell x feature*.
-    dict
-        The updated `params` incorporating CN-folds, the same length 
-        as `cell_type_new`, while keep the input `params` unchanged.
-    """
-    params = copy.deepcopy(params)
-
-    # check args
-    all_cell_types = list(params.keys())
-    p = None
-    for c_type in all_cell_types:
-        c_par = params[c_type]
-        if p is None:
-            p = len(c_par["fet_idx_nz"]) + len(c_par["fet_idx_oth"])
-        else:
-            assert len(c_par["fet_idx_nz"]) + len(c_par["fet_idx_oth"]) == p
-    assert p is not None
-
-    if cell_type_new is None:
-        cell_type_new = all_cell_types
-        cell_type_old = all_cell_types
-    else:
-        assert cell_type_old is not None
-
-        #Note that when `cell_type_new` is not None, `cell_type_old`, 
-        #`n_cell_each`, `s`, and `cn_fold` should all be specified
-        #with valid values.
-        #
-        #assert n_cell_each is not None
-        #assert s is not None
-        #assert cn_fold is not None
-
-    assert len(cell_type_new) == len(cell_type_old)
-    for c_type in cell_type_old:   # duplicates in `cell_type_old` are allowed.
-        assert c_type in all_cell_types
-    n_cell_types = len(cell_type_new)
-
-    if n_cell_each is None:
-        n_cell_each = [params[c_type]["n_cell"] for c_type in cell_type_old]
-    else:
-        assert len(n_cell_each) == len(cell_type_new)
-    n_cell_new = np.sum(n_cell_each)
-
-    if verbose:
-        info("simulating %d features in %d new cells from %d cell types (ncores = %d) ..." %  \
-            (p, n_cell_new, len(cell_type_new), ncores))
-        info("number of cells in each simulated cell type:\n\t%s." % \
-             str(n_cell_each))
-
-    if s is None:
-        s = [None for _ in cell_type_new]
-    else:
-        assert len(s) == len(cell_type_new)
-        for c_s, n_cell in zip(s, n_cell_each):
-            if c_s is not None:
-                assert len(c_s) == n_cell
-
-    if cn_fold is None:
-        cn_fold = np.array([np.repeat(1.0, p) \
-                            for _ in range(len(cell_type_new))])
-    else:
-        assert len(cn_fold) == len(cell_type_new)
-        for fet_fold_lst in cn_fold:
-            assert len(fet_fold_lst) == p
-
-    if total_count_new is None:
-        pass
-    else:
-        assert xbase.is_scalar_numeric(total_count_new) or \
-            len(total_count_new) == len(cell_type_new)
-
-    total_count_old = np.array([params[c_type]["n_read"] \
-                            for c_type in cell_type_old])
-    n_cell_old = np.array([params[c_type]["n_cell"] \
-                            for c_type in cell_type_old])
-
-
-    # simulation
-    # TODO: consider copy number fold when scaling to total_count_new.
-    r = None                      # scaling factor
-    if total_count_new is None:
-        r = np.repeat(1.0, n_cell_types)
-    elif xbase.is_scalar_numeric(total_count_new):
-        r = np.repeat(
-            total_count_new/np.sum(total_count_old / n_cell_old * n_cell_each),
-            n_cell_types)
-    else:
-        # scDesign2: r = (total_count_new / n_cell_new) / \
-        #                  (total_count_old / n_cell_old)
-        r = (total_count_new / n_cell_each) / (total_count_old / n_cell_old)
-
-    params_new = dict()
-    mtx = None
-    for c_idx, (c_type_new, c_type_old) in enumerate(zip(
-        cell_type_new, cell_type_old)):
-        if verbose:
-            info("simulating for new cell type '%s' based on '%s' ..." %  \
-                (c_type_new, c_type_old))
-        c_par = copy.deepcopy(params[c_type_old])
-        scaling = r[c_idx] * cn_fold[c_idx][c_par["params_nz"]["index"]]
-        c_par["params_nz"]["mu"] *= scaling
-        c_mtx = simu_RD_cell_type(
-            params = c_par,
-            n = n_cell_each[c_idx],
-            s = s[c_idx],
-            dtype = dtype,
-            ncores = ncores,
-            verbose = verbose
-        )
-        if mtx is None:
-            mtx = c_mtx
-        else:
-            mtx = np.vstack((mtx, c_mtx))
-        params_new[c_type_new] = copy.deepcopy(c_par)
-    mtx = mtx.astype(dtype)
-
-    return((mtx, params_new))
-
-
-def simu_RD_wrapper(
-    params,
-    features,
-    cell_type_new = None,
-    cell_type_old = None,
-    n_cell_each = None,
-    size_factor_par = None,
-    cn_fold = None,
-    total_count_new = None,
-    dtype = np.int32,
-    ncores = 1, 
-    verbose = False
-):
-    """Wrapper of simulating RD values for all features in all cell types.
-    
-    Parameters
-    ----------
-    params : dict
-        The fitted parameters returned by :func:`fit_RD_wrapper`.
+    params_fn : str
+        File storing the fitted parameters returned by :func:`fit_RD`.
     features : list of str
         A list of feature names. 
-        Its order should match the index in `params`.
-        Typically use the value returned by
-        :func:`~cs.marginal.fit_RD_wrapper`.
+        Its order should match feature index in `params_fn`.
+        Typically use the value returned by :func:`~cs.marginal.fit_RD`.
+    tmp_dir : str
+        Folder to store temporary data.
     cell_type_new : list of str or None, default None
         Cell type names for newly simulated cell clusters.
         Set to `None` to use all the old cell types (in training data).
@@ -997,19 +897,18 @@ def simu_RD_wrapper(
         Number of cells in each new cell type (`cell_type_new`).
         Its length and order should match `cell_type_new`.
         Set to `None` to use #cells of old cell types (in training data).
-    size_factor_par : dict or None, default None
-        The parameters of size factors, used for simulating new size factors.
-        The key is the cell type (str) and the value is the cell-type-specific
-        parameters.
-        Typically, use the value returned by :func:`~cs.marginal.fit_libsize`.
-        Set to `None` to use size factors of old cell types (in training data),
-        could be `None`s when not used during training.
+    s : list of float or None, default None
+        Cell-type-specific size factors.
+        Its length and order should match `cell_type_new`.
+        Its elements are vectors whose lengths matching elements of 
+        `n_cell_each`.
+        Set to `None` if do not use it.
     cn_fold : dict or None, default None
         The copy number (CN) fold, e.g., 1.0 for copy neutral; >1.0 for copy
         gain; and <1.0 for copy loss.
         Its keys are new cell types (str) and values are vectors of CN folds.
         For each such vector, length and order should be the same with
-        `feature`.
+        `features`.
         Note that you can specify cell types with copy number alterations only,
         since all features are assumed have fold 1.0 unless specified.
         Set to `None` to use fold 1.0 on all features in all cell types.
@@ -1040,12 +939,15 @@ def simu_RD_wrapper(
         info("start ...")
 
     # check args
+    params = load_params(params_fn)
     params = copy.deepcopy(params)
+    os.makedirs(tmp_dir, exist_ok = True)
+
     all_cell_types = list(params.keys())
     p = len(features)
-    for c_type in all_cell_types:
-        c_par = params[c_type]
-        assert len(c_par["fet_idx_nz"]) + len(c_par["fet_idx_oth"]) == p
+    for c in all_cell_types:
+        par = params[c]
+        assert len(par["fet_idx_nz"]) + len(par["fet_idx_oth"]) == p
 
     if cell_type_new is None:
         cell_type_new = all_cell_types
@@ -1055,67 +957,141 @@ def simu_RD_wrapper(
         cell_type_new = list(cell_type_new)
     assert len(cell_type_new) == len(set(cell_type_new))
     assert len(cell_type_new) == len(cell_type_old)
-    for c_type in cell_type_old:   # duplicates in `cell_type_old` are allowed.
-        assert c_type in all_cell_types
+    for c in cell_type_old:      # duplicates in `cell_type_old` are allowed.
+        assert c in all_cell_types
     n_cell_types = len(cell_type_new)
 
 
     if n_cell_each is None:
-        n_cell_each = [params[c_type]["n_cell"] for c_type in cell_type_old]
-    assert len(n_cell_each) == len(cell_type_new)
-
-    size_factors = None
-    if size_factor_par is None:
-        # note that elements of size_factors can still be None
-        # when *size factor* is not used during training. 
-        size_factors = np.array([params[c_type]["size_factor_value"] \
-                            for c_type in cell_type_old])
+        n_cell_each = [params[c]["n_cell"] for c in cell_type_old]
     else:
-        size_factors, _ = simu_libsize(
-            params = size_factor_par,
-            cell_types = cell_type_old,
-            n_cell_each = n_cell_each,
-            verbose = verbose
-        )
-    
+        assert len(n_cell_each) == len(cell_type_new)
+    n_cell_new = np.sum(n_cell_each)
+               
+    if verbose:
+        info("simulate %d features in %d new cells from %d cell types (ncores = %d) ..." %  \
+            (p, n_cell_new, len(cell_type_new), ncores))
+        info("number of cells in each simulated cell type:\n\t%s." % \
+             str(n_cell_each))
+
+
+    if s is None:
+        s = [None for _ in cell_type_new]
+    else:
+        assert len(s) == len(cell_type_new)
+        for c_s, n_cell in zip(s, n_cell_each):
+            if c_s is not None:
+                assert len(c_s) == n_cell
+
+
+    cn_fold_arr = None        # np.array (2d); cell_type x feature
     if cn_fold is None:
-        pass
+        cn_fold_arr = np.array([np.repeat(1.0, p) \
+                            for _ in range(len(cell_type_new))])
     else:
         assert isinstance(cn_fold, dict)
         if verbose:
-            info("CN fold are specified in %d cell types." % len(cn_fold))
+            info("CN folds are specified in %d cell types." % len(cn_fold))
 
-        cn_fold_lst = np.array([np.repeat(1.0, p) \
+        cn_fold_arr = np.array([np.repeat(1.0, p) \
                             for _ in range(n_cell_types)])
-        for c_type, fet_fold_lst in cn_fold.items():
-            if c_type not in cell_type_new:
-                error("invalid cell type '%s' in cn_fold." % c_type)
+        for c, fold in cn_fold.items():
+            if c not in cell_type_new:
+                error("invalid cell type '%s' in cn_fold." % c)
                 raise ValueError
-            assert len(fet_fold_lst) == p
-            idx = cell_type_new.index(c_type)
-            cn_fold_lst[idx] = np.array(fet_fold_lst)
-        cn_fold = cn_fold_lst            # np.array (2d); cell_type x feature
+            assert len(fold) == p
+            idx = cell_type_new.index(c)
+            cn_fold_arr[idx] = np.array(fold)           
 
+
+    if total_count_new is None:
+        pass
+    else:
+        assert xbase.is_scalar_numeric(total_count_new) or \
+            len(total_count_new) == len(cell_type_new)
+
+    total_count_old = np.array([params[c]["n_read"] for c in cell_type_old])
+    n_cell_old = np.array([params[c]["n_cell"] for c in cell_type_old])
+               
 
     # simulation
-    mtx, params_new = simu_RD(
-        params = params,
-        cell_type_new = cell_type_new,
-        cell_type_old = cell_type_old,
-        n_cell_each = n_cell_each,
-        s = size_factors,
-        cn_fold = cn_fold,
-        total_count_new = total_count_new,
-        dtype = dtype,
-        ncores = ncores, 
-        verbose = verbose
-    )
+    # TODO: consider copy number fold when scaling to total_count_new.
+    r = None                      # scaling factor
+    if total_count_new is None:
+        r = np.repeat(1.0, n_cell_types)
+    elif xbase.is_scalar_numeric(total_count_new):
+        r = np.repeat(
+            total_count_new/np.sum(total_count_old / n_cell_old * n_cell_each),
+            n_cell_types)
+    else:
+        # scDesign2: r = (total_count_new / n_cell_new) / \
+        #                  (total_count_old / n_cell_old)
+        r = (total_count_new / n_cell_each) / (total_count_old / n_cell_old)
+               
+
+    # split data into batches by cell types.
+    params_fn_list = []
+    bd_args_fn_list = []
+    params_new = dict()
+    for i, (c_new, c_old) in enumerate(zip(cell_type_new, cell_type_old)):
+        par = copy.deepcopy(params[c_old])
+        scaling = r[i] * cn_fold_arr[i][par["params_nz"]["index"]]
+        par["params_nz"]["mu"] *= scaling
+
+        par_fn = os.path.join(tmp_dir, "celltype.%s.input.params.pickle" % c_new)
+        save_params(par, par_fn)
+        params_fn_list.append(par_fn)
+        
+        c_dir = os.path.join(tmp_dir, c_new)
+        os.makedirs(c_dir, exist_ok = True)
+
+        args = dict(
+            params_fn = par_fn,
+            tmp_dir = c_dir,
+            n = n_cell_each[i],
+            s = s[i],
+            dtype = dtype,
+            ncores = ncores,
+            verbose = verbose
+        )
+               
+        fn = os.path.join(tmp_dir, "celltype.%s.input.args.pickle" % c_new)
+        save_pickle(args, fn)
+        bd_args_fn_list.append(fn)
+               
+        params_new[c_new] = copy.deepcopy(par)
+               
+    params_fn_new = os.path.join(tmp_dir, "updated.cn_fold.params.pickle")
+    save_params(params_new, params_fn_new)
     
-    xdata = ad.AnnData(
+    del params_new
+    del params
+    del s
+    del cn_fold
+    del cn_fold_arr
+    gc.collect()
+    params_new = params = s = cn_old = cn_fold_arr = None
+    
+
+    # simulation in each cell type.
+    for i, (c_new, c_old, args_fn) in enumerate(zip(
+        cell_type_new, cell_type_old, bd_args_fn_list)):
+        info("simulate for new cell type '%s' based on '%s' ..." %  \
+            (c_new, c_old))
+        
+        args = load_pickle(args_fn)
+        c_mtx = simu_RD_cell_type(**args)
+        if mtx is None:
+            mtx = c_mtx
+        else:
+            mtx = np.vstack((mtx, c_mtx))
+    mtx = mtx.astype(dtype)
+
+    adata = ad.AnnData(
         X = mtx,
         obs = pd.DataFrame(data = {
             "cell_type": np.repeat(cell_type_new, n_cell_each)}),
         var = pd.DataFrame(data = {"feature": features})
     )
 
-    return((xdata, params_new))
+    return((adata, params_new))

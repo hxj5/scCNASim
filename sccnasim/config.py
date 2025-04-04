@@ -10,7 +10,7 @@ class Config:
 
     Attributes
     ----------
-    See `main::main_wrapper()`.
+    See :func:`~.main.main_wrapper()`.
     """
     def __init__(self):
         self.afc_def_conf = AFC_DefConf()

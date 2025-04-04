@@ -140,14 +140,14 @@ def main_wrapper(
         - "zinb" (Zero-Inflated Negative Binomial).
     kwargs_fit_sf : dict or None, default None
         The additional kwargs passed to function 
-        :func:`~marginal.fit_libsize_wrapper` for fitting size factors.
+        :func:`~.marginal.fit_libsize_wrapper` for fitting size factors.
         The available arguments are:
         - dist : {"lognormal", "swr", "normal", "t"}
             Type of distribution.
         If None, set to `{}`.
     kwargs_fit_rd : dict or None, default None
         The additional kwargs passed to function 
-        :func:`~marginal.fit_RD_wrapper` for fitting read depth.
+        :func:`~.marginal.fit_RD_wrapper` for fitting read depth.
         The available arguments are:
         - min_nonzero_num : int, default 3
             The minimum number of cells that have non-zeros for one feature.
@@ -393,7 +393,7 @@ def main_core(conf):
     # read simulation.
     info("start read simulation ...")
     rs_ret, rs_res = rs_wrapper(
-        count_fn = cs_res["adata_fn"],
+        count_fn = cs_res["count_fn"],
         feature_fn = afc_res["feature_obj_fn"],
         refseq_fn = conf.refseq_fn,
         out_dir = os.path.join(conf.out_dir, "%d_rs" % step),

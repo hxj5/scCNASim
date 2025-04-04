@@ -1,4 +1,4 @@
-# sf.py - size factors
+# sizefactor.py - size factors
 
 
 import copy
@@ -14,18 +14,22 @@ from ..utils.xmatrix import sparse2array
 
 
 
+ALL_DIST = ("lognormal", "swr", "normal", "t")
+
+
+
 ### Library size
 
 def fit_libsize_cell_type(
     X,
     dist = "lognormal"
 ):
-    """Fit library size for one cell type.
+    """Fit library size in one cell type.
 
     Parameters
     ----------
     X : numpy.ndarray
-        The *cell x feature* matrix containing sample values.
+        The *cell x feature* count matrix.
     dist : {"lognormal", "swr", "normal", "t"}
         Type of distribution.
 
@@ -34,7 +38,7 @@ def fit_libsize_cell_type(
     dict
         The fitted parameters, will be used by downstream simulation.
     """
-    if dist not in ("lognormal", "swr", "normal", "t"):
+    if dist not in ALL_DIST:
         error("invalid distribution '%s'." % dist)
         raise ValueError
     
@@ -62,81 +66,23 @@ def fit_libsize_cell_type(
     return(params)
 
 
+
 def fit_libsize(
-    X,
-    cell_types,
-    cell_type_fit,
-    dist = "lognormal",
-    verbose = True
-):
-    """Fit library size for all cell types.
-
-    Parameters
-    ----------
-    X : numpy.ndarray
-        It contains the *cell x feature* matrix of sample values.
-    cell_types : list of str
-        The cell types.
-        Its length and order should match the rows of `X`.
-    cell_type_fit : list of str
-        The cell types to be fitted.
-    dist : {"lognormal", "swr", "normal", "t"}
-        Type of distribution.
-    verbose : bool, default True
-        Whether to show detailed logging information.
-
-    Returns
-    -------
-    OrderedDict
-        The fitted parameters, will be used by downstream simulation.
-        In each item (pair), the key is the cell type (str) and the value
-        is the cell-type-specific parameters returned by 
-        :func:`~cs.marginal.fit_libsize_cell_type`.
-    """
-    # check args
-    cell_types = np.array(cell_types)
-    all_cell_types = list(set(cell_types))
-    assert len(cell_type_fit) == len(set(cell_type_fit)) and \
-        np.all(np.isin(cell_type_fit, all_cell_types))
-
-    if dist not in ("lognormal", "swr", "normal", "t"):
-        error("invalid distribution '%s'." % dist)
-        raise ValueError
-
-    # fitting
-    if verbose:
-        info("fitting library size in %d cell types ..." %  \
-            (len(cell_type_fit), ))
-    
-    params = OrderedDict()
-    for c_type in cell_type_fit:
-        if verbose:
-            info("processing cell type '%s'." % c_type)
-        c_X = X[cell_types == c_type, :]
-        c_par = fit_libsize_cell_type(
-            X = c_X,
-            dist = dist
-        )
-        params[c_type] = c_par
-    return(params)
-
-
-def fit_libsize_wrapper(
-    xdata,
+    adata,
     cell_type_fit = None,
     dist = "lognormal",
     verbose = True
 ):
-    """Wrapper of fitting library size for all cell types.
+    """Fit library size in all cell types.
 
     Parameters
     ----------
-    xdata : anndata.AnnData
-        It contains the *cell x feature* matrix of sample values.
-        It should have a column "cell_type" in `xdata.obs`.
+    adata : anndata.AnnData
+        It contains the *cell x feature* count matrix.
+        It should have a column "cell_type" in `adata.obs`.
     cell_type_fit : list of str or None, default None
         A list of cell types (str) whose features will be fitted.
-        If `None`, use all unique cell types in `xdata`.
+        If `None`, use all unique cell types in `adata`.
     dist : {"lognormal", "swr", "normal", "t"}
         Type of distribution.
     verbose : bool, default True
@@ -154,24 +100,36 @@ def fit_libsize_wrapper(
         info("start ...")
 
     # check args
-    assert "cell_type" in xdata.obs.columns
-    all_cell_types = set(xdata.obs["cell_type"].unique())
+    assert "cell_type" in adata.obs.columns
+    cell_types = adata.obs["cell_type"]
+    all_cell_types = list(set(cell_types.unique()))
     if cell_type_fit is None:
         cell_type_fit = sorted(list(all_cell_types))
+    else:
+        assert len(cell_type_fit) == len(set(cell_type_fit))
+        assert np.all(np.isin(cell_type_fit, all_cell_types))
 
-    if dist not in ("lognormal", "swr", "normal", "t"):
+    if dist not in ALL_DIST:
         error("invalid distribution '%s'." % dist)
         raise ValueError
 
     # fitting
-    params = fit_libsize(
-        X = sparse2array(xdata.X),
-        cell_types = xdata.obs["cell_type"],
-        cell_type_fit = cell_type_fit,
-        dist = dist,
-        verbose = verbose
-    )
+    if verbose:
+        info("fitting library size in %d cell types ..." %  \
+            (len(cell_type_fit), ))
+
+    params = OrderedDict()
+    for c in cell_type_fit:
+        if verbose:
+            info("processing cell type '%s'." % c)
+        X = adata.X[cell_types == c, :]
+        par = fit_libsize_cell_type(
+            X = X,
+            dist = dist
+        )
+        params[c] = par
     return(params)
+
 
 
 def simu_libsize_cell_type(params, n, low = None, high = None):
@@ -220,6 +178,7 @@ def simu_libsize_cell_type(params, n, low = None, high = None):
     return(s)
 
 
+
 def simu_libsize(
     params,
     cell_types = None,
@@ -257,12 +216,12 @@ def simu_libsize(
 
     params = copy.deepcopy(params)
     all_cell_types = list(params.keys())
-    for c_type in cell_types:
-        assert c_type in all_cell_types
+    for c in cell_types:
+        assert c in all_cell_types
     n_cell_types = len(cell_types)
 
     if n_cell_each is None:
-        n_cell_each = [params[c_type]["n"] for c_type in cell_types]
+        n_cell_each = [params[c]["n"] for c in cell_types]
     else:
         assert len(n_cell_each) == len(cell_types)
 
@@ -270,15 +229,15 @@ def simu_libsize(
         info("simulating library size in %d cell types ..." %  \
             (n_cell_types, ))
 
-    s = []
-    for c_idx, c_type in enumerate(cell_types):
+    s_list = []
+    for idx, c in enumerate(cell_types):
         if verbose:
-            info("processing cell type '%s' ..." % c_type)
-        c_par = params[c_type]
-        c_s = simu_libsize_cell_type(
-            params = c_par,
-            n = n_cell_each[c_idx]
+            info("processing cell type '%s' ..." % c)
+        par = params[c]
+        s = simu_libsize_cell_type(
+            params = par,
+            n = n_cell_each[idx]
         )
-        s.append(c_s)
+        s_list.append(s)
 
-    return((s, params))
+    return((s_list, params))

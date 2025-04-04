@@ -4,7 +4,6 @@
 
 import multiprocessing
 import os
-import pickle
 import sys
 import time
 
@@ -18,8 +17,9 @@ from .io import load_feature_from_txt, \
 from .thread import BatchData
 from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
-    load_list_from_str, save_h5ad
-from ..io.counts import load_xdata
+    load_list_from_str, save_h5ad,   \
+    load_feature_objects, save_feature_objects
+from ..io.counts import load_adata
 from ..utils.base import assert_e
 from ..utils.gfeature import assign_feature_batch
 from ..utils.xlog import init_logging
@@ -211,9 +211,7 @@ def afc_core(conf):
     # split feature list and save to file.
     info("split feature list and save to file ...")
 
-    with open(conf.feature_obj_fn, "wb") as fp:
-        pickle.dump(conf.reg_list, fp)
-
+    save_feature_objects(conf.reg_list, conf.feature_obj_fn)
     m_reg = len(conf.reg_list)
     
     # Note, here
@@ -229,8 +227,7 @@ def afc_core(conf):
         fn = conf.out_prefix + "feature.pickle." + str(idx)
         fn = os.path.join(conf.out_dir, fn)
         reg_fn_list.append(fn)
-        with open(fn, "wb") as fp:
-            pickle.dump(conf.reg_list[b:e], fp)
+        save_feature_objects(conf.reg_list[b:e], fn)
 
     for reg in conf.reg_list:  # save memory
         del reg
@@ -286,12 +283,10 @@ def afc_core(conf):
     out_feature_obj_fn = conf.feature_obj_fn.replace(".pickle", ".snp_filter.pickle")
     reg_list = []
     for fn in reg_fn_list:
-        with open(fn, "rb") as fp:
-            bd_reg_list = pickle.load(fp)
+        bd_reg_list = load_feature_objects(fn)
         reg_list.extend(bd_reg_list)
         os.remove(fn)
-    with open(out_feature_obj_fn, "wb") as fp:
-        pickle.dump(reg_list, fp)
+    save_feature_objects(reg_list, out_feature_obj_fn)
 
 
     # merge count matrices.
@@ -315,7 +310,7 @@ def afc_core(conf):
 
     adata = None
     for idx, ale in enumerate(conf.out_ale_fns.keys()):
-        dat = load_xdata(
+        dat = load_adata(
             mtx_fn = conf.out_ale_fns[ale],
             cell_fn = conf.out_sample_fn,
             feature_fn = conf.out_feature_fn,

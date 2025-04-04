@@ -17,12 +17,11 @@ import multiprocessing
 import numpy as np
 import os
 import pandas as pd
-import pickle
 import shutil
 
 from logging import info
 from .io import merge_tsv
-from ..io.base import load_h5ad, save_h5ad
+from ..io.base import load_h5ad, save_h5ad, load_feature_objects
 from ..utils.base import is_file_empty
 from ..utils.xbarcode import Barcode
 from ..utils.xdata import sum_layers
@@ -159,13 +158,13 @@ def cumi_simu_cs_main(
         Return code. 0 if success, negative otherwise.
     """
     # check args.
-    xdata = load_h5ad(count_fn)
-    n, p = xdata.shape
+    adata = load_h5ad(count_fn)
+    n, p = adata.shape
     
-    assert "cell" in xdata.obs
+    assert "cell" in adata.obs
     assert len(alleles) == len(out_files)
     for ale in alleles:
-        assert ale in xdata.layers
+        assert ale in adata.layers
 
     
     # split cells for multi-processing
@@ -178,10 +177,10 @@ def cumi_simu_cs_main(
     cell_count_fn_list = []
     for idx, (b, e) in enumerate(bd_cell_indices):
         fn = os.path.join(tmp_dir, "cell.b%d.adata.h5ad" % idx)
-        xdata_batch = xdata[b:e, :]
-        save_h5ad(xdata_batch, fn)
+        adata_batch = adata[b:e, :]
+        save_h5ad(adata_batch, fn)
         cell_count_fn_list.append(fn)
-    del xdata
+    del adata
     
     
     # prepare CUMI files for each batch.
@@ -264,15 +263,15 @@ def cumi_simu_cs(
         Return code. 0 if success, negative otherwise.
     """
     # check args.
-    xdata = load_h5ad(count_fn)
-    n, p = xdata.shape
+    adata = load_h5ad(count_fn)
+    n, p = adata.shape
     
-    assert "cell" in xdata.obs
-    cell_list = xdata.obs["cell"].values
+    assert "cell" in adata.obs
+    cell_list = adata.obs["cell"].values
     
     assert len(out_files) == len(alleles) 
     
-    RD = sum_layers(xdata, layers = alleles)
+    RD = sum_layers(adata, layers = alleles)
 
     # UMIs are generated in a cell-specific manner, mimicking real data that
     # the UMI of each transcript should be unique within one cell.
@@ -284,7 +283,7 @@ def cumi_simu_cs(
         r = 0
         for j in range(p):
             for k, (ale, fp) in enumerate(zip(alleles, fp_list)):
-                x = xdata.layers[ale][i, j]
+                x = adata.layers[ale][i, j]
                 ale_uint_list = uint_list[r:(r+x)]
                 r += x
                 s = ""
@@ -558,8 +557,7 @@ def cumi_sample_seed_main(
     # check args.
     adata = load_h5ad(count_fn)
     
-    with open(feature_fn, "rb") as fp:
-        reg_list = pickle.load(fp)
+    reg_list = load_feature_objects(feature_fn)
         
     assert "feature" in adata.var
     assert np.all(adata.var["feature"].values == \

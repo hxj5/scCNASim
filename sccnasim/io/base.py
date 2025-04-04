@@ -4,6 +4,7 @@
 import anndata as ad
 import numpy as np
 import pandas as pd
+import pickle
 from ..utils.base import is_file_empty
 from ..utils.grange import format_chrom, format_start, format_end, reg2str
 
@@ -293,7 +294,7 @@ def load_clones(fn, sep = "\t"):
     return(df)
 
 
-def load_cnas(fn, sep = "\t", cn_mode = "hap-aware"):
+def load_cnas(fn, sep = "\t", cna_mode = "hap-aware"):
     """Load clonal CNA profile from a header-free file.
     
     Parameters
@@ -307,15 +308,15 @@ def load_cnas(fn, sep = "\t", cn_mode = "hap-aware"):
         - "end" (int): end genomic position of the CNA region, 1-based and
           inclusive.
         - "clone" (str): clone ID.
-        if `cn_mode` is "hap-aware":
+        if `cna_mode` is "hap-aware":
         - "cn_ale0" (int): copy number of the first allele.
         - "cn_ale1" (int): copy number of the second allele.
         otherwise:
         - "cn" (int): copy number of both alleles.
     sep : str, default "\t"
         File delimiter.
-    cn_mode : {"hap-aware", "hap-unknown"}
-        The mode of copy numbers in CNA profiles.
+    cna_mode : {"hap-aware", "hap-unknown"}
+        The mode of CNA profiles.
         - "hap-aware": haplotype/allele aware.
         - "hap-unknown": haplotype/allele unknown.
 
@@ -325,14 +326,14 @@ def load_cnas(fn, sep = "\t", cn_mode = "hap-aware"):
         The loaded clonal CNA profile, whose first several columns are
         "chrom", "start", "end", "clone", 
         and
-        - if `cn_mode` is "hap-aware": "cn_ale0", and "cn_ale1", "region";
+        - if `cna_mode` is "hap-aware": "cn_ale0", and "cn_ale1", "region";
         - otherwise: "cn", "region".
         Note that "region" is a formatted string combining "chrom", "start",
         and "end".
     """
     df = None
     if is_file_empty(fn):
-        if cn_mode == "hap-aware":
+        if cna_mode == "hap-aware":
             df = pd.DataFrame(columns = ["chrom", "start", "end", "clone", \
                         "cn_ale0", "cn_ale1", "region"])
         else:
@@ -343,7 +344,7 @@ def load_cnas(fn, sep = "\t", cn_mode = "hap-aware"):
     df = pd.read_csv(fn, sep = sep, header = None, dtype = {0: str})
     df.columns = df.columns.astype(str)
     
-    if cn_mode == "hap-aware":
+    if cna_mode == "hap-aware":
         assert df.shape[1] >= 6
         df.columns.values[:6] = [
             "chrom", "start", "end", "clone", "cn_ale0", "cn_ale1"]
@@ -416,6 +417,19 @@ def save_features(df, fn, sep = "\t"):
     Void.
     """
     return(__save_multi_column_file(df, fn, sep))
+
+
+
+def load_feature_objects(fn):
+    with open(fn, "rb") as fp:
+        res = pickle.load(fp)
+    return(res)
+
+
+def save_feature_objects(obj, fn):
+    with open(fn, "wb") as fp:
+        pickle.dump(obj, fn)
+
 
 
 def load_regions(fn, sep = "\t"):

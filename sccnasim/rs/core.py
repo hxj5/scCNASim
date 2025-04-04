@@ -2,7 +2,6 @@
 
 
 import os
-import pickle
 import pysam
 import shutil
 
@@ -10,6 +9,7 @@ from .cumi import load_cumi
 from .fa import FastFA
 from .sam import sam_cat_and_sort
 from .snp import SNPSet, mask_read
+from ..io.base import load_feature_objects
 from ..utils.hapidx import hap2idx
 
 
@@ -23,8 +23,7 @@ def rs_features(thdata):
     refseq_fn = thdata.refseq_fn
     tmp_dir = thdata.tmp_dir
     
-    with open(reg_obj_fn, "rb") as fp:
-        reg_list = pickle.load(fp)
+    reg_list = load_feature_objects(reg_obj_fn)
     assert len(reg_list) == reg_idx_e - reg_idx_b
     
     fa = FastFA(refseq_fn)

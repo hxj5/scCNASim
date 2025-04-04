@@ -2,10 +2,10 @@
 
 
 import anndata as ad
+import gc
 import numpy as np
 import os
 import pandas as pd
-import pickle
 import sys
 import time
 import warnings
@@ -13,152 +13,38 @@ import warnings
 from anndata import ImplicitModificationWarning
 from logging import info, error
 from .config import Config
-from .core import cs_allele
-from .io import cs_save_adata2mtx
-from .pp import calc_size_factors, clone_calc_n_cell_each, \
-    cna_get_overlap_features, qc_libsize, subset_adata_by_cell_types
-from ..io.base import load_clones, load_cnas, load_h5ad, save_h5ad
+from .core import cs_init, cs_pp, cs_cna_core
+from .gcna import calc_cn_fold
+from .io import cs_save_adata2mtx, save_params
+from ..io.base import save_h5ad
 from ..utils.xbarcode import rand_cell_barcodes
-from ..utils.xdata import sum_layers
-
-
-
-def cs_pp(conf):
-    # check args.
-    cna_clones = np.unique(conf.cna_profile["clone"])
-    all_clones = np.unique(conf.clone_anno["clone"])
-    assert np.all(np.isin(cna_clones, all_clones))
-    
-    info("there are %d CNA clones in all %d clones." % (
-        len(cna_clones), len(all_clones)))
-
-
-    # subset adata (count matrices) by cell types.
-    # only keep cell types listed in clone annotations.
-    adata = subset_adata_by_cell_types(conf.adata, conf.clone_anno)
-    conf.adata = adata.copy()
-    adata = None
-    info("finish subset adata by cell types.")
-    
-
-    # number of cells in each clone.
-    n_cell_each = clone_calc_n_cell_each(    # list of int
-        clone_anno = conf.clone_anno,
-        adata = conf.adata
-    )
-    info("#cells in each clone: %s." % str(n_cell_each))
-    
-    
-    # filter low-quality cells, e.g, with very small library size or small
-    # number of expressed features.
-    adata, n_cells_filtered = qc_libsize(conf.adata, conf)
-    conf.adata = adata.copy()
-    adata = None
-    info("QC: %d cells filtered. Current adata shape: %s." %  \
-         (n_cells_filtered, conf.adata.shape))
-    
-
-    # get overlapping features for each CNA profile record.
-    cna_fet = cna_get_overlap_features(    # dict of {reg_id (str) : feature indexes (list of int)}
-        cna_profile = conf.cna_profile,
-        adata = conf.adata
-    )
-    info("extract overlapping features for %d CNA records." % \
-        conf.cna_profile.shape[0])
-
-
-    # get cell-wise size factors.
-    size_factors_train, size_factors_simu = calc_size_factors(
-        adata = conf.adata,
-        size_factor = conf.size_factor,
-        clone_cell_types = conf.clone_anno["cell_type"],
-        n_cell_each = n_cell_each,
-        kwargs_fit_sf = conf.kwargs_fit_sf,
-        verbose = conf.verbose
-    )
-    info("size factors calculated.")
-    
-    
-    res = dict(
-        n_cell_each = n_cell_each,
-        cna_fet = cna_fet,
-        size_factors_train = size_factors_train,
-        size_factors_simu = size_factors_simu
-    )
-    return(res)
+from ..utils.xio import load_pickle, save_pickle
 
 
 
 def cs_core(conf):
-    ret = prepare_config(conf)
-    if ret < 0:
-        error("prepare config failed (%d)." % ret)
-        raise ValueError
-    info("configuration:")
-    conf.show(fp = sys.stdout, prefix = "\t")
-
-
-    # check args.
-    for ale in conf.alleles:
-        assert ale in conf.adata.layers
-        
-        
-    # preprocessing.
-    pp_res = cs_pp(conf)
-        
-
-    # process allele A, B, U separately.
-    adata_new = None
-    allele_params = {}
-    for idx, allele in enumerate(conf.alleles):
-        info("start simulating counts of allele '%s'." % allele)
-        adata_ale, params_ale = cs_allele(
-            adata = conf.adata,
-            allele = allele,
-            clones = conf.clone_anno["clone"],
-            cell_types = conf.clone_anno["cell_type"],
-            n_cell_each = pp_res["n_cell_each"],
-            cna_profile = conf.cna_profile,
-            cna_features = pp_res["cna_fet"],
-            size_factors_type = conf.size_factor,
-            size_factors_train = pp_res["size_factors_train"],
-            size_factors_simu = pp_res["size_factors_simu"],
-            marginal = conf.marginal, 
-            kwargs_fit_rd = conf.kwargs_fit_rd,
-            ncores = conf.ncores, 
-            verbose = conf.verbose
-        )
-        assert np.all(adata_ale.var["feature"] == conf.adata.var["feature"])
-        if idx == 0:
-            adata_new = ad.AnnData(
-                X = None,
-                obs = adata_ale.obs,
-                var = adata_ale.var
-            )
-        else:
-            assert np.all(
-                adata_ale.obs["cell_type"] == adata_new.obs["cell_type"])
-        adata_new.layers[allele] = adata_ale.X
-        allele_params[allele] = params_ale
-
-    adata_new.obs["cell"] = rand_cell_barcodes(
-        m = 16,
-        n = adata_new.shape[0],
-        suffix = "-1",
-        sort = True
-    )
-    info("new adata constructed.")
-
-
-    # save results.
-    cs_params = dict(
+    info("init ...")
+    data = cs_init(conf)
+    
+    
+    info("preprocessing ...")
+    
+    pp_dir = os.path.join(conf.out_dir, "pp")
+    os.makedirs(pp_dir, exist_ok = True)
+    data, pp_res = cs_pp(data, conf, out_dir = pp_dir)
+    
+    adata = data["adata"]
+    clone_anno = data["clone_anno"]
+    cna_profile = data["cna_profile"]
+    
+    params = dict(
         # clones : pandas.Series
         #   The ID of CNA clones.
-        clones = conf.clone_anno["clone"],
+        clones = clone_anno["clone"],
 
         # cell_types : pandas.Series
         #   The source cell types used by `clones`.
-        cell_types = conf.clone_anno["cell_type"],
+        cell_types = clone_anno["cell_type"],
 
         # n_cell_each : list of int
         #   Number of cells in each of `clones`.
@@ -166,7 +52,7 @@ def cs_core(conf):
 
         # cna_profile : pandas.DataFrame
         #   The clonal CNA profile.
-        cna_profile = conf.cna_profile,
+        cna_profile = cna_profile,
 
         # cna_features : dict of {str : numpy.ndarray of int}
         #   The overlapping features of each CNA region.
@@ -194,22 +80,159 @@ def cs_core(conf):
         # kwargs_fit_rd : dict
         #   The additional kwargs passed to function 
         #   :func:`~marginal.fit_RD_wrapper` for fitting read depth.
-        kwargs_fit_rd = conf.kwargs_fit_rd,
-
-        # allele_params : dict of {str : dict}
-        #   The allele-specific parameters returned by count fitting and
-        #   simulation functions.
-        allele_params = allele_params
+        kwargs_fit_rd = conf.kwargs_fit_rd
     )
-    params_fn = os.path.join(conf.out_dir, conf.out_prefix + "params.pickle")
-    with open(params_fn, "wb") as fp:
-        pickle.dump(cs_params, fp)
+    
+    fn = os.path.join(pp_dir, "pp.output.params.pickle")
+    save_pickle(params, fn)
+    del params
 
-    adata_fn = os.path.join(conf.out_dir, conf.out_prefix + "counts.h5ad")
-    save_h5ad(adata_new, adata_fn)
+    
+    info("process allele separately ...")
+    
+    # some variables used downstream.
+    features = adata.var["feature"]
+    n, p = adata.shape
+    
+    # prepare allele-specific count data
+    info("prepare allele-specific count data ...")
+    
+    count_fn_list = []
+    dir_list = []
+    for idx, allele in enumerate(conf.alleles):
+        dir_ale = os.path.join(conf.out_dir, allele)
+        os.makedirs(dir_ale, exist_ok = True)
+        dir_list.append(dir_ale)
+        
+        adata_ale = ad.AnnData(
+            X = adata.layers[allele],
+            obs = adata.obs,
+            var = adata.var
+        )
+        
+        fn = os.path.join(dir_ale, "%s.input.counts.h5ad" % allele)
+        save_h5ad(adata_ale, fn)
+        count_fn_list.append(fn)
+    
+    
+    # prepare allele-specific args.
+    info("prepare allele-specific args ...")
+    
+    args_fn_list = []
+    for idx, allele in enumerate(conf.alleles):
+        profile = cna_profile.copy()
+        normal = None            # copy number in normal cells.
+        if allele == "A":
+            profile["cn"] = profile["cn_ale0"]
+            normal = 1
+        elif allele == "B":
+            profile["cn"] = profile["cn_ale1"]
+            normal = 1
+        elif allele == "U":
+            profile["cn"] = profile["cn_ale0"] + profile["cn_ale1"]
+            normal = 2
+        else:
+            raise ValueError
+
+        cn_fold = calc_cn_fold(
+            cna_profile = profile,
+            cna_features = pp_res["cna_fet"],
+            p = p,
+            normal = normal,
+            loss_allele_freq = conf.loss_allele_freq
+        )
+        
+        dir_ale = dir_list[idx]
+        args = dict(
+            count_fn = count_fn_list[idx],
+            out_dir = dir_ale,
+            out_prefix = allele,
+            clones = clone_anno["clone"],
+            cell_types = clone_anno["cell_type"],
+            n_cell_each = pp_res["n_cell_each"],
+            cn_fold = cn_fold,
+            size_factor = conf.size_factor,
+            size_factors_train = pp_res["size_factors_train"],
+            size_factors_simu = pp_res["size_factors_simu"],
+            marginal = conf.marginal, 
+            kwargs_fit_rd = conf.kwargs_fit_rd,
+            ncores = conf.ncores, 
+            verbose = conf.verbose
+        )
+        
+        fn = os.path.join(dir_ale, "%s.input.args.pickle" % allele)
+        save_pickle(args, fn)
+        args_fn_list.append(fn)
+
+    del adata
+    del clone_anno
+    del cna_profile
+    del data
+    del pp_res
+    del count_fn_list
+    gc.collect()
+    adata = clone_anno = cna_profile = data = pp_res = count_fn_list = None
+        
+
+    # simulate CNAs for each allele.
+    info("simulate CNAs for each allele ...")
+    
+    count_fn_list = []
+    params_fn_list = []
+    for idx, allele in enumerate(conf.alleles):
+        info("start simulating counts for allele '%s'." % allele)
+        
+        args = load_pickle(args_fn_list[idx])
+        adata_ale, params_ale = cs_cna_core(**args)
+        
+        assert np.all(adata_ale.var["feature"] == features)
+        
+        dir_ale = dir_list[idx]
+        
+        fn = os.path.join(dir_ale, "%s.simu.counts.h5ad" % allele)
+        save_h5ad(adata_ale, fn)
+        count_fn_list.append(fn)
+        
+        fn = os.path.join(dir_ale, "%s.simu.params.pickle" % allele)
+        save_params(params_ale, fn)
+        params_fn_list.append(fn)
+        
+        del adata_ale
+        del params_ale
+        gc.collect()
+        
+
+    # merge results.
+    info("merge results ...")
+    
+    adata_simu = None
+    for idx, allele in enumerate(conf.alleles):
+        adata_ale = load_h5ad(count_fn_list[idx])
+        if idx == 0:
+            adata_simu = ad.AnnData(
+                X = None,
+                obs = adata_ale.obs,
+                var = adata_ale.var
+            )
+        else:
+            assert np.all(
+                adata_ale.obs["cell_type"] == adata_simu.obs["cell_type"])
+        adata_simu.layers[allele] = adata_ale.X
+
+    adata_new.obs["cell"] = rand_cell_barcodes(
+        m = 16,
+        n = adata_new.shape[0],
+        suffix = "-1",
+        sort = True
+    )
+
+    
+    count_fn = os.path.join(conf.out_dir, "%s.counts.h5ad" % \
+                                conf.out_prefix)
+    save_h5ad(adata_new, count_fn)
     
     cs_save_adata2mtx(
-        adata = adata_new,
+        adata = adata_simu,
         layers = conf.alleles,
         out_dir = os.path.join(conf.out_dir, "matrix"),
         row_is_cell = True,
@@ -218,8 +241,7 @@ def cs_core(conf):
     )
     
     res = dict(
-        params_fn = params_fn,
-        adata_fn = adata_fn
+        count_fn = count_fn
     )
     return(res)
 
@@ -360,65 +382,7 @@ def cs_wrapper(
     conf.kwargs_fit_sf = {} if kwargs_fit_sf is None else kwargs_fit_sf
     conf.kwargs_fit_rd = {} if kwargs_fit_rd is None else kwargs_fit_rd
     
-    conf.cn_mode = "hap-aware"
+    conf.cna_mode = "hap-aware"
     
     ret, res = cs_run(conf)
     return((ret, res))
-
-
-
-def prepare_config(conf):
-    """Prepare configures for downstream analysis.
-
-    This function should be called after cmdline is parsed.
-
-    Parameters
-    ----------
-    conf : cs.config.Config
-        Global configuration object.
-
-    Returns
-    -------
-    int
-        Return code. 0 if success, -1 otherwise.
-    """
-    assert os.path.exists(conf.count_fn)
-    conf.adata = load_h5ad(conf.count_fn)
-    for obs_key in ("cell", "cell_type"):
-        assert obs_key in conf.adata.obs.columns
-    for var_key in ("feature", "chrom", "start", "end"):
-        assert var_key in conf.adata.var.columns
-        
-    assert conf.cn_mode in ("hap-aware", "hap-unknown")
-    if conf.cn_mode == "hap-aware":
-        conf.adata.X = sum_layers(conf.adata, layers = conf.alleles)
-    else:
-        assert conf.adata.X is not None
-
-    assert os.path.exists(conf.cna_profile_fn)
-    conf.cna_profile = load_cnas(
-        conf.cna_profile_fn, sep = "\t", cn_mode = conf.cn_mode)
-
-    assert os.path.exists(conf.clone_anno_fn)
-    conf.clone_anno = load_clones(conf.clone_anno_fn, sep = "\t")
-
-    os.makedirs(conf.out_dir, exist_ok = True)
-
-    if conf.size_factor is not None:
-        assert conf.size_factor in ("libsize", )
-    
-    assert conf.marginal in ("auto", "poi", "nb", "zinb")
-
-    kwargs_fit_sf = conf.def_kwargs_fit_sf.copy()
-    for k, v in kwargs_fit_sf.items():
-        if k in conf.kwargs_fit_sf:
-            kwargs_fit_sf[k] = conf.kwargs_fit_sf[k]
-    conf.kwargs_fit_sf = kwargs_fit_sf
-    
-    kwargs_fit_rd = conf.def_kwargs_fit_rd.copy()
-    for k, v in kwargs_fit_rd.items():
-        if k in conf.kwargs_fit_rd:
-            kwargs_fit_rd[k] = conf.kwargs_fit_rd[k]
-    conf.kwargs_fit_rd = kwargs_fit_rd
-
-    return(0)
