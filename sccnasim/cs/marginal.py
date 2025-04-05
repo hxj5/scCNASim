@@ -589,14 +589,12 @@ def fit_RD(
         assert np.all(np.isin(cell_type_fit, all_cell_types))
 
         
-    s = None
+    if s is None:
+        assert s_type is None
     if s_type is None:
-        pass
-    elif s_type == "libsize":
-        s = np.sum(X, axis = 1)
-    else:
-        error("invalid size factor type '%s'." % s_type)
-        raise ValueError
+        assert s is None
+    if s is not None:
+        assert len(s) == n
 
         
     if marginal not in ALL_DIST:
