@@ -715,9 +715,6 @@ def __simu_RD_cell_type_batch(
 ):  
     params = load_params(params_fn)
     df = params
-    info(params_fn)
-    info(str(df.shape))
-    info(str(df.head()))
     p = df.shape[0]
     
     result = []
@@ -932,8 +929,8 @@ def simu_RD(
         It has one column "cell_type" in `.obs` and one column "feature" 
         in `.var`.
     dict
-        The updated `params` incorporating CN-folds, the same length 
-        as `cell_type_new`, while keep the input `params` unchanged.
+        The updated `params` incorporating CN-folds, the same length as
+        `cell_type_new`, while keeping the input `params` unchanged.
     """
     if verbose:
         info("start ...")
@@ -1074,6 +1071,7 @@ def simu_RD(
     
 
     # simulation in each cell type.
+    mtx = None
     for i, (c_new, c_old, args_fn) in enumerate(zip(
         cell_type_new, cell_type_old, bd_args_fn_list)):
         info("simulate for new cell type '%s' based on '%s' ..." %  \
@@ -1093,5 +1091,7 @@ def simu_RD(
             "cell_type": np.repeat(cell_type_new, n_cell_each)}),
         var = pd.DataFrame(data = {"feature": features})
     )
+    
+    params_new = load_params(params_fn_new)
 
     return((adata, params_new))

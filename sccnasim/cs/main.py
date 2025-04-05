@@ -16,7 +16,7 @@ from .config import Config
 from .core import cs_init, cs_pp, cs_cna_core
 from .gcna import calc_cn_fold
 from .io import cs_save_adata2mtx, save_params
-from ..io.base import save_h5ad
+from ..io.base import load_h5ad, save_h5ad
 from ..utils.xbarcode import rand_cell_barcodes
 from ..utils.xio import load_pickle, save_pickle
 
@@ -183,22 +183,17 @@ def cs_core(conf):
         info("start simulating counts for allele '%s'." % allele)
         
         args = load_pickle(args_fn_list[idx])
-        adata_ale, params_ale = cs_cna_core(**args)
+        adata_ale = cs_cna_core(**args)
         
         assert np.all(adata_ale.var["feature"] == features)
         
         dir_ale = dir_list[idx]
         
-        fn = os.path.join(dir_ale, "%s.simu.counts.h5ad" % allele)
+        fn = os.path.join(dir_ale, "%s.simu.output.counts.h5ad" % allele)
         save_h5ad(adata_ale, fn)
         count_fn_list.append(fn)
         
-        fn = os.path.join(dir_ale, "%s.simu.params.pickle" % allele)
-        save_params(params_ale, fn)
-        params_fn_list.append(fn)
-        
         del adata_ale
-        del params_ale
         gc.collect()
         
 
@@ -219,18 +214,19 @@ def cs_core(conf):
                 adata_ale.obs["cell_type"] == adata_simu.obs["cell_type"])
         adata_simu.layers[allele] = adata_ale.X
 
-    adata_new.obs["cell"] = rand_cell_barcodes(
+    adata_simu.obs["cell"] = rand_cell_barcodes(
         m = 16,
-        n = adata_new.shape[0],
+        n = adata_simu.shape[0],
         suffix = "-1",
         sort = True
     )
 
-    
+
     count_fn = os.path.join(conf.out_dir, "%s.counts.h5ad" % \
                                 conf.out_prefix)
-    save_h5ad(adata_new, count_fn)
+    save_h5ad(adata_simu, count_fn)
     
+
     cs_save_adata2mtx(
         adata = adata_simu,
         layers = conf.alleles,

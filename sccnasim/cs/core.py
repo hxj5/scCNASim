@@ -247,8 +247,6 @@ def cs_cna_core(
         Simulated *cell x feature* RD values.
         It has one column "cell_type" in `.obs` and one column "feature"
         in `.var`.
-    dict
-        Parameters of fitting and simulation.
     """
     # check args.
     os.makedirs(out_dir, exist_ok = True)
