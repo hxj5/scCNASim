@@ -42,7 +42,7 @@ def load_feature_from_txt(fn, sep = "\t"):
     reg_list = []
     df = load_features(fn, sep = sep)
     for i in range(df.shape[0]):
-        rec = df.loc[i, ]
+        rec = df.iloc[i, ]
         reg = Feature(
             rec["chrom"],
             rec["start"],
@@ -85,7 +85,7 @@ def load_snp_from_tsv(fn, sep = "\t"):
     df = load_snps(fn, sep = sep)
     for i in range(df.shape[0]):
         nl = i + 1
-        rec = df.loc[i, ]
+        rec = df.iloc[i, ]
         ref, alt = rec["ref"].upper(), rec["alt"].upper()
         if len(ref) != 1 or ref not in "ACGTN":
             warn("invalid REF base of line %d." % nl)
@@ -129,7 +129,7 @@ def load_snp_from_vcf(fn):
     df, header = vcf_load(fn)
     for i in range(df.shape[0]):
         nl = i + 1
-        rec = df.loc[i, ]
+        rec = df.iloc[i, ]
         ref, alt = rec["REF"].upper(), rec["ALT"].upper()
         if len(ref) != 1 or ref not in "ACGTN":
             warn("invalid REF base of line %d." % nl)

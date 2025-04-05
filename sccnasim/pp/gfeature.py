@@ -122,7 +122,7 @@ def merge_features_quantile2(
     
     dat = {}
     for i in range(df.shape[0]):
-        rec = df.loc[i, ]
+        rec = df.iloc[i, ]
         chrom = rec["chrom"]
         if chrom not in dat:
             dat[chrom] = []
@@ -240,7 +240,7 @@ def merge_features_union(
     
     dat = {}
     for i in range(df.shape[0]):
-        rec = df.loc[i, ]
+        rec = df.iloc[i, ]
         chrom = rec["chrom"]
         if chrom not in dat:
             dat[chrom] = []
@@ -285,7 +285,7 @@ def sort_features(in_fn, out_fn):
     
     dat = {}
     for i in range(df.shape[0]):
-        rec = df.loc[i, ]
+        rec = df.iloc[i, ]
         chrom = rec["chrom"]
         if chrom not in dat:
             dat[chrom] = []

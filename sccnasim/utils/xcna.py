@@ -316,7 +316,7 @@ def load_cna_profile(fn, sep = "\t"):
 
     dat = CloneCNAProfile()    
     for i in range(df.shape[0]):
-        rec = df.loc[i, ]
+        rec = df.iloc[i, ]
         dat.add_cna(
             rec["chrom"],
             rec["start"],

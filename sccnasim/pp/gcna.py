@@ -46,7 +46,7 @@ def merge_cna_profile(in_fn, out_fn, max_gap = 1):
 
     dat = {}
     for i in range(df.shape[0]):
-        rec = df.loc[i, ]
+        rec = df.iloc[i, ]
         chrom = rec["chrom"]
         clone_id = rec["clone"]
         if clone_id not in dat:
