@@ -102,6 +102,15 @@ def cs_pp(data, conf, out_dir):
     # check args.
     os.makedirs(out_dir, exist_ok = True)
 
+    
+    # calc number of cells in each clone before filtering seed cells.
+    n_cell_each = clone_calc_n_cell_each(    # list of int
+        clone_anno = clone_anno,
+        adata = adata
+    )
+    info("#cells in each clone: %s." % str(n_cell_each))
+
+    
     # subset adata (count matrices) by cell types.
     # only keep cell types listed in clone annotations.
     adata = subset_adata_by_cell_types(adata, clone_anno)
@@ -125,13 +134,6 @@ def cs_pp(data, conf, out_dir):
     assert np.all(np.isin(cna_clones, all_clones))
     info("there are %d CNA clones in all %d clones." % (
         len(cna_clones), len(all_clones)))
-    
-
-    n_cell_each = clone_calc_n_cell_each(    # list of int
-        clone_anno = clone_anno,
-        adata = adata
-    )
-    info("#cells in each clone: %s." % str(n_cell_each))
 
 
     cna_fet = cna_get_overlap_features(    # dict of {reg_id (str) : feature indexes (list of int)}
