@@ -29,15 +29,15 @@ class SCount:
         """
         Parameters
         ----------
-        mcnt : afc.mcount_feature.MCount
+        mcnt : :class:`MCount`
             A MCount object (multiple cells) that the SCount object belongs to.
-        conf : afc.config.Config
+        conf : :class:`~.config.Config`
             Global configuration object.
         """
         self.mcnt = mcnt
         self.conf = conf
 
-        # ab : afc.mcount_ab.SCount
+        # ab : :class:`~.mcount_ab.SCount`
         #   The object containing the feature counting results (mainly of
         #   haplotype A and B) in this cell.
         self.ab = None
@@ -66,7 +66,7 @@ class SCount:
 
         Parameters
         ----------
-        ab : afc.mcount_ab.SCount
+        ab : :class:`~.mcount_ab.SCount`
             The object containing cell-wise feature counting results of mainly
             haplotype A and B.
         
@@ -88,7 +88,7 @@ class SCount:
 
         Parameters
         ----------
-        read : pysam.AlignedSegment
+        read : :class:`~pysam.AlignedSegment`
             The BAM read to be counted.
 
         Returns
@@ -139,7 +139,7 @@ class MCount:
     feature in individual cells, leveraging previous counting results of 
     mainly haplotype A and B.
 
-    Use the :func:`~afc.mcount_feature.MCount.add_feature` function to add
+    Use the :func:`~MCount.add_feature` function to add
     the feature to be counted.
     """
     def __init__(self, samples, conf):
@@ -148,17 +148,17 @@ class MCount:
         ----------
         samples : list of str
             A list of cell barcodes (droplet-based) or sample IDs (well-based).
-        conf : afc.config.Config
+        conf : :class:`~.config.Config`
             Global configuration object.
         """
         self.samples = samples
         self.conf = conf
 
-        # reg : utils.gfeature.Feature
+        # reg : :class:`~..utils.gfeature.Feature`
         #   The feature to be counted.
         self.reg = None
 
-        # ab : afc.mcount_ab.MCount
+        # ab : :class:`~.mcount_ab.MCount`
         #   The object containing (multi-cell) feature counting results of 
         #   mainly haplotype A and B.
         self.ab = None
@@ -166,7 +166,7 @@ class MCount:
         # cell_cnt : dict of {str : afc.mcount_feature.SCount}
         #   The cell-specific counting data.
         #   Keys are cell barcodes (droplet-based) or sample IDs (well-based),
-        #   values are the associated :class:`~afc.mcount_feature.SCount`
+        #   values are the associated :class:`SCount`
         #   objects.
         self.cell_cnt = {}
         for smp in self.samples:
@@ -183,9 +183,9 @@ class MCount:
 
         Parameters
         ----------
-        reg : utils.gfeature.Feature
+        reg : :class:`~..utils.gfeature.Feature`
             A feature to be counted.
-        ab : afc.mcount_ab.MCount
+        ab : :class:`~.mcount_ab.MCount`
             The object containing (multi-cell) feature counting results of 
             mainly haplotype A and B.
         
@@ -220,7 +220,7 @@ class MCount:
 
         Parameters
         ----------
-        read : pysam::AlignedSegment
+        read : :class:`~pysam::AlignedSegment`
             A BAM read to be counted.
         sid : str
             The ID of the sample that the read belongs to. 

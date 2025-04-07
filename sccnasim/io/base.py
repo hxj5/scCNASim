@@ -422,13 +422,13 @@ def save_features(df, fn, sep = "\t"):
 
 def load_feature_objects(fn):
     with open(fn, "rb") as fp:
-        res = pickle.load(fp)
-    return(res)
+        obj = pickle.load(fp)
+    return(obj)
 
 
 def save_feature_objects(obj, fn):
     with open(fn, "wb") as fp:
-        pickle.dump(obj, fn)
+        pickle.dump(obj, fp)
 
 
 

@@ -17,10 +17,6 @@ class Config:
         #   The default values of parameters.
         self.defaults = DefaultConfig()
 
-        # argv : list of str or None, default None
-        #   A list of command line arguments, typically from sys.argv.
-        self.argv = None
-
         # command-line arguments/parameters.
         self.sam_fn = None
         self.sam_list_fn = None
@@ -56,43 +52,7 @@ class Config:
         self.out_feature_dirs = None
 
 
-        # derived parameters.
-
-        # barcodes : list of str or None
-        #   A list of cell barcodes.
-        #   None if sample IDs are used.
-        self.barcodes = None
-
-        # sample_ids : list of str or None
-        #   A list of sample IDs.
-        #   None if cell barcodes are used.
-        self.sample_ids = None
-
-        # reg_list : list of utils.gfeature.Feature
-        #   A list of features.
-        self.reg_list = None
-
-        # snp_set : utils.gfeature.SNPSet
-        #   The object storing a set of SNPs.
-        self.snp_set = None
-
-        # sam_fn_list : list of str
-        #   A list of input SAM/BAM files. 
-        self.sam_fn_list = None
-
-        # samples : list of str
-        #   A list of cell barcodes (droplet-based data) or sample IDs (
-        #   well-based data).
-        #   It will be used as output IDs of each cell.        
-        self.samples = None
-
-        # count_dir : str
-        #   The output folder for count matrices.
-        self.count_dir = None
-
-        # feature_obj_fn : str
-        #   Path to a python pickle file storing the `reg_list`.
-        self.feature_obj_fn = None
+        # internal parameters.
 
         # alleles : tuple of str
         #   All alleles.
@@ -108,27 +68,7 @@ class Config:
 
         # out_prefix : str
         #   The prefix of the output files.
-        self.out_prefix = COMMAND + "."
-
-        # out_feature_fn : str
-        #   Path to the output feature file.
-        self.out_feature_fn = None
-
-        # out_sample_fn : str
-        #   Path to the output sample file.
-        self.out_sample_fn = None
-
-        # out_ale_fns : dict of {str : str}
-        #   The allele-specific *feature x cell* count matrices.
-        #   Keys are allele names and values are pathes to the count matrix
-        #   files.
-        self.out_ale_fns = {ale:None for ale in self.alleles}
-
-        # out_adata_fn : str
-        #   Path to a ".adata" file storing a :class:`~anndata.Anndata`
-        #   object, which contains all allele-specific *feature x cell* count
-        #   matrices.
-        self.out_adata_fn = None
+        self.out_prefix = COMMAND
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -174,36 +114,12 @@ class Config:
         s += "%s\n" % prefix
 
         
-        # derived parameters.
-        
-        s += "%snumber_of_BAMs = %d\n" % (prefix, len(self.sam_fn_list) if \
-                self.sam_fn_list is not None else -1)
-        s += "%snumber_of_barcodes = %d\n" % (prefix, len(self.barcodes) if \
-                self.barcodes is not None else -1)
-        s += "%snumber_of_sample_IDs = %d\n" % (prefix, len(self.sample_ids) \
-                if self.sample_ids is not None else -1)
-        s += "%snumber_of_features = %d\n" % (prefix, len(self.reg_list) if \
-                self.reg_list is not None else -1)
-        s += "%snumber_of_snps = %d\n" % (prefix, self.snp_set.get_n() if \
-                self.snp_set is not None else -1)
-        s += "%s\n" % prefix
-
-        s += "%scount_dir = %s\n" % (prefix, self.count_dir)
-        s += "%sfeature_obj_fn = %s\n" % (prefix, self.feature_obj_fn)
-        s += "%s\n" % prefix
+        # internal parameters.
 
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
         s += "%scumi_alleles = %s\n" % (prefix, str(self.cumi_alleles))
         s += "%shap_idx_tag = %s\n" % (prefix, self.hap_idx_tag)
-        s += "%s\n" % prefix
-
-        s += "%soutput_feature_file = %s\n" % (prefix, self.out_feature_fn)
-        s += "%soutput_sample_file = %s\n" % (prefix, self.out_sample_fn)
-        for ale, fn in self.out_ale_fns.items():
-            s += "%soutput_ale_%s_file = %s\n" % (prefix, ale, fn)
-        s += "%s\n" % prefix
-
-        s += "%sout_adata_fn = %s\n" % (prefix, self.out_adata_fn)
+        s += "%sout_prefix = %s\n" % (prefix, self.out_prefix)
         s += "%s\n" % prefix
 
         fp.write(s)

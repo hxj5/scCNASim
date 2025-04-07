@@ -1,9 +1,10 @@
 # main.py - allele-specific feature counting.
 
 
-
+import gc
 import multiprocessing
 import os
+import shutil
 import sys
 import time
 
@@ -14,7 +15,6 @@ from .core import fc_features
 from .io import load_feature_from_txt, \
     load_snp_from_vcf, load_snp_from_tsv, \
     merge_mtx
-from .thread import BatchData
 from ..app import APP, VERSION
 from ..io.base import load_bams, load_barcodes, load_samples,  \
     load_list_from_str, save_h5ad,   \
@@ -22,6 +22,7 @@ from ..io.base import load_bams, load_barcodes, load_samples,  \
 from ..io.counts import load_adata
 from ..utils.base import assert_e
 from ..utils.gfeature import assign_feature_batch
+from ..utils.xio import load_pickle, save_pickle
 from ..utils.xlog import init_logging
 from ..utils.xthread import split_n2batch, mp_error_handler
 from ..utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
@@ -169,24 +170,40 @@ def afc_wrapper(
     return((ret, res))
 
 
+
 def afc_core(conf):
-    if prepare_config(conf) < 0:
-        error("preparing configuration failed.")
-        raise ValueError
-    info("configuration:")
-    conf.show(fp = sys.stdout, prefix = "\t")
-
-
-    # prepare data for multiprocessing.
-    info("prepare data for multiprocessing ...")
+    info("preprocessing ...")
+    data = afc_pp(conf)
+    
+    reg_list = data["reg_list"]
+    snp_set = data["snp_set"]
+    sam_fn_list = data["sam_fn_list"]
+    samples = data["samples"]
+    
+    n_samples = len(samples)
+    
+    count_dir = os.path.join(conf.out_dir, "matrix")
+    os.makedirs(count_dir, exist_ok = True)
+    
+    info("save feature annotations ...")
+    out_feature_fn = os.path.join(
+        count_dir, conf.out_prefix + ".features.tsv")
+    with open(out_feature_fn, "w") as fp:
+        for reg in reg_list:
+            fp.write("%s\t%d\t%d\t%s\t%s\n" % \
+                    (reg.chrom, reg.start, reg.end - 1, reg.name, reg.strand))
+            
+    info("save cell IDs ...")
+    out_sample_fn = os.path.join(
+        count_dir, conf.out_prefix + ".samples.tsv")
+    with open(out_sample_fn, "w") as fp:
+        fp.write("".join([smp + "\n" for smp in samples]))
+    
 
     # extract SNPs for each feature.
-    if conf.debug > 0:
-        debug("extract SNPs for each feature.")
-
     n = 0
-    for reg in conf.reg_list:
-        snp_list = conf.snp_set.fetch(reg.chrom, reg.start, reg.end)
+    for reg in reg_list:
+        snp_list = snp_set.fetch(reg.chrom, reg.start, reg.end)
         if snp_list and len(snp_list) > 0:
             reg.snp_list = snp_list
             n += 1
@@ -194,111 +211,129 @@ def afc_core(conf):
             reg.snp_list = []
             if conf.debug > 0:
                 debug("no SNP fetched for feature '%s'." % reg.name)
-
-    info("%d features extracted with SNPs." % n)
+    info("%d features contain SNPs." % n)
 
 
     # assign features to several batches of result folders, to avoid exceeding
     # the maximum number of files/sub-folders in one folder.
-    assert len(conf.reg_list) == len(conf.out_feature_dirs)
-    for reg, feature_dir in zip(conf.reg_list, conf.out_feature_dirs):
+    assert len(reg_list) == len(conf.out_feature_dirs)
+    for reg, feature_dir in zip(reg_list, conf.out_feature_dirs):
         reg.res_dir = feature_dir
         reg.init_allele_data(alleles = conf.cumi_alleles)
     conf.out_feature_dirs.clear()
     conf.out_feature_dirs = None
         
 
+    tmp_dir = os.path.join(conf.out_dir, "tmp_afc")
+    os.makedirs(tmp_dir, exist_ok = True)
+    
+
     # split feature list and save to file.
     info("split feature list and save to file ...")
 
-    save_feature_objects(conf.reg_list, conf.feature_obj_fn)
-    m_reg = len(conf.reg_list)
+    fet_obj_fn = os.path.join(
+        conf.out_dir, conf.out_prefix + ".features.pickle")
+    save_feature_objects(reg_list, fet_obj_fn)
     
     # Note, here
     # - max_n_batch: to account for the max allowed files and subfolders in
     #   one folder.
     #   Currently, 6 files output in each batch.
+    m_reg = len(reg_list)
     bd_m, bd_n, bd_reg_indices = split_n2batch(
             m_reg, conf.ncores, max_n_batch = 5000)
-    info("m_reg=%d; bd_m=%d; bd_n=%d;" % (m_reg, bd_m, bd_n))
+    info("features are split into %d batches." % bd_m)
+    
+    bd_dir_list = []
+    for idx in range(bd_m):
+        d = os.path.join(tmp_dir, "%d" % idx)
+        os.makedirs(d, exist_ok = True)
+        bd_dir_list.append(d)
+
 
     reg_fn_list = []
     for idx, (b, e) in enumerate(bd_reg_indices):
-        fn = conf.out_prefix + "feature.pickle." + str(idx)
-        fn = os.path.join(conf.out_dir, fn)
+        fn = os.path.join(bd_dir_list[idx], "fet.b%d.pickle" % idx)
+        save_feature_objects(reg_list[b:e], fn)
         reg_fn_list.append(fn)
-        save_feature_objects(conf.reg_list[b:e], fn)
+    
+        
+    # prepare args for multiprocessing.
+    out_mtx_fns = {}
+    for ale in conf.alleles:
+        out_mtx_fns[ale] = os.path.join(
+            count_dir, conf.out_prefix + ".%s.mtx" % ale)
 
-    for reg in conf.reg_list:  # save memory
+    args_fn_list = []
+    for idx in range(bd_m):
+        mtx_fns = {ale: os.path.join(bd_dir_list[idx], "%s.b%d.mtx" % \
+                    (ale, idx)) for ale in conf.alleles}
+        args = dict(
+            reg_obj_fn = reg_fn_list[idx],
+            sam_fn_list = sam_fn_list,
+            out_mtx_fns = mtx_fns,
+            samples = samples,
+            batch_idx = idx,
+            conf = conf
+        )
+        fn = os.path.join(bd_dir_list[idx], "args.b%d.pickle" % idx)
+        save_pickle(args, fn)
+        args_fn_list.append(fn)
+        del args
+        
+    for reg in reg_list:  # save memory
         del reg
-    conf.reg_list.clear()
-    conf.reg_list = None
-    conf.snp_set.destroy()
-    conf.snp_set = None
+    snp_set.destroy()
+    del reg_list
+    del snp_set
+    del sam_fn_list
+    del samples
+    del data
+    gc.collect()
+    reg_list = snp_set = sam_fn_list = samples = data = None
 
 
     # allele-specific counting with multi-processing.
-    info("start allele-specific counting with %d cores ..." % conf.ncores)
+    info("allele-specific counting with %d cores ..." % min(conf.ncores, bd_m))
 
     pool = multiprocessing.Pool(processes = min(conf.ncores, bd_m))
     mp_result = []
     for i in range(bd_m):
-        bdata = BatchData(
-            idx = i, conf = conf,
-            reg_obj_fn = reg_fn_list[i],
-            out_feature_fn = conf.out_feature_fn + "." + str(i),
-            out_ale_fns = {ale: fn + "." + str(i) for ale, fn in \
-                           conf.out_ale_fns.items()}
-        )
-        if conf.debug > 0:
-            debug("data of batch-%d before:" % i)
-            bdata.show(fp = sys.stdout, prefix = "\t")
+        args = load_pickle(args_fn_list[i])
         mp_result.append(pool.apply_async(
             func = fc_features, 
-            args = (bdata, ), 
+            kwds = args,
             callback = show_progress,
             error_callback = mp_error_handler
         ))
     pool.close()
     pool.join()
-    
-    if conf.debug > 0:
-        debug("multiprocessing done!")
 
-    bdata_list = [res.get() for res in mp_result]
+    info("multiprocessing done!")
 
-    # check running status of each batch
-    for bdata in bdata_list:         
-        if conf.debug > 0:
-            debug("data of batch-%d after:" %  bdata.idx)
-            bdata.show(fp = sys.stdout, prefix = "\t")
-        if bdata.ret < 0:
-            error("error code for batch-%d: %d" % (bdata.idx, bdata.ret))
-            raise ValueError
+    mp_result = [res.get() for res in mp_result]
             
-            
+
     # merge feature objects containing post-filtering SNPs.
     info("merge feature objects ...")
-    
-    out_feature_obj_fn = conf.feature_obj_fn.replace(".pickle", ".snp_filter.pickle")
+
+    out_fet_obj_fn = fet_obj_fn.replace(".pickle", ".snp_filter.pickle")
     reg_list = []
     for fn in reg_fn_list:
-        bd_reg_list = load_feature_objects(fn)
-        reg_list.extend(bd_reg_list)
-        os.remove(fn)
-    save_feature_objects(reg_list, out_feature_obj_fn)
+        lst = load_feature_objects(fn)
+        reg_list.extend(lst)
+    save_feature_objects(reg_list, out_fet_obj_fn)
 
 
     # merge count matrices.
     info("merge output count matrices ...")
 
-    nr_reg_list = [td.nr_reg for td in bdata_list]
-    for ale in conf.out_ale_fns.keys():
+    for ale in out_mtx_fns.keys():
         if merge_mtx(
-            [td.out_ale_fns[ale] for td in bdata_list], ZF_F_GZIP,
-            conf.out_ale_fns[ale], "w", ZF_F_PLAIN,
-            nr_reg_list, len(conf.samples),
-            sum([td.nr_ale[ale] for td in bdata_list]),
+            [res["out_mtx_fns"][ale] for res in mp_result], ZF_F_GZIP,
+            out_mtx_fns[ale], "w", ZF_F_PLAIN,
+            [res["nr_reg"] for res in mp_result], n_samples,
+            sum([res["nr_mtx"][ale] for res in mp_result]),
             remove = True
         ) < 0:
             error("errcode -17")
@@ -307,13 +342,16 @@ def afc_core(conf):
 
     # construct adata and save into h5ad file.
     info("construct adata and save into h5ad file ...")
+    
+    out_count_fn = os.path.join(
+        conf.out_dir, conf.out_prefix + ".counts.h5ad")
 
     adata = None
-    for idx, ale in enumerate(conf.out_ale_fns.keys()):
+    for idx, ale in enumerate(out_mtx_fns.keys()):
         dat = load_adata(
-            mtx_fn = conf.out_ale_fns[ale],
-            cell_fn = conf.out_sample_fn,
-            feature_fn = conf.out_feature_fn,
+            mtx_fn = out_mtx_fns[ale],
+            cell_fn = out_sample_fn,
+            feature_fn = out_feature_fn,
             cell_columns = ["cell"],
             feature_columns = ["chrom", "start", "end", "feature", "strand"],
             row_is_cell = False
@@ -324,25 +362,28 @@ def afc_core(conf):
             adata.X = None
         else:
             adata.layers[ale] = dat.X
-    save_h5ad(adata.transpose(), conf.out_adata_fn)
+    save_h5ad(adata.transpose(), out_count_fn)
 
 
     # clean
     info("clean ...")
+    
+    shutil.rmtree(tmp_dir)
 
     res = {
-        # feature_obj_fn : str
+        # fet_obj_fn : str
         #   Path to a python pickle file storing the `reg_list`.
         #   It will be re-loaded for read sampling.
-        "feature_obj_fn": out_feature_obj_fn,
+        "fet_obj_fn": out_fet_obj_fn,
 
-        # out_adata_fn : str
+        # count_fn : str
         #   Path to a ".adata" file storing a :class:`~anndata.Anndata`
-        #   object, which contains all allele-specific *feature x cell* count
+        #   object, which contains all allele-specific *cell x feature* count
         #   matrices.
-        "adata_fn": conf.out_adata_fn
+        "count_fn": out_count_fn
     }
     return(res)
+
 
 
 def afc_run(conf):
@@ -355,10 +396,6 @@ def afc_run(conf):
         "%Y-%m-%d %H:%M:%S", time.localtime(start_time))
     info("start time: %s." % time_str)
 
-    if conf.argv is not None:
-        cmdline = " ".join(conf.argv)
-        info("CMD: %s" % cmdline)
-
     try:
         res = afc_core(conf)
     except ValueError as e:
@@ -370,9 +407,6 @@ def afc_run(conf):
         info("All Done!")
         ret = 0
     finally:
-        if conf.argv is not None:
-            info("CMD: %s" % cmdline)
-
         end_time = time.time()
         time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
         info("end time: %s" % time_str)
@@ -381,143 +415,87 @@ def afc_run(conf):
     return((ret, res))
 
 
-def prepare_config(conf):
-    """Prepare configures for downstream analysis.
 
-    This function should be called after cmdline is parsed.
-
-    Parameters
-    ----------
-    conf : afc.config.Config
-        Global configuration object.
-
-    Returns
-    -------
-    int
-        Return code. 0 if success, -1 otherwise.
-    """
-    if conf.sam_fn:
-        if conf.sam_list_fn:
-            error("should not specify 'sam_fn' and 'sam_list_fn' together.")
-            return(-1)
-        conf.sam_fn_list = load_list_from_str(conf.sam_fn, sep = ",")
-    else:
-        if not conf.sam_list_fn:
-            error("one of 'sam_fn' and 'sam_list_fn' should be specified.")
-            return(-1)
-        conf.sam_fn_list = load_bams(conf.sam_list_fn)
+def afc_pp(conf):
+    info("configuration:")
+    conf.show(fp = sys.stdout, prefix = "\t")
     
-    for fn in conf.sam_fn_list:
-        if not os.path.isfile(fn):
-            error("sam file '%s' does not exist." % fn)
-            return(-1)
-
-        
-    if conf.barcode_fn:
-        conf.sample_ids = None
-        if conf.sample_ids or conf.sample_id_fn:
-            error("should not specify barcodes and sample IDs together.")
-            return(-1)
-        if os.path.isfile(conf.barcode_fn):
-            conf.barcodes = sorted(load_barcodes(conf.barcode_fn))
-            if len(set(conf.barcodes)) != len(conf.barcodes):
-                error("duplicate barcodes!")
-                return(-1)
-        else:
-            error("barcode file '%s' does not exist." % conf.barcode_fn)
-            return(-1)
+    
+    sam_fn_list = None
+    if conf.sam_fn:
+        assert conf.sam_list_fn is None
+        sam_fn_list = load_list_from_str(conf.sam_fn, sep = ",")
     else:
-        conf.barcodes = None
+        assert conf.sam_list_fn is not None
+        sam_fn_list = load_bams(conf.sam_list_fn)
+    
+    for fn in sam_fn_list:
+        assert_e(fn)
+    info("load %d BAM file(s)." % len(sam_fn_list))
+
+    
+    barcodes = sample_ids = None
+    if conf.barcode_fn:
+        assert conf.sample_ids is None
+        assert conf.sample_id_fn is None
+        assert_e(conf.barcode_fn)
+        
+        barcodes = sorted(load_barcodes(conf.barcode_fn))
+        assert len(set(barcodes)) == len(barcodes)
+    else:
         if conf.sample_ids and conf.sample_id_fn:
-            error("should not specify 'sample_ids' and 'sample_fn' together.")
-            return(-1)
+            raise ValueError
         elif conf.sample_ids:
-            conf.sample_ids = load_list_from_str(conf.sample_ids, sep = ",")
+            sample_ids = load_list_from_str(conf.sample_ids, sep = ",")
         elif conf.sample_id_fn:
-            conf.sample_ids = load_samples(conf.sample_id_fn)
+            sample_ids = load_samples(conf.sample_id_fn)
         else:
             warn("use default sample IDs ...")
-            conf.sample_ids = ["Sample%d" % i for i in \
-                range(len(conf.sam_fn_list))]
-        if len(conf.sample_ids) != len(conf.sam_fn_list):
-            error("numbers of sam files and sample IDs are different.")
-            return(-1)
+            sample_ids = ["Sample%d" % i for i in range(len(sam_fn_list))]
+        assert len(sample_ids) == len(sam_fn_list)
         
-    conf.samples = conf.barcodes if conf.barcodes else conf.sample_ids
+    samples = barcodes if barcodes else sample_ids
+    info("load %d cells." % len(samples))
 
     
     if not conf.out_dir:
-        error("out dir needed!")
-        return(-1)
+        raise ValueError("out dir needed!")
     os.makedirs(conf.out_dir, exist_ok = True)
-    conf.count_dir = os.path.join(conf.out_dir, "matrix")
-    os.makedirs(conf.count_dir, exist_ok = True)
-    
-    conf.feature_obj_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "features.pickle")
-
-    conf.out_feature_fn = os.path.join(
-        conf.count_dir, conf.out_prefix + "features.tsv")
-    conf.out_sample_fn = os.path.join(
-        conf.count_dir, conf.out_prefix + "samples.tsv")
-    for ale in conf.out_ale_fns.keys():
-        conf.out_ale_fns[ale] = os.path.join(
-            conf.count_dir, conf.out_prefix + "%s.mtx" % ale)
-
-    conf.out_adata_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "counts.h5ad")
 
     
-    if conf.feature_fn:
-        if os.path.isfile(conf.feature_fn): 
-            conf.reg_list = load_feature_from_txt(conf.feature_fn)
-            if not conf.reg_list:
-                error("failed to load feature file.")
-                return(-1)
-            info("count %d features in %d single cells." % (
-                len(conf.reg_list), len(conf.samples)))
-        else:
-            error("feature file '%s' does not exist." % conf.feature_fn)
-            return(-1)
+    assert_e(conf.feature_fn)
+    reg_list = load_feature_from_txt(conf.feature_fn)
+    if not reg_list:
+        error("failed to load feature file.")
+        raise ValueError
+    info("load %d features." % len(reg_list))
+
+
+    assert_e(conf.snp_fn)
+    snp_set = None
+    fn = conf.snp_fn.lower()
+    if fn.endswith(".vcf") or fn.endswith(".vcf.gz") or \
+                fn.endswith(".vcf.bgz"):
+        snp_set = load_snp_from_vcf(conf.snp_fn)
     else:
-        error("feature file needed!")
-        return(-1)
+        snp_set = load_snp_from_tsv(conf.snp_fn)
+    if not snp_set or snp_set.get_n() <= 0:
+        raise ValueError
+    info("load %d SNPs." % snp_set.get_n())
 
-    
-    if conf.snp_fn:
-        if os.path.isfile(conf.snp_fn):
-            snp_fn = conf.snp_fn.lower()
-            if snp_fn.endswith(".vcf") or snp_fn.endswith(".vcf.gz")  \
-                    or snp_fn.endswith(".vcf.bgz"):
-                conf.snp_set = load_snp_from_vcf(conf.snp_fn)
-            else:
-                conf.snp_set = load_snp_from_tsv(conf.snp_fn)
-            if not conf.snp_set or conf.snp_set.get_n() <= 0:
-                error("failed to load snp file.")
-                return(-1)
-            else:
-                info("%d SNPs loaded." % conf.snp_set.get_n())       
-        else:
-            error("snp file '%s' does not exist." % conf.snp_fn)
-            return(-1)      
-    else:
-        error("SNP file needed!")
-        return(-1)
 
-    
     if conf.cell_tag and conf.cell_tag.upper() == "NONE":
         conf.cell_tag = None
-    if conf.cell_tag and conf.barcodes:
+    if conf.cell_tag and barcodes:
         pass       
-    elif (not conf.cell_tag) ^ (not conf.barcodes):
-        error("should not specify cell_tag or barcodes alone.")
-        return(-1)
+    elif (not conf.cell_tag) ^ (not barcodes):
+        raise ValueError("should not specify cell_tag or barcodes alone.")
     else:
         pass    
 
     if conf.umi_tag:
         if conf.umi_tag.upper() == "AUTO":
-            if conf.barcodes is None:
+            if barcodes is None:
                 conf.umi_tag = None
             else:
                 conf.umi_tag = conf.defaults.UMI_TAG_BC
@@ -528,14 +506,7 @@ def prepare_config(conf):
 
     
     assert conf.strandness in ("forward", "reverse", "unstranded")
-    
-    with open(conf.out_sample_fn, "w") as fp:
-        fp.write("".join([smp + "\n" for smp in conf.samples]))
-    
-    with open(conf.out_feature_fn, "w") as fp:
-        for reg in conf.reg_list:
-            fp.write("%s\t%d\t%d\t%s\t%s\n" % \
-                    (reg.chrom, reg.start, reg.end - 1, reg.name, reg.strand))
+
 
     if conf.excl_flag < 0:
         if conf.use_umi():
@@ -548,15 +519,51 @@ def prepare_config(conf):
         feature_dir = os.path.join(conf.out_dir, "features")
         os.makedirs(feature_dir, exist_ok = True)
         conf.out_feature_dirs = assign_feature_batch(
-            feature_names = [reg.name for reg in conf.reg_list],
+            feature_names = [reg.name for reg in reg_list],
             root_dir = feature_dir,
             batch_size = 1000
         )
     else:
         for fet_dir in conf.out_feature_dirs:
             assert_e(fet_dir)
+            
+            
+    info("updated configuration:")
+    conf.show(fp = sys.stdout, prefix = "\t")
+
+
+    data = dict(
+        # sam_fn_list : list of str
+        #   A list of input SAM/BAM files.
+        sam_fn_list = sam_fn_list,
+
+        # barcodes : list of str or None
+        #   A list of cell barcodes.
+        #   None if sample IDs are used.
+        barcodes = barcodes,
+
+        # sample_ids : list of str or None
+        #   A list of sample IDs.
+        #   None if cell barcodes are used.
+        sample_ids = sample_ids,
+
+        # samples : list of str
+        #   A list of cell barcodes (droplet-based data) or sample IDs (
+        #   well-based data).
+        #   It will be used as output IDs of each cell.
+        samples = samples,
+
+        # reg_list : list of utils.gfeature.Feature
+        #   A list of features.
+        reg_list = reg_list,
         
-    return(0)
+        # snp_set : utils.gfeature.SNPSet
+        #   The object storing a set of SNPs.
+        snp_set = snp_set
+    )
+        
+    return(data)
+
 
 
 def show_progress(rv = None):

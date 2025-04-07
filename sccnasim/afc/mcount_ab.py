@@ -14,9 +14,9 @@ class UCount:
         """
         Parameters
         ----------
-        scnt : afc.mcount_ab.SCount
+        scnt : :class:`SCount`
             The SCount object (cell level) that the UCount object belongs to.
-        conf : afc.config.Config
+        conf : :class:`~.config.Config`
             Configuration object.
         """
         self.scnt = scnt
@@ -43,7 +43,7 @@ class UCount:
         #   The key is the haplotype index in SNP level, i.e., 0 (ref), 
         #   1 (alt), -1 (oth), -2 (unknown; allele is None),
         #   the value is the number of SNPs.
-        #   See :class:`~afc.mcount_snp.UCount` for details.
+        #   See :class:`~.mcount_snp.UCount` for details.
         self.hap_cnt = {0:0, 1:0, -1:0, -2:0}
 
     def push_snp(self, snp_ucnt):
@@ -56,7 +56,7 @@ class UCount:
 
         Parameters
         ----------
-        snp_ucnt : afc.mcount_snp.UCount
+        snp_ucnt : :class:`.mcount_snp.UCount`
             A SNP counting object storing the inferred SNP-level haplotype
             information of this UMI/read.
 
@@ -100,9 +100,9 @@ class SCount:
         """
         Parameters
         ----------
-        mcnt : afc.mcount_ab.MCount
+        mcnt : :class:`MCount`
             A MCount object (multiple cells) that the SCount object belongs to.
-        conf : afc.config.Config
+        conf : :class:`~.config.Config`
             Global configuration object.
         """
         self.mcnt = mcnt
@@ -111,14 +111,14 @@ class SCount:
         # hap_cnt : dict of {int : int}
         #   The haplotype-specific UMI/read counts in feature level.
         #   The key is the haplotype index in UMI level (see 
-        #   :class:`~afc.mcount_ab.UCount` for details), the value is the 
+        #   :class:`UCount` for details), the value is the 
         #   number of UMIs/reads.
         self.hap_cnt = {0:0, 1:0, 2:0, -1:0, -2:0}
 
-        # umi_cnt : dict of {str : afc.mcount_ab.UCount}
+        # umi_cnt : dict of {str : UCount}
         #   The cell-wise, UMI/read pair-specific counting data.
         #   Keys are UMI barcodes (droplet-based) or query name (well-based),
-        #   values are the associated :class:`~afc.mcount_ab.UCount` objects.        
+        #   values are the associated :class:`UCount` objects.
         self.umi_cnt = {}
 
         # is_reset : bool
@@ -138,7 +138,7 @@ class SCount:
 
         Parameters
         ----------
-        snp_scnt : afc.mcount_snp.SCount
+        snp_scnt : :class:`~.mcount_snp.SCount`
             The cell-wise counting object of one SNP covered by the feature, 
             storing the inferred SNP-level haplotype state of multiple UMIs or
             reads that cover the SNP (i.e., can be fetched by the SNP).
@@ -184,7 +184,7 @@ class MCount:
     include those not fetched by any SNPs), which is inferred from their
     covering (phased) SNPs.
 
-    Use the :func:`~afc.mcount_ab.MCount.add_feature` function to add the
+    Use the :func:`~MCount.add_feature` function to add the
     feature to be counted.
     """
     def __init__(self, samples, conf):
@@ -193,7 +193,7 @@ class MCount:
         ----------
         samples : list of str
             A list of cell barcodes (droplet-based) or sample IDs (well-based).
-        conf : afc.config.Config
+        conf : :class:`~.config.Config`
             Global configuration object.
         """
         self.samples = samples
@@ -206,7 +206,7 @@ class MCount:
         # cell_cnt : dict of {str : afc.mcount_ab.SCount}
         #   The cell-specific counting data.
         #   Keys are cell barcodes (droplet-based) or sample IDs (well-based),
-        #   values are the associated :class:`~afc.mcount_ab.SCount` objects.
+        #   values are the associated :class:`SCount` objects.
         self.cell_cnt = {}
         for smp in self.samples:
             if smp in self.cell_cnt:    # duplicate samples
@@ -222,7 +222,7 @@ class MCount:
 
         Parameters
         ----------
-        reg : utils.gfeature.Feature
+        reg : :class:`~..utils.gfeature.Feature`
             A feature to be counted.
         
         Returns
@@ -254,7 +254,7 @@ class MCount:
 
         Parameters
         ----------
-        snp_mcnt : afc.mcount_snp.MCount
+        snp_mcnt : :class:`~.mcount_snp.MCount`
             The (multi-cell) counting object of one SNP covered by the feature,
             storing the inferred SNP-level haplotype state of multiple UMIs or
             reads that cover the SNP (i.e., can be fetched by the SNP).

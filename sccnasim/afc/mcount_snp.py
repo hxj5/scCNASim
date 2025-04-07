@@ -21,9 +21,9 @@ class UCount:
         """
         Parameters
         ----------
-        scnt : afc.mcount_snp.SCount
+        scnt : :class:`SCount`
             A SCount object (cell level) that the UCount object belongs to.
-        conf : afc.config.Config
+        conf : :class:`~.config.Config`
             Global configuration object.
         """
         self.scnt = scnt
@@ -48,7 +48,7 @@ class UCount:
         
         Parameters
         ----------
-        read : pysam.AlignedSegment
+        read : :class:`~pysam.AlignedSegment`
             A fetched BAM read covering the SNP.
 
         Returns
@@ -81,9 +81,9 @@ class SCount:
         """
         Parameters
         ----------
-        mcnt : afc.mcount_snp.MCount
+        mcnt : :class:`MCount`
             A MCount object (multiple cells) that the SCount object belongs to.
-        conf : afc.config.Config
+        conf : :class:`~.config.Config`
             Global configuration object.
         """
         self.mcnt = mcnt
@@ -96,7 +96,7 @@ class SCount:
         # umi_cnt : dict of {str : afc.mcount_snp.UCount}
         #   The cell-wise, UMI/read pair-specific counting data.
         #   Keys are UMI barcodes (droplet-based) or query name (well-based),
-        #   values are the associated :class:`~afc.mcount_snp.UCount` objects.
+        #   values are the associated :class:`UCount` objects.
         self.umi_cnt = {}
 
         # is_reset : bool
@@ -155,7 +155,7 @@ class MCount:
     This class generates the pileup UMI/read counts of specific phased SNP
     in individual cells.
 
-    Use the :func:`~afc.mcount_snp.MCount.add_snp` function to add the SNP
+    Use the :func:`~MCount.add_snp` function to add the SNP
     to be pileuped.
     """
     def __init__(self, samples, conf):
@@ -164,13 +164,13 @@ class MCount:
         ----------
         samples : list of str
             A list of cell barcodes (droplet-based) or sample IDs (well-based).
-        conf : afc.config.Config
+        conf : :class:`.config.Config`
             Global configuration object.
         """
         self.samples = samples
         self.conf = conf
 
-        # snp : utils.gfeature.SNP
+        # snp : :class:`~..utils.gfeature.SNP`
         #   The SNP being pileuped.
         self.snp = None
 
@@ -186,7 +186,7 @@ class MCount:
         # cell_cnt : dict of {str : afc.mcount_snp.SCount}
         #   The cell-specific counting data.
         #   Keys are cell barcodes (droplet-based) or sample IDs (well-based),
-        #   values are the associated :class:`~afc.mcount_snp.SCount` objects.
+        #   values are the associated :class:`SCount` objects.
         self.cell_cnt = {}
         for smp in self.samples:
             if smp in self.cell_cnt:    # duplicate samples
@@ -202,7 +202,7 @@ class MCount:
 
         Parameters
         ----------
-        snp : utils.gfeature.SNP
+        snp : :class:`~..utils.gfeature.SNP`
             A SNP to be pileuped.
         
         Returns
@@ -232,7 +232,7 @@ class MCount:
         
         Parameters
         ----------
-        read : pysam.AlignedSegment
+        read : :class:`~pysam.AlignedSegment`
             A fetched BAM read covering the SNP.
         sid : str or None, default None
             The ID of the sample that the read belongs to. 

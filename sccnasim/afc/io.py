@@ -11,6 +11,7 @@ from ..utils.vcf import vcf_load
 from ..utils.zfile import zopen
 
 
+
 def load_feature_from_txt(fn, sep = "\t"):
     """Load features from plain file.
 
@@ -36,7 +37,7 @@ def load_feature_from_txt(fn, sep = "\t"):
     Returns
     -------
     list of utils.gfeature.Feature or None
-        A list of :class:`~utils.gfeature.Feature` objects if success,
+        A list of :class:`~..utils.gfeature.Feature` objects if success,
         `None` otherwise.
     """
     reg_list = []
@@ -52,6 +53,7 @@ def load_feature_from_txt(fn, sep = "\t"):
         )
         reg_list.append(reg)
     return reg_list
+
 
 
 def load_snp_from_tsv(fn, sep = "\t"):
@@ -79,7 +81,8 @@ def load_snp_from_tsv(fn, sep = "\t"):
     Returns
     -------
     utils.gfeature.SNPSet or None
-        A :class:`~utils.gfeature.SNPSet` object if success, `None` otherwise.
+        A :class:`~..utils.gfeature.SNPSet` object if success, 
+        `None` otherwise.
     """
     snp_set = SNPSet()
     df = load_snps(fn, sep = sep)
@@ -112,6 +115,7 @@ def load_snp_from_tsv(fn, sep = "\t"):
     return snp_set
 
 
+
 def load_snp_from_vcf(fn):
     """Load phased SNPs from VCF file.
 
@@ -123,7 +127,8 @@ def load_snp_from_vcf(fn):
     Returns
     -------
     utils.gfeature.SNPSet or None
-        A :class:`~utils.gfeature.SNPSet` object if success, `None` otherwise.
+        A :class:`~..utils.gfeature.SNPSet` object if success, 
+        `None` otherwise.
     """
     snp_set = SNPSet()
     df, header = vcf_load(fn)
@@ -174,6 +179,7 @@ def load_snp_from_vcf(fn):
     return snp_set
 
 
+
 def _fmt_line(ln, k):
     items = ln.split("\t")
     items[0] = str(int(items[0]) + k)
@@ -199,17 +205,17 @@ def merge_mtx(in_fn_list, in_format,
     in_format : int
         The format of each file in `in_fn_list`.
         Its value should be compatible with the "file_type" option in
-        :func:`~utils.zfile.zopen`.
+        :func:`~..utils.zfile.zopen`.
     out_fn : str
         Path to the output merged count matrix file.
     out_fmode : str
         The file mode of the `out_fn`.
         Its value should be compatible with the "mode" option in
-        :func:`~utils.zfile.zopen`.
+        :func:`~..utils.zfile.zopen`.
     out_format : int
         The file format of `out_fn`.
         Its value should be compatible with the "file_type" option in
-        :func:`~utils.zfile.zopen`.
+        :func:`~..utils.zfile.zopen`.
     nrow_list : list of int
         Number of unique features (row indexes) in each file within
         `in_fn_list`.
@@ -265,6 +271,7 @@ def merge_mtx(in_fn_list, in_format,
     return(0) 
 
 
+
 # internal use only!
 def merge_tsv(in_fn_list, in_format, 
               out_fn, out_fmode, out_format, 
@@ -279,17 +286,17 @@ def merge_tsv(in_fn_list, in_format,
     in_format : int
         The format of each file in `in_fn_list`.
         Its value should be compatible with the "file_type" option in
-        :func:`~utils.zfile.zopen`.
+        :func:`~..utils.zfile.zopen`.
     out_fn : str
         Path to the output merged feature TSV file.
     out_fmode : str
         The file mode of the `out_fn`.
         Its value should be compatible with the "mode" option in
-        :func:`~utils.zfile.zopen`.
+        :func:`~..utils.zfile.zopen`.
     out_format : int
         The file format of `out_fn`.
         Its value should be compatible with the "file_type" option in
-        :func:`~utils.zfile.zopen`.
+        :func:`~..utils.zfile.zopen`.
     remove : bool, default False
         Whether to remove the files in `in_fn_list` after merging.
 
@@ -316,6 +323,7 @@ def merge_tsv(in_fn_list, in_format,
     return(0)
 
 
+
 # internal use only!
 def rewrite_mtx(in_fn, in_format, 
                 out_fn, out_fmode, out_format, 
@@ -332,17 +340,17 @@ def rewrite_mtx(in_fn, in_format,
     in_format : int
         The file format of `in_fn`.
         Its value should be compatible with the "file_type" option in
-        :func:`~utils.zfile.zopen`.
+        :func:`~..utils.zfile.zopen`.
     out_fn : str
         Path to the updated output count matrix file.
     out_fmode : str
         The file mode of the `out_fn`.
         Its value should be compatible with the "mode" option in
-        :func:`~utils.zfile.zopen`.
+        :func:`~..utils.zfile.zopen`.
     out_format : int
         The file format of `out_fn`.
         Its value should be compatible with the "file_type" option in
-        :func:`~utils.zfile.zopen`.
+        :func:`~..utils.zfile.zopen`.
     nrow : int
         Number of unique features (row indexes) in `in_fn`.
     ncol : int

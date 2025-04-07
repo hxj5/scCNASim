@@ -21,8 +21,10 @@ from .utils.gfeature import assign_feature_batch
 from .utils.xlog import init_logging
 
 
+
 def main():
     pass
+
 
 
 def main_wrapper(
@@ -280,8 +282,9 @@ def main_wrapper(
     return((ret, res))
 
 
+
 def main_core(conf):
-    ret = prepare_config(conf)
+    ret = main_init(conf)
     if ret < 0:
         raise ValueError
     conf.show()
@@ -361,17 +364,17 @@ def main_core(conf):
 
     # count simulation.
     info("start count simulation ...")
-    adata_fn_new = afc_res["adata_fn"].replace(".h5ad", ".cell_anno.h5ad")
+    count_fn_new = afc_res["count_fn"].replace(".h5ad", ".cell_anno.h5ad")
     add_cell_anno(
-        adata_fn = afc_res["adata_fn"],
+        count_fn = afc_res["count_fn"],
         cell_anno_fn = pp_res["cell_anno_fn_new"],
-        out_adata_fn = adata_fn_new
+        out_count_fn = count_fn_new
     )
     info("new input (annotated) count adata file is saved to '%s'." % \
-        adata_fn_new)
+        count_fn_new)
 
     cs_ret, cs_res = cs_wrapper(
-        count_fn = adata_fn_new,
+        count_fn = count_fn_new,
         clone_anno_fn = pp_res["clone_anno_fn_new"],
         cna_profile_fn = pp_res["cna_profile_fn_new"],
         out_dir = os.path.join(conf.out_dir, "%d_cs" % step),
@@ -394,7 +397,7 @@ def main_core(conf):
     info("start read simulation ...")
     rs_ret, rs_res = rs_wrapper(
         count_fn = cs_res["count_fn"],
-        feature_fn = afc_res["feature_obj_fn"],
+        feature_fn = afc_res["fet_obj_fn"],
         refseq_fn = conf.refseq_fn,
         out_dir = os.path.join(conf.out_dir, "%d_rs" % step),
         debug_level = conf.debug_level,
@@ -414,6 +417,7 @@ def main_core(conf):
     # construct returned values.
     res = rs_res
     return(res)
+
 
 
 def main_run(conf):
@@ -460,7 +464,8 @@ def main_run(conf):
     return((ret, res))
 
 
-def prepare_config(conf):
+
+def main_init(conf):
     if conf.sam_fn is not None:
         assert_e(conf.sam_fn)
     if conf.sam_list_fn is not None:
@@ -480,12 +485,13 @@ def prepare_config(conf):
     return(0)
 
 
-def add_cell_anno(adata_fn, cell_anno_fn, out_adata_fn):
+
+def add_cell_anno(count_fn, cell_anno_fn, out_count_fn):
     cell_anno = load_cells(cell_anno_fn)
     assert "cell" in cell_anno.columns
     assert "cell_type" in cell_anno.columns
 
-    adata = load_h5ad(adata_fn)
+    adata = load_h5ad(count_fn)
     assert "cell" in adata.obs.columns
 
     assert np.all(adata.obs["cell"].isin(cell_anno["cell"]))
@@ -493,4 +499,4 @@ def add_cell_anno(adata_fn, cell_anno_fn, out_adata_fn):
 
     assert "cell_type" in adata.obs.columns
 
-    save_h5ad(adata, out_adata_fn)
+    save_h5ad(adata, out_count_fn)

@@ -22,7 +22,14 @@ from ..utils.zfile import zopen, ZF_F_GZIP
 #    multiprocessing): https://github.com/pysam-developers/pysam/issues/397
 
 
-def fc_features(bdata):
+def fc_features(
+    reg_obj_fn,
+    sam_fn_list,
+    out_mtx_fns,
+    samples,
+    batch_idx,
+    conf
+):
     """Feature counting for a list of features.
 
     This function does feature counting for a list of features. When iterating
@@ -36,110 +43,138 @@ def fc_features(bdata):
     
     Parameters
     ----------
-    bdata : afc.thread.BatchData
-        The object containing batch-specific data.
+    reg_obj_fn : str
+        File storing a list of :class:`~..utils.gfeature.Feautre` objects.
+    sam_fn_list : list of str
+        A list of BAM files.
+    out_mtx_fns : dict of {str : str}
+        Output allele-specific sparse matrix files.
+        Keys are alleles and values are sparse matrix files.
+    samples : list of str
+        A list of sample/cell IDs.
+    batch_idx : int
+        The index of this batch.
+    conf : .config.Config
+        The :class:`~.config.Config` object.
 
     Returns
     -------
-    afc.thread.BatchData
-        The batch-specific data.
+    dict
+        Results of this batch.
     """
-    conf = bdata.conf
-    bdata.ret = -1
-    
-    if conf.debug > 0:
-        debug("[Batch-%d] start ..." % bdata.idx)
+    info("[Batch-%d] start ..." % batch_idx)
 
     sam_list = []
-    for fn in conf.sam_fn_list:
+    for fn in sam_fn_list:
         sam = pysam.AlignmentFile(fn, "r", require_index = True)
         sam_list.append(sam)
 
-    reg_list = load_feature_objects(bdata.reg_obj_fn)
-    os.remove(bdata.reg_obj_fn)
+    reg_list = load_feature_objects(reg_obj_fn)
 
-    fp_ale = {ale: zopen(fn, "wt", ZF_F_GZIP, is_bytes = False) \
-                for ale, fn in bdata.out_ale_fns.items()}
-    alleles = bdata.out_ale_fns.keys()
+    alleles = list(out_mtx_fns.keys())
+    fp_mtx = {ale: zopen(fn, "wt", ZF_F_GZIP, is_bytes = False) \
+                for ale, fn in out_mtx_fns.items()}
 
-    snp_mcnt = SNPMCount(conf.samples, conf)
-    ab_mcnt = ABFeatureMCount(conf.samples, conf)
-    mcnt = FeatureMCount(conf.samples, conf)
 
-    m_reg = float(len(reg_list))
-    l_reg = 0         # fraction of processed genes, used for verbose.
-    for reg_idx, reg in enumerate(reg_list):
+    # core part.
+    mcnt_snp = SNPMCount(samples, conf)
+    mcnt_ab = ABFeatureMCount(samples, conf)
+    mcnt = FeatureMCount(samples, conf)
+
+    m = float(len(reg_list))
+    l = 0                    # fraction of processed genes, used for verbose.
+    nr_mtx = {ale:0 for ale in alleles}      # number of records.
+    for idx, reg in enumerate(reg_list):
         if conf.debug > 0:
             debug("[Batch-%d] processing feature '%s' ..." % \
-                (bdata.idx, reg.name))
+                  (batch_idx, reg.name))
 
-        ret, reg_ale_cnt = \
-            fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf)
-        if ret < 0 or reg_ale_cnt is None:
+        r, cnt = fc_fet1(
+            reg, alleles, sam_list, mcnt, mcnt_snp, mcnt_ab, conf
+        )
+        if r < 0 or cnt is None:
             error("errcode -9 (%s)." % reg.name)
             raise RuntimeError
 
-        str_ale = {ale:"" for ale in alleles}
-        for i, smp in enumerate(conf.samples):
-            nu_ale = {ale:reg_ale_cnt[ale][smp] for ale in alleles}
-            if np.sum([v for v in nu_ale.values()]) <= 0:
+        sr = {ale:"" for ale in alleles}              # string of one record.
+        for i, smp in enumerate(samples):
+            nu = {ale:cnt[ale][smp] for ale in alleles}     # number of UMIs.
+            if np.sum([v for v in nu.values()]) <= 0:
                 continue
             for ale in alleles:
-                if nu_ale[ale] > 0:
-                    str_ale[ale] += "%d\t%d\t%d\n" % \
-                        (reg_idx + 1, i + 1, nu_ale[ale])
-                    bdata.nr_ale[ale] += 1
+                if nu[ale] > 0:
+                    sr[ale] += "%d\t%d\t%d\n" % (idx + 1, i + 1, nu[ale])
+                    nr_mtx[ale] += 1
 
-        if np.any([len(s) > 0 for s in str_ale.values()]):
+        if np.any([len(s) > 0 for s in sr.values()]):
             for ale in alleles:
-                fp_ale[ale].write(str_ale[ale])
+                fp_mtx[ale].write(sr[ale])
 
-        n_reg = reg_idx + 1
-        frac_reg = n_reg / m_reg
-        if frac_reg - l_reg >= 0.1 or n_reg == m_reg:
+        n = idx + 1
+        frac = n / m
+        if frac - l >= 0.1 or n == m:
             if conf.debug > 0:
                 debug("[Batch-%d] %d%% genes processed" % 
-                    (bdata.idx, math.floor(frac_reg * 100)))
-            l_reg = frac_reg
+                    (batch_idx, math.floor(frac * 100)))
+            l = frac
 
-    bdata.nr_reg = len(reg_list)
+    nr_reg = len(reg_list)
+
+    
+    # clean files.
+    if conf.debug > 0:
+        debug("[Batch-%d] clean files ..." % batch_idx)
 
     for ale in alleles:
-        fp_ale[ale].close()
+        fp_mtx[ale].close()
     for sam in sam_list:
         sam.close()
     sam_list.clear()
     
     # reg objects, each containing post-filtering SNPs.
-    save_feature_objects(reg_list, bdata.reg_obj_fn)
-
-    bdata.conf = None    # sam object cannot be pickled.
-    bdata.ret = 0
+    save_feature_objects(reg_list, reg_obj_fn)
     
-    if conf.debug > 0:
-        debug("[Batch-%d] done!" % bdata.idx)
-            
-    return(bdata)
+    info("[Batch-%d] done!" % batch_idx)
 
 
-def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
+    res = dict(
+        # nr_reg : int
+        #   Number of unique features in this batch that are outputted.
+        nr_reg = nr_reg,
+        
+        # nr_mtx : dict of {str : int}
+        #   Number of records in each allele-specific count matrix file.
+        #   Keys are allele names, values are number of records.
+        nr_mtx = nr_mtx,
+        
+        # out_mtx_fns : dict of {str : str}
+        #   Output allele-specific sparse matrix files.
+        #   Keys are alleles and values are sparse matrix files.
+        out_mtx_fns = out_mtx_fns
+    )
+    
+    return(res)
+
+
+
+def fc_fet1(reg, alleles, sam_list, mcnt, mcnt_snp, mcnt_ab, conf):
     """Feature counting for one feature.
     
     Parameters
     ----------
-    reg : utils.gfeature.Feature
+    reg : :class:`~..utils.gfeature.Feature`
         The feature to be counted.
     alleles : list of str
         A list of allele names.
-    sam_list : list of pysam.AlignmentFile
+    sam_list : list of :class:`pysam.AlignmentFile`
         A list of file objects for input SAM/BAM files.
-    snp_mcnt : afc.mcount_snp.MCount
-        Counting object in SNP level.
-    ab_mcnt : afc.mcount_ab.MCount
-        Counting object for allele "A" and "B" in feature level.
-    mcnt : afc.mcount_feature.MCount
+    mcnt : :class:`.mcount_feature.MCount`
         Counting object for all alleles in feature level.
-    conf : afc.config.Config
+    mcnt_snp : :class:`.mcount_snp.MCount`
+        Counting object in SNP level.
+    mcnt_ab : :class:`.mcount_ab.MCount`
+        Counting object for allele "A" and "B" in feature level.
+    conf : :class:`.config.Config`
         Global configuration object.
 
     Returns
@@ -147,17 +182,19 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
     int
         Return code. 0 if success, negative otherwise.
     dict or None
-        The *allele x cell* counts.
+        The *allele x cell* counts of this feature.
         It is a two-layer dict, with "allele name (str)" and "cell ID (str)"
         as keys, respectively, and "counts (int)" as values.
         None if error happens.
     """
-    if fc_ab(reg, sam_list, snp_mcnt, ab_mcnt, conf) < 0:
+    if fc_ab(reg, sam_list, mcnt_ab, mcnt_snp, conf) < 0:
         return((-3, None))
-    mcnt.add_feature(reg, ab_mcnt)
+    mcnt.add_feature(reg, mcnt_ab)
     
-    sam_fps = {ale: pysam.AlignmentFile(ale_dat.seed_sam_fn, "wb",    \
-        template = sam_list[0]) for ale, ale_dat in reg.allele_data.items()}
+    samples = mcnt.samples
+    
+    out_sam_list = {ale: pysam.AlignmentFile(dat.seed_sam_fn, "wb",    \
+        template = sam_list[0]) for ale, dat in reg.allele_data.items()}
 
     ret = smp = umi = ale_idx = None
     for idx, sam in enumerate(sam_list):
@@ -174,8 +211,8 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
             if conf.use_barcodes():
                 ret, smp, umi, ale_idx = mcnt.push_read(read)
             else:
-                sample = conf.samples[idx]
-                ret, smp, umi, ale_idx = mcnt.push_read(read, sample)
+                smp = samples[idx]
+                ret, smp, umi, ale_idx = mcnt.push_read(read, smp)
             if ret < 0:
                 return((-5, None))
             elif ret > 0:    # read filtered.
@@ -190,45 +227,47 @@ def fc_fet1(reg, alleles, sam_list, snp_mcnt, ab_mcnt, mcnt, conf):
             # sampling in `rs` module, because after the read iteration loop,
             # there could be a few UMI filtering steps.
             ale = idx2hap(ale_idx)
-            if ale not in sam_fps:
+            if ale not in out_sam_list:
                 continue
-            fp = sam_fps[ale]
-            fp.write(read)
+            out_sam = out_sam_list[ale]
+            out_sam.write(read)
                 
-    for fp in sam_fps.values():
-        fp.close()
-    for ale, ale_dat in reg.allele_data.items():
-        pysam.index(ale_dat.seed_sam_fn)
+    for sam in out_sam_list.values():
+        sam.close()
+    for ale, dat in reg.allele_data.items():
+        pysam.index(dat.seed_sam_fn)
 
     if mcnt.stat() < 0:
         return((-9, None))
 
-    reg_ale_cnt = {ale: {smp:0 for smp in conf.samples} for ale in alleles}
-    cumi_fps = {ale: open(ale_dat.seed_cumi_fn, "w")   \
-            for ale, ale_dat in reg.allele_data.items()}
+
+    ale_cnt = {ale: {smp:0 for smp in samples} for ale in alleles}
+    cumi_fps = {ale: open(dat.seed_cumi_fn, "w")   \
+            for ale, dat in reg.allele_data.items()}
 
     for smp, scnt in mcnt.cell_cnt.items():
         for ale in alleles:      #  {"A", "B", "D", "O", "U"}
-            reg_ale_cnt[ale][smp] = sum([   \
+            ale_cnt[ale][smp] = sum([   \
                     scnt.hap_cnt[i] for i in hap2idx(ale)])
         for ale, fp in cumi_fps.items():
-            ale_umi = set()
+            umis = set()
             if ale in conf.cumi_alleles:
                 for i in hap2idx(ale):
-                    ale_umi.update(scnt.umi_cnt[i])
+                    umis.update(scnt.umi_cnt[i])
             else:
                 error("invalid allele '%s'." % ale)
                 raise ValueError
-            for umi in sorted(list(ale_umi)):
+            for umi in sorted(list(umis)):
                 fp.write("%s\t%s\n" % (smp, umi))
 
     for fp in cumi_fps.values():
         fp.close()
 
-    return((0, reg_ale_cnt))
+    return((0, ale_cnt))
 
 
-def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
+
+def fc_ab(reg, sam_list, mcnt, mcnt_snp, conf):
     """Counting for allele A and B in feature level.
     
     This function generates UMI/read counts of allele "A" and "B" in each
@@ -241,15 +280,15 @@ def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
     
     Parameters
     ----------
-    reg : utils.gfeature.Feature
+    reg : :class:`~..utils.gfeature.Feature`
         The feature to be counted.
-    sam_list : list of pysam.AlignmentFile
+    sam_list : list of :class:`pysam.AlignmentFile`
         A list of file objects for input SAM/BAM files.
-    snp_mcnt : afc.mcount_snp.MCount
-        Counting object in SNP level.
-    mcnt : afc.mcount_ab.MCount
+    mcnt : :class:`.mcount_ab.MCount`
         Counting object for allele "A" and "B" in feature level.
-    conf : afc.config.Config
+    mcnt_snp : :class:`.mcount_snp.MCount`
+        Counting object in SNP level.
+    conf : :class:`.config.Config`
         Global configuration object.
 
     Returns
@@ -260,7 +299,7 @@ def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
     mcnt.add_feature(reg)
     snp_list = []
     for snp in reg.snp_list:
-        ret = plp_snp(snp, sam_list, snp_mcnt, conf, reg)
+        ret = plp_snp(snp, sam_list, mcnt_snp, conf, reg)
         if ret < 0:
             error("SNP (%s:%d:%s:%s) pileup failed; errcode %d." % \
                 (snp.chrom, snp.pos, snp.ref, snp.alt, ret))
@@ -268,13 +307,14 @@ def fc_ab(reg, sam_list, snp_mcnt, mcnt, conf):
         elif ret > 0:     # snp filtered.
             continue
         else:
-            if mcnt.push_snp(snp_mcnt) < 0:
+            if mcnt.push_snp(mcnt_snp) < 0:
                 return(-5)
         snp_list.append(snp)
     reg.snp_list = snp_list
     if mcnt.stat() < 0:
         return(-7)
     return(0)
+
 
 
 def plp_snp(snp, sam_list, mcnt, conf, reg):
@@ -285,15 +325,15 @@ def plp_snp(snp, sam_list, mcnt, conf, reg):
     
     Parameters
     ----------
-    snp : utils.gfeature.SNP
+    snp : :class:`~..utils.gfeature.SNP`
         The SNP to be counted.
-    sam_list : list of pysam.AlignmentFile
+    sam_list : list of :class:`pysam.AlignmentFile`
         A list of file objects for input SAM/BAM files.
-    mcnt : afc.mcount_snp.MCount
+    mcnt : :class:`.mcount_snp.MCount`
         Counting object in SNP level.
-    conf : afc.config.Config
+    conf : :class:`.config.Config`
         Global configuration object.
-    reg : utils.gfeature.Feature
+    reg : :class:`~..utils.gfeature.Feature`
         The feature that the `snp` belongs to.
 
     Returns
@@ -304,6 +344,7 @@ def plp_snp(snp, sam_list, mcnt, conf, reg):
     ret = None
     if mcnt.add_snp(snp) < 0:   # mcnt reset() inside.
         return(-3)
+    samples = mcnt.samples
     for idx, sam in enumerate(sam_list):
         itr = sam_fetch(sam, snp.chrom, snp.pos, snp.pos)
         if not itr:    
@@ -318,8 +359,8 @@ def plp_snp(snp, sam_list, mcnt, conf, reg):
             if conf.use_barcodes():
                 ret = mcnt.push_read(read)
             else:
-                sample = conf.samples[idx]
-                ret = mcnt.push_read(read, sample)
+                smp = samples[idx]
+                ret = mcnt.push_read(read, smp)
             if ret < 0:
                 return(-5)
             elif ret > 0:    # read filtered.
@@ -329,9 +370,9 @@ def plp_snp(snp, sam_list, mcnt, conf, reg):
     snp_cnt = sum(mcnt.tcount)
     if snp_cnt < conf.min_count:
         return(3)
-    snp_ref_cnt = mcnt.tcount[mcnt.base_idx[snp.ref]]
-    snp_alt_cnt = mcnt.tcount[mcnt.base_idx[snp.alt]]
-    snp_minor_cnt = min(snp_ref_cnt, snp_alt_cnt)
-    if snp_minor_cnt < snp_cnt * conf.min_maf:
+    ref_cnt = mcnt.tcount[mcnt.base_idx[snp.ref]]
+    alt_cnt = mcnt.tcount[mcnt.base_idx[snp.alt]]
+    minor_cnt = min(ref_cnt, alt_cnt)
+    if minor_cnt < snp_cnt * conf.min_maf:
         return(5)
     return(0)
