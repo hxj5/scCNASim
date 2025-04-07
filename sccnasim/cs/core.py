@@ -251,8 +251,8 @@ def cs_cna_core(
     -------
     anndata.AnnData
         Simulated *cell x feature* RD values.
-        It has one column "cell_type" in `.obs` and one column "feature"
-        in `.var`.
+        It has one column "cell_type" in `.obs` and one column "feature" in
+        `.var`.
     """
     # check args.
     os.makedirs(out_dir, exist_ok = True)

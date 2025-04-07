@@ -212,6 +212,8 @@ def cs_core(conf):
         else:
             assert np.all(
                 adata_ale.obs["cell_type"] == adata_simu.obs["cell_type"])
+            assert np.all(
+                adata_ale.var["feature"] == adata_simu.var["feature"])
         adata_simu.layers[allele] = adata_ale.X
 
     adata_simu.obs["cell"] = rand_cell_barcodes(
@@ -220,6 +222,11 @@ def cs_core(conf):
         suffix = "-1",
         sort = True
     )
+    
+    adata = load_h5ad(conf.count_fn)
+    assert np.all(adata_simu.var["feature"] == adata.var["feature"])
+    adata_simu.var = adata.var
+    del adata
 
 
     count_fn = os.path.join(conf.out_dir, "%s.counts.h5ad" % \

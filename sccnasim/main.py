@@ -287,7 +287,7 @@ def main_core(conf):
     ret = main_init(conf)
     if ret < 0:
         raise ValueError
-    conf.show()
+    conf.show(fp = sys.stdout, prefix = "\t")
     os.makedirs(conf.out_dir, exist_ok = True)
 
     step = 1
