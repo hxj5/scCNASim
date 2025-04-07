@@ -43,6 +43,7 @@ def format_anndata(adata, row_is_cell = True):
     return(adata)
 
 
+
 def load_h5ad(fn):
     """Wrapper to load anndata h5ad file.
 
@@ -75,6 +76,7 @@ def save_h5ad(
     ))
 
 
+
 def load_list_from_str(s, sep = ","):
     """Split the string into a list.
     
@@ -92,6 +94,7 @@ def load_list_from_str(s, sep = ","):
     """
     dat = [x.strip('"').strip("'") for x in s.split(sep)]
     return(dat)
+
 
 
 ### One column
@@ -137,6 +140,7 @@ def __save_one_column_file(df, fn):
     df.to_csv(fn, header = False, index = False)
     
 
+
 def load_bams(fn):
     """Load BAM files from a header-free file.
     
@@ -153,6 +157,7 @@ def load_bams(fn):
     return(__load_one_column_file(fn))
 
 
+
 def load_barcodes(fn):
     """Load cell barcodes from a header-free file.
     
@@ -167,6 +172,7 @@ def load_barcodes(fn):
         The loaded cell barcodes.
     """
     return(__load_one_column_file(fn))
+
 
 
 def load_samples(fn):
@@ -202,6 +208,7 @@ def save_samples(df, fn):
     return(__save_one_column_file(df, fn))
 
 
+
 ### Multiple columns
 
 def __save_multi_column_file(df, fn, sep = "\t"):
@@ -221,6 +228,7 @@ def __save_multi_column_file(df, fn, sep = "\t"):
     Void.
     """
     df.to_csv(fn, sep = sep, header = False, index = False)
+
 
 
 def load_cells(fn, sep = "\t"):
@@ -267,6 +275,7 @@ def save_cells(df, fn, sep = "\t"):
     return(__save_multi_column_file(df, fn, sep))
 
 
+
 def load_clones(fn, sep = "\t"):
     """Load clone annotation from a header-free file.
 
@@ -292,6 +301,7 @@ def load_clones(fn, sep = "\t"):
     df.columns = df.columns.astype(str)
     df.columns.values[:3] = ["clone", "cell_type", "n_cell"]
     return(df)
+
 
 
 def load_cnas(fn, sep = "\t", cna_mode = "hap-aware"):
@@ -362,6 +372,7 @@ def load_cnas(fn, sep = "\t", cna_mode = "hap-aware"):
                         df["end"].iloc[i]
                     ) for i in range(df.shape[0])]
     return(df)
+
 
 
 def load_features(fn, sep = "\t"):
@@ -463,6 +474,7 @@ def load_regions(fn, sep = "\t"):
     df["start"] = df["start"].map(format_start)
     df["end"] = df["end"].map(format_end)
     return(df)
+
 
 
 def load_snps(fn, sep = "\t"):
