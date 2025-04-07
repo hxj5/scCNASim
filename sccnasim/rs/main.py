@@ -281,7 +281,7 @@ def rs_core(conf):
 
     sam_cat_and_sort(
         reg_sam_fn_list, 
-        conf.out_sam_fn,
+        out_sam_fn,
         max_mem = "4G",
         ncores = conf.ncores,
         index = True
