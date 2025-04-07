@@ -6,6 +6,7 @@ from functools import cmp_to_key
 from intervaltree import IntervalTree
 
 
+
 class RegPos(int):
     """Genomic position compatible with "infinite" value.
     
@@ -42,6 +43,7 @@ class RegPos(int):
             return(int(self) + x)
 
 
+        
 class Region:
     """Genomic region."""
 
@@ -103,6 +105,7 @@ class Region:
         return self.len
 
 
+    
 class RegionSet:
     """Region set with payload.
 
@@ -318,10 +321,12 @@ class RegionSet:
                 self.citem[chrom] = self.__sort_items(self.citem[chrom])
                 self.is_sorted[chrom] = True
 
+                
 
 def format_chrom(chrom):
     """Format chromosome name, removing the "chr" prefix (if available)."""
     return chrom[3:] if chrom.lower().startswith("chr") else chrom
+
 
 
 def format_start(x, base = 1):
@@ -345,6 +350,7 @@ def format_start(x, base = 1):
     return(x)
 
 
+
 def format_end(x, base = 1):
     """Format end genomic position of one region.
     
@@ -364,6 +370,7 @@ def format_end(x, base = 1):
     if x < base:
         x = base
     return(x)
+
 
 
 def reg2str(chrom, start, end, base = 1):
@@ -394,6 +401,7 @@ def reg2str(chrom, start, end, base = 1):
     else:
         s = "%s:%s-%s" % (chrom, start, end)
     return(s)
+
 
 
 def str2tuple(s):
@@ -456,4 +464,5 @@ def str2tuple(s):
             return((chrom, None, None))
 
 
+        
 REG_MAX_POS = 0x7fffffff    # same with setting of pysam

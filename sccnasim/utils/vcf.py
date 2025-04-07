@@ -15,6 +15,7 @@ from logging import warning as warn
 from .base import assert_e, assert_n
 
 
+
 def vcf_load(fn):
     """Load VCF file.
     
@@ -64,6 +65,7 @@ def vcf_load(fn):
     variants.columns = pre_line.strip()[1:].split("\t")
     
     return((variants, header))
+
 
 
 def vcf_save(variants, header, fn, is_gzip = None):
@@ -121,6 +123,7 @@ def vcf_save(variants, header, fn, is_gzip = None):
         os.rename(tmp_fn, fn)
 
 
+        
 def vcf_bgzip(in_fn, out_fn = None, is_in_gzip = False):
     """Convert the VCF file into BGZF format.
 
@@ -179,6 +182,7 @@ def vcf_bgzip(in_fn, out_fn = None, is_in_gzip = False):
         in_fp.close()
         out_fp.close()
     return(out_fn)
+
 
 
 def vcf_index(fn, idx_fn = None, idx_type = None, ncores = 1):
@@ -248,6 +252,7 @@ def vcf_index(fn, idx_fn = None, idx_type = None, ncores = 1):
     return(idx_fn)
 
 
+
 def vcf_merge(in_fn_list, out_fn, sort = False):
     """Merge VCF files.
 
@@ -278,6 +283,7 @@ def vcf_merge(in_fn_list, out_fn, sort = False):
         all_vars = all_vars.sort_values(by = ["CHROM", "POS", "REF", "ALT"])
     vcf_save(all_vars, header, out_fn)
     
+    
 
 # for processing the "chr" prefix with command-line tools, please
 # refer to:
@@ -306,6 +312,7 @@ def vcf_add_chr_prefix(in_fn, out_fn):
     vcf_save(variants, header, out_fn)
 
 
+    
 def vcf_add_chr_prefix_core(variants, header, inplace = False):
     """Core part of adding "chr" prefix to chromosome names.
     
@@ -344,6 +351,7 @@ def vcf_add_chr_prefix_core(variants, header, inplace = False):
     return(variants, header)
 
 
+
 def vcf_remove_chr_prefix(in_fn, out_fn):
     """Remove prefix "chr" from chromosome names in VCF file.
     
@@ -363,6 +371,7 @@ def vcf_remove_chr_prefix(in_fn, out_fn):
     variants, header = vcf_remove_chr_prefix_core(variants, header)
     vcf_save(variants, header, out_fn)
 
+    
 
 def vcf_remove_chr_prefix_core(variants, header, inplace = False):
     """Core part of removing "chr" prefix from chromosome names.
@@ -398,6 +407,7 @@ def vcf_remove_chr_prefix_core(variants, header, inplace = False):
     return(variants, header)
 
 
+
 def vcf_hdr_check_contig(in_fn, out_fn = None):
     """Check the contigs in the VCF header.
     
@@ -425,6 +435,7 @@ def vcf_hdr_check_contig(in_fn, out_fn = None):
     vcf_save(variants, header, out_fn)
 
 
+    
 def vcf_hdr_check_contig_core(variants, header, inplace = False):
     """Core part of checking contigs in the VCF header.
     
@@ -481,6 +492,7 @@ def vcf_hdr_check_contig_core(variants, header, inplace = False):
             hdr_oth[idx_first_contig:]
 
     return(variants, header)
+    
     
 
 def vcf_split_chrom(
@@ -561,6 +573,7 @@ def vcf_split_chrom(
         out_fn_list.append((chrom, n_variants, out_fn))
 
     return(out_fn_list)
+
 
 
 def __gen_tmp_filename(fn, func = None, suffix = None):

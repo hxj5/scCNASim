@@ -64,6 +64,7 @@ def estimate_dist_nb(x, s = None):
     return(par)
 
 
+
 def estimate_dist_normal(x):
     """Estimator for parameters of the normal distribution."""
     par = {
@@ -71,6 +72,7 @@ def estimate_dist_normal(x):
         "sigma": np.std(x) + 0.0
     }
     return(par)
+
 
 
 def estimate_dist_lognormal(x, shift = 0):
@@ -89,6 +91,7 @@ def estimate_dist_lognormal(x, shift = 0):
         "shift": shift
     }
     return(par)
+
 
 
 def estimate_dist_poi(x, s = None):
@@ -120,6 +123,7 @@ def estimate_dist_poi(x, s = None):
     else:
         par = {"infl": 0, "disp": 0, "mu": m_s}
     return(par)
+
 
 
 def __fit_dist_wrapper(
@@ -239,6 +243,7 @@ def __fit_dist_wrapper(
     return((0, par, mres))
 
 
+
 def fit_dist_nb(x, s = None, max_iter = 100, verbose = False):
     """Fit the Negative Bionomial distribution.
 
@@ -289,6 +294,7 @@ def fit_dist_nb(x, s = None, max_iter = 100, verbose = False):
             disp = verbose
         )
     ))
+
 
 
 def fit_dist_poi(x, s = None, max_iter = 100, verbose = False):
@@ -342,6 +348,7 @@ def fit_dist_poi(x, s = None, max_iter = 100, verbose = False):
     ))
     
 
+    
 def fit_dist_zinb(x, s = None, max_iter = 100, verbose = False):
     """Fit the Zero-Inflated Negative Binomial distribution.
 
@@ -393,6 +400,7 @@ def fit_dist_zinb(x, s = None, max_iter = 100, verbose = False):
             disp = verbose
         )
     ))
+
 
 
 # Zero-Inflated Poisson
@@ -448,6 +456,7 @@ def fit_dist_zip(x, s = None, max_iter = 100, verbose = False):
     ))
 
 
+
 def fit_dist_bb(k, n):
     """Fit the BetaBinomial distribution.
     
@@ -493,6 +502,7 @@ def fit_dist_bb(k, n):
     return((0, par, mres))
 
 
+
 def fit_dist_t(x):
     """Fit the t distribution.
     
@@ -527,6 +537,7 @@ def fit_dist_t(x):
     return((0, par, mres))
 
 
+
 def nb2_to_nb1(mu, alpha):
     """Convert NB2 to NB1 parameterization of Negative Binomial.
 
@@ -552,6 +563,7 @@ def nb2_to_nb1(mu, alpha):
     p = mu / v
     n = 1 / alpha        # n = mu ** 2 / (v - mu)
     return n, p
+
 
 
 def rand_zinb(mu, alpha, infl, size):

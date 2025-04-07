@@ -7,6 +7,7 @@ from .zfile import zopen
 from ..io.base import load_cnas
 
 
+
 class CNARegCN(Region):
     """Allele-specific copy numbers of CNA region."""
 
@@ -33,6 +34,7 @@ class CNARegCN(Region):
         self.cn_ale1 = cn_ale1
 
 
+        
 class CNAProfile:
     """CNA profile of one clone."""
 
@@ -150,6 +152,7 @@ class CNAProfile:
         return((len(res), res))
 
 
+    
 class CloneCNAProfile:
     """CNA profiles of all clones."""
 
@@ -293,6 +296,7 @@ class CloneCNAProfile:
             return((0, []))
 
 
+        
 def load_cna_profile(fn, sep = "\t"):
     """Load CNA profiles from file.
 
@@ -329,6 +333,7 @@ def load_cna_profile(fn, sep = "\t"):
     return(dat)
                         
 
+    
 def save_cna_profile(dat, fn):
     """Save CNA profile to file.
     

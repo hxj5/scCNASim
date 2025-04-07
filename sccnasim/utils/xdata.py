@@ -12,6 +12,7 @@ from logging import warning as warn
 from .xmatrix import sparse2array
 
 
+
 def add_cell_type_anno(adata, anno):
     """Add cell type annotation into the adata.
 
@@ -44,6 +45,7 @@ def add_cell_type_anno(adata, anno):
         anno[["cell", "cell_type"]], on = "cell", how = "left", 
         left_index = True)
     return((0, adata))
+
 
 
 def check_sanity_layer(adata, layer = None):
@@ -79,6 +81,7 @@ def check_sanity_layer(adata, layer = None):
         state |= (1<<1)
     
     return(state)
+
 
 
 def check_unanno_cells(
@@ -120,6 +123,7 @@ def check_unanno_cells(
     return(adata)
 
 
+
 def remove_XY(adata):
     """Remove chromosome X and Y from adata.
 
@@ -136,6 +140,7 @@ def remove_XY(adata):
     """
     flag = adata.var["chrom"].isin(["X", "Y"])
     return adata[:, ~flag].copy()
+
 
 
 def set_ref_cell_types(adata, ref_cell_types = None, inplace = False):
@@ -178,6 +183,7 @@ def set_ref_cell_types(adata, ref_cell_types = None, inplace = False):
     return(adata)
     
 
+    
 def sparse_to_array(adata, layer = None, inplace = False):
     """Convert sparse matrix in specific layer to numpy array.
 
@@ -208,6 +214,7 @@ def sparse_to_array(adata, layer = None, inplace = False):
         adata.layers[layer] = sparse2array(adata.layers[layer])
         return((adata, adata.layers[layer]))
 
+    
     
 def sum_layers(adata, layers = None):
     """Calculate the sum of specific layers.

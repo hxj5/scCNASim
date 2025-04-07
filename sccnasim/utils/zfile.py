@@ -12,6 +12,7 @@ import gzip
 import pysam
 
 
+
 class ZFile:
     """Simple wrapper of file object that supports plain/GZIP/BGZF formats."""
 
@@ -125,6 +126,8 @@ class ZFile:
             return(ret)
         return(len(data))
 
+    
+
 def zopen(file_name, mode, file_type = None, is_bytes = False, encoding = None):
     """Open a file.
     
@@ -153,6 +156,7 @@ def zopen(file_name, mode, file_type = None, is_bytes = False, encoding = None):
     if file_type is None:
         file_type = ZF_F_AUTO
     return ZFile(file_name, mode, file_type, is_bytes, encoding)
+
 
 
 # file type / format.

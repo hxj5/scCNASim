@@ -64,6 +64,7 @@ class XFormatter(logging.Formatter):
         return s
  
 
+
 def init_logging(log_file = None, stream = None, 
     fh_level = logging.DEBUG, fh_datefmt = "%Y-%m-%d %H:%M:%S",
     ch_level = logging.INFO,  ch_datefmt = "%Y-%m-%d %H:%M:%S"

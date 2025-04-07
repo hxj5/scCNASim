@@ -4,6 +4,7 @@
 import pickle
 
 
+
 def file2list(fn):
     with open(fn, "r") as fp:
         lst = [line.strip().strip('"') for line in fp]
@@ -15,6 +16,7 @@ def list2file(lst, fn):
         for item in lst:
             fp.write("%s\n" % item)
 
+            
             
 def load_pickle(fn):
     with open(fn, "rb") as fp:

@@ -4,6 +4,7 @@
 import numpy as np
 
 
+
 class Barcode:
     """Barcode.
     
@@ -148,6 +149,7 @@ class Barcode:
         return(s)
 
 
+    
 def rand_cell_barcodes(m, n, suffix = "-1", sort = True):
     """Generate (unique) random cell barcodes.
     
@@ -172,6 +174,7 @@ def rand_cell_barcodes(m, n, suffix = "-1", sort = True):
     if suffix:
         s = [x + suffix for x in s]
     return(s)
+
 
 
 def rand_umi(m, n, sort = True):

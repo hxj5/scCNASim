@@ -217,6 +217,7 @@ class Feature(Region):
             self.allele_data[ale] = ale_data
 
 
+
 def assign_feature_batch(feature_names, root_dir, batch_size = 1000):
     """Assign features into several batches.
 
