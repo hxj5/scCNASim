@@ -66,7 +66,7 @@ def cs_init(conf):
         if k in conf.kwargs_fit_sf:
             kwargs_fit_sf[k] = conf.kwargs_fit_sf[k]
     conf.kwargs_fit_sf = kwargs_fit_sf
-    info("complete kwargs_fit_sf is: %s." % str(conf.kwargs_fit_sf))
+    #info("complete kwargs_fit_sf is: %s." % str(conf.kwargs_fit_sf))
 
     
     kwargs_fit_rd = conf.def_kwargs_fit_rd.copy()
@@ -74,7 +74,11 @@ def cs_init(conf):
         if k in conf.kwargs_fit_rd:
             kwargs_fit_rd[k] = conf.kwargs_fit_rd[k]
     conf.kwargs_fit_rd = kwargs_fit_rd
-    info("complete kwargs_fit_rd is: %s." % str(conf.kwargs_fit_rd))
+    #info("complete kwargs_fit_rd is: %s." % str(conf.kwargs_fit_rd))
+    
+    
+    info("updated configuration:")
+    conf.show(fp = sys.stdout, prefix = "\t")
 
     
     data = dict(
@@ -237,7 +241,7 @@ def cs_cna_core(
         Type of marginal distribution.
     kwargs_fit_rd : dict
         The additional kwargs passed to function 
-        :func:`~marginal.fit_RD` for fitting read depth.
+        :func:`~.marginal.fit_RD` for fitting read depth.
     ncores : int
         Number of cores.
     verbose : bool
