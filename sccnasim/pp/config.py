@@ -3,13 +3,15 @@
 
 import sys
 
+COMMAND = "pp"
+
 
 class Config:
     """Configuration of the `pp` (preprocessing) module.
     
     Attributes
     ----------
-    See `pp::main::pp_wrapper()`.
+    See :func:`~.main.pp_wrapper()`.
     """
     def __init__(self):
         # command-line arguments/parameters.
@@ -23,7 +25,7 @@ class Config:
         self.strandness = "forward"
         self.merge_features_how = "quantile"
 
-        # derived parameters.
+        # internal parameters.
         
         # chrom_list : list of str or None
         #   A list of chromosome names.
@@ -32,11 +34,11 @@ class Config:
 
         # out_prefix_raw : str
         #   Prefix to the output raw files.
-        self.out_prefix_raw = "raw."
+        self.out_prefix_raw = "raw"
 
         # out_prefix_pp : str
         #   Prefix to the output preprocess-ed files.
-        self.out_prefix_pp = "pp."
+        self.out_prefix_pp = COMMAND
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -55,8 +57,7 @@ class Config:
         s += "%smerge_features_how = %s\n" % (prefix, str(self.merge_features_how))
         s += "%s\n" % prefix
 
-        # derived parameters.
-        s += "%schrom_list = %s\n" % (prefix, str(self.chrom_list))
+        # internal parameters.
         s += "%sout_prefix_raw = %s\n" % (prefix, self.out_prefix_raw)
         s += "%sout_prefix_pp = %s\n" % (prefix, self.out_prefix_pp)
         s += "%s\n" % prefix

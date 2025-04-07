@@ -1,4 +1,4 @@
-# core.py - core part of feature counting.
+# core.py - core part of allele-specific feature counting.
 
 
 import math

@@ -47,6 +47,7 @@ def filter_features_by_chroms(in_fn, out_fn, chrom_list):
     return((0, n_old, n_new))
 
 
+
 def merge_features_quantile2(
     in_fn, out_fn, 
     stranded = True, max_gap = 1,
@@ -163,6 +164,7 @@ def merge_features_quantile2(
     return((0, n_old, n_new))
 
 
+
 def merge_features_union(
     in_fn,
     out_fn, 
@@ -275,6 +277,7 @@ def merge_features_union(
             n_new += 1
     fp.close()
     return((0, n_old, n_new))
+
 
 
 def sort_features(in_fn, out_fn):

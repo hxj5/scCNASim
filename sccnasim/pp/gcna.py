@@ -48,23 +48,23 @@ def merge_cna_profile(in_fn, out_fn, max_gap = 1):
     for i in range(df.shape[0]):
         rec = df.iloc[i, ]
         chrom = rec["chrom"]
-        clone_id = rec["clone"]
-        if clone_id not in dat:
-            dat[clone_id] = {}
-        if chrom not in dat[clone_id]:
-            dat[clone_id][chrom] = {}
-        ale_key = "%d_%d" % (rec["cn_ale0"], rec["cn_ale1"])
-        if ale_key not in dat[clone_id][chrom]:
-            dat[clone_id][chrom][ale_key] = []
-        dat[clone_id][chrom][ale_key].append((rec["start"], rec["end"]))
+        clone = rec["clone"]
+        if clone not in dat:
+            dat[clone] = {}
+        if chrom not in dat[clone]:
+            dat[clone][chrom] = {}
+        cns = "%d_%d" % (rec["cn_ale0"], rec["cn_ale1"])
+        if cns not in dat[clone][chrom]:
+            dat[clone][chrom][cns] = []
+        dat[clone][chrom][cns].append((rec["start"], rec["end"]))
 
 
     # merge (clone-specific) adjacent CNAs.
-    for clone_id, cl_dat in dat.items():
+    for clone, cl_dat in dat.items():
         for chrom, ch_dat in cl_dat.items():
-            for ale_key in ch_dat.keys():
+            for cns in ch_dat.keys():
                 iv_list = sorted(
-                    ch_dat[ale_key], 
+                    ch_dat[cns], 
                     key = functools.cmp_to_key(cmp_two_intervals)
                 )
                 s1, e1 = iv_list[0]
@@ -76,18 +76,18 @@ def merge_cna_profile(in_fn, out_fn, max_gap = 1):
                         new_list.append((s1, e1))
                         s1, e1 = s2, e2
                 new_list.append((s1, e1))
-                ch_dat[ale_key] = new_list
+                ch_dat[cns] = new_list
 
 
     # check whether there are (strictly) overlapping regions with 
     # distinct profiles.
-    for clone_id, cl_dat in dat.items():
+    for clone, cl_dat in dat.items():
         for chrom, ch_dat in cl_dat.items():
             iv_list = []
-            for ale_key in ch_dat.keys():
-                cn_ale0, cn_ale1 = [int(x) for x in ale_key.split("_")]
+            for cns in ch_dat.keys():
+                cn_ale0, cn_ale1 = [int(x) for x in cns.split("_")]
                 iv_list.extend(
-                    [(s, e, cn_ale0, cn_ale1) for s, e in ch_dat[ale_key]])
+                    [(s, e, cn_ale0, cn_ale1) for s, e in ch_dat[cns]])
             iv_list = sorted(
                 iv_list, 
                 key = functools.cmp_to_key(cmp_two_intervals)
@@ -105,13 +105,13 @@ def merge_cna_profile(in_fn, out_fn, max_gap = 1):
     # save profile
     n_new = 0
     fp = open(out_fn, "w")
-    for clone_id in sorted(dat.keys()):
-        cl_dat = dat[clone_id]
+    for clone in sorted(dat.keys()):
+        cl_dat = dat[clone]
         for chrom in sorted(cl_dat.keys()):
             ch_dat = cl_dat[chrom]
             for s, e, cn_ale0, cn_ale1 in ch_dat:
                 fp.write("\t".join([chrom, str(s), str(e), \
-                    clone_id, str(cn_ale0), str(cn_ale1)]) + "\n")
+                    clone, str(cn_ale0), str(cn_ale1)]) + "\n")
                 n_new += 1
     fp.close()
     return((0, n_old, n_new))

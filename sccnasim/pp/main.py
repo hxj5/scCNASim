@@ -16,36 +16,42 @@ from ..io.base import load_cells, load_cnas, load_clones
 from ..utils.grange import format_chrom
 
 
+
 def pp_core(conf):
     os.makedirs(conf.out_dir, exist_ok = True)
 
     info("configuration:")
     conf.show(fp = sys.stdout, prefix = "\t")
+    
+    
+    chrom_list = [format_chrom(c) for c in conf.chroms.split(",")]
 
     
     # process feature file.
-    raw_feature_fn = os.path.join(conf.out_dir, conf.out_prefix_raw + "features.tsv")
+    raw_feature_fn = os.path.join(conf.out_dir, \
+                            conf.out_prefix_raw + ".features.tsv")
     shutil.copy(conf.feature_fn, raw_feature_fn)
     info("feature file copied to '%s'." % raw_feature_fn)
 
     
     # filter features based on input chromosomes.
     filter_chrom_feature_fn = os.path.join(conf.out_dir,
-        conf.out_prefix_pp + "features.filter_chrom.tsv")
+            conf.out_prefix_pp + ".features.filter_chrom.tsv")
     r, n_old, n_new = filter_features_by_chroms(
         in_fn = conf.feature_fn,
         out_fn = filter_chrom_feature_fn,
-        chrom_list = conf.chrom_list
+        chrom_list = chrom_list
     )
     if r < 0:
         error("filter features by chroms failed (%d)." % r)
         raise ValueError
-    info("%d features kept from %d old ones after filtering by chroms." % (n_new, n_old))
+    info("%d features kept from %d old ones after filtering by chroms." % \
+         (n_new, n_old))
 
     
     # merge overlapping features.
     merged_feature_fn = os.path.join(conf.out_dir, 
-        conf.out_prefix_pp + "features.filter_chrom.resolve_overlap.tsv")
+        conf.out_prefix_pp + ".features.filter_chrom.resolve_overlap.tsv")
     if conf.merge_features_how == "none":
         merged_feature_fn = filter_chrom_feature_fn
         info("skip resolving overlapping features.")
@@ -73,12 +79,13 @@ def pp_core(conf):
         if r < 0:
             error("resolve overlapping features failed (%d)." % r)
             raise ValueError
-        info("%d features left after resolving feature overlaps in %d old ones." % (n_new, n_old))
+        info("%d features left after resolving feature overlaps in %d old ones." % \
+             (n_new, n_old))
         
         
     # sort features.
     sorted_feature_fn = os.path.join(conf.out_dir, 
-        conf.out_prefix_pp + "features.filter_chrom.resolve_overlap.sort.tsv")
+        conf.out_prefix_pp + ".features.filter_chrom.resolve_overlap.sort.tsv")
     sort_features(merged_feature_fn, sorted_feature_fn)
 
 
@@ -105,7 +112,7 @@ def pp_core(conf):
     else:
         suffix = "txt"
     raw_snp_fn = os.path.join(
-        conf.out_dir, conf.out_prefix_raw + "snp." + suffix)
+        conf.out_dir, conf.out_prefix_raw + ".snp." + suffix)
     shutil.copy(conf.snp_fn, raw_snp_fn)
     info("SNP file copied to '%s'." % raw_snp_fn)
 
@@ -113,7 +120,7 @@ def pp_core(conf):
     # process clone anno information file.
     # check duplicate records.
     raw_clone_anno_fn = os.path.join(
-        conf.out_dir, conf.out_prefix_raw + "clone_anno.tsv")
+        conf.out_dir, conf.out_prefix_raw + ".clone_anno.tsv")
     shutil.copy(conf.clone_anno_fn, raw_clone_anno_fn)
     clone_anno = load_clones(conf.clone_anno_fn)
     clones = clone_anno["clone"].unique()
@@ -127,10 +134,10 @@ def pp_core(conf):
     # process CNA profile file.
     # merge CNA profiles.
     raw_cna_profile_fn = os.path.join(
-        conf.out_dir, conf.out_prefix_raw + "cna_profile.tsv")
+        conf.out_dir, conf.out_prefix_raw + ".cna_profile.tsv")
     shutil.copy(conf.cna_profile_fn, raw_cna_profile_fn)
     merged_cna_profile_fn = os.path.join(conf.out_dir, 
-        conf.out_prefix_pp + "cna_profile.tsv")
+        conf.out_prefix_pp + ".cna_profile.tsv")
     r, n_old, n_new = merge_cna_profile(
         in_fn = conf.cna_profile_fn,
         out_fn = merged_cna_profile_fn,
@@ -154,19 +161,19 @@ def pp_core(conf):
     # process cell annotation file.
     # subset cell annotations by cell type.
     raw_cell_anno_fn = os.path.join(
-        conf.out_dir, conf.out_prefix_raw + "cell_anno.tsv")
+        conf.out_dir, conf.out_prefix_raw + ".cell_anno.tsv")
     shutil.copy(conf.cell_anno_fn, raw_cell_anno_fn)
     cell_anno = load_cells(conf.cell_anno_fn)
     cell_anno_new = cell_anno[cell_anno["cell_type"].isin(cell_types)]
     cell_anno_fn_new = os.path.join(
-        conf.out_dir, conf.out_prefix_pp + "cell_anno.tsv")
+        conf.out_dir, conf.out_prefix_pp + ".cell_anno.tsv")
     cell_anno_new.to_csv(cell_anno_fn_new, sep = "\t", 
                         header = False, index = False)
     info("%d cell type records kept from %d old ones." % \
         (cell_anno_new.shape[0], cell_anno.shape[0]))
     
     barcode_fn_new = os.path.join(
-        conf.out_dir, conf.out_prefix_pp + "barcodes.tsv")
+        conf.out_dir, conf.out_prefix_pp + ".barcodes.tsv")
     cell_anno_new[["cell"]].to_csv(
         barcode_fn_new, sep = "\t", header = False, index = False)
 
@@ -202,6 +209,7 @@ def pp_core(conf):
     return(res)
 
 
+
 def pp_run(conf):
     ret = -1
     res = None
@@ -228,6 +236,7 @@ def pp_run(conf):
         info("time spent: %.2fs" % (end_time - start_time, ))
 
     return((ret, res))
+
 
 
 def pp_wrapper(
@@ -326,11 +335,9 @@ def pp_wrapper(
     if chroms is None:
         chroms = ",".join([str(i) for i in range(1, 23)])
     conf.chroms = chroms
-    conf.chrom_list = [format_chrom(c) for c in conf.chroms.split(",")]
     
     conf.strandness = strandness
     conf.merge_features_how = merge_features_how
     
     ret, res = pp_run(conf)
-    #return((ret, res, conf))
     return((ret, res))
