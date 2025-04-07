@@ -68,7 +68,7 @@ class Barcode:
         return(i)
     
     # Note, below __randint() is deprecated as it is very slow when `m` is 
-    # large; Now we use numpy.random.randint().
+    # large; Now we use numpy.random.choice().
     def __randint(self, m, n, b, e):
         """Generate a random sample of barcodes within specific range.
         
@@ -122,7 +122,7 @@ class Barcode:
             The sampled barcodes in integer format.
         """
         assert n <= 4**self.m
-        x = np.random.randint(0, 4**self.m, size = n)
+        x = np.random.choice(4**self.m, size = n, replace = False)
         if sort:
             x = np.sort(x)     # as self.d is in ascending order.
         assert len(x) == len(np.unique(x))
