@@ -2,7 +2,6 @@
 
 
 import sys
-from .afc.config import DefaultConfig as AFC_DefConf
 
 
 class Config:
@@ -13,7 +12,7 @@ class Config:
     See :func:`~.main.main_wrapper()`.
     """
     def __init__(self):
-        self.afc_def_conf = AFC_DefConf()
+        self.defaults = Defaults()
 
         # input and output files.
         self.sam_fn = None
@@ -39,10 +38,10 @@ class Config:
 
         # optional arguments.
         self.chroms = ",".join([str(c) for c in range(1, 23)])
-        self.cell_tag = self.afc_def_conf.CELL_TAG
-        self.umi_tag = self.afc_def_conf.UMI_TAG
+        self.cell_tag = self.defaults.CELL_TAG
+        self.umi_tag = self.defaults.UMI_TAG
         self.umi_len = 10
-        self.ncores = self.afc_def_conf.NCORES
+        self.ncores = self.defaults.NCORES
         self.seed = 123
         self.verbose = False
 
@@ -51,15 +50,15 @@ class Config:
         self.min_maf = 0
         
         # read assignment
-        self.strandness = self.afc_def_conf.STRANDNESS
-        self.min_include = self.afc_def_conf.MIN_INCLUDE
+        self.strandness = self.defaults.STRANDNESS
+        self.min_include = self.defaults.MIN_INCLUDE
 
         # read filtering.
-        self.min_mapq = self.afc_def_conf.MIN_MAPQ
-        self.min_len = self.afc_def_conf.MIN_LEN
-        self.incl_flag = self.afc_def_conf.INCL_FLAG
+        self.min_mapq = self.defaults.MIN_MAPQ
+        self.min_len = self.defaults.MIN_LEN
+        self.incl_flag = self.defaults.INCL_FLAG
         self.excl_flag = -1
-        self.no_orphan = self.afc_def_conf.NO_ORPHAN
+        self.no_orphan = self.defaults.NO_ORPHAN
 
         # others
         self.debug_level = 0
@@ -129,3 +128,27 @@ class Config:
 
     def use_umi(self):
         return self.umi_tag is not None
+
+    
+
+class Defaults:
+    def __init__(self):
+        self.DEBUG = 0
+        self.NCORES = 1
+        
+        self.CELL_TAG = "CB"
+        self.UMI_TAG = "UB"
+        self.UMI_TAG_BC = "UB"    # the default umi tag for 10x data.
+
+        self.MIN_COUNT = 20
+        self.MIN_MAF = 0.1
+        
+        self.STRANDNESS = "forward"
+        self.MIN_INCLUDE = 0.9
+
+        self.MIN_MAPQ = 20
+        self.MIN_LEN = 30
+        self.INCL_FLAG = 0
+        self.EXCL_FLAG_UMI = 772
+        self.EXCL_FLAG_XUMI = 1796
+        self.NO_ORPHAN = True

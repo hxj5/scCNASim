@@ -389,7 +389,6 @@ def afc_core(conf):
 def afc_run(conf):
     ret = -1
     res = None
-    cmdline = None
 
     start_time = time.time()
     time_str = time.strftime(

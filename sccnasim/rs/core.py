@@ -14,15 +14,44 @@ from ..utils.hapidx import hap2idx
 
 
 
-def rs_features(thdata):
-    conf = thdata.conf
-    reg_obj_fn = thdata.reg_obj_fn
-    reg_idx_b = thdata.reg_idx_b
-    reg_idx_e = thdata.reg_idx_e
-    alleles = thdata.alleles
-    refseq_fn = thdata.refseq_fn
-    tmp_dir = thdata.tmp_dir
+def rs_features(
+    reg_obj_fn,
+    reg_idx_b,
+    reg_idx_e,
+    alleles,
+    refseq_fn,
+    tmp_dir,
+    conf,
+    idx
+):
+    """Read simulation for a list of features.
     
+    Parameters
+    ----------
+    reg_obj_fn : str
+        File containg a list of :class:`~..utils.gfeature.Feature` objects.
+    reg_idx_b : int
+        The 0-based transcriptomics-scale index of the first feature in this
+        batch.
+    reg_idx_e : int
+        The 0-based transcriptomics-scale index of the last feature in this
+        batch.
+    alleles : list of str
+        A list of alleles.
+    refseq_fn : str
+        The reference genome Fasta file.
+    tmp_dir : str
+        The folder to store temporary files.
+    conf : :class:`~.config.Config`
+        The configuration object.
+    idx : int
+        The index of this batch.
+        
+    Returns
+    -------
+    list of str
+        A list of feature-specific simulated BAM files.
+    """
     reg_list = load_feature_objects(reg_obj_fn)
     assert len(reg_list) == reg_idx_e - reg_idx_b
     
@@ -66,12 +95,13 @@ def rs_features(thdata):
     
     reg_sam_fn_list = [reg.out_sam_fn for reg in reg_list]
     shutil.rmtree(tmp_dir)
-    thdata.ret = 0
-    return((thdata, reg_sam_fn_list))
+
+    return(reg_sam_fn_list)
 
 
 
 def __gen_cumi_map(seed_cumis, simu_cumis):
+    """Return the one-to-one mapping between seed and simulated CUMIs."""
     n = seed_cumis.shape[0]
     mapping = {}
     for i in range(n):

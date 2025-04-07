@@ -78,6 +78,7 @@ class SNPSet:
         return(self.dat[chrom][pos][hap])
 
 
+    
 def mask_read(read, snps, hap, fa):
     """Mask all other positions in one read with reference.
     

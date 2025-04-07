@@ -1,6 +1,7 @@
 # main.py
 
 
+import gc
 import multiprocessing
 import numpy as np
 import os
@@ -13,11 +14,12 @@ from .config import Config, COMMAND
 from .core import rs_features
 from .cumi import cumi_simu_main, cumi_sample_seed_main
 from .sam import sam_cat_and_sort
-from .thread import BatchData
 from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
     save_cells, save_samples,    \
     load_feature_objects, save_feature_objects
+from ..utils.base import assert_e
+from ..utils.xdata import sum_layers
 from ..utils.xio import list2file
 from ..utils.xthread import split_n2batch, mp_error_handler
 
@@ -89,90 +91,77 @@ def rs_wrapper(
     return((ret, res))
 
 
+
 def rs_core(conf):
-    if prepare_config(conf) < 0:
-        error("preparing configuration failed.")
-        raise ValueError
-    info("configuration:")
-    conf.show(fp = sys.stdout, prefix = "\t")
-    step = 1
+    info("preprocessing ...")
+    data = rs_pp(conf)
+    
+    adata = data["adata"]
+    reg_list = data["reg_list"]
 
-
-    # check args.
-    info("check args ...")
-
-    alleles = conf.alleles
-    adata = conf.adata
-
-    assert "cell" in adata.obs.columns
-    assert "cell_type" in adata.obs.columns
-    assert "feature" in adata.var.columns
-    assert "chrom" in adata.var.columns
-    for ale in alleles:
-        assert ale in adata.layers
     n, p = adata.shape
+    alleles = conf.alleles
 
-    assert len(conf.reg_list) == p
-    for i in range(p):
-        assert adata.var["feature"].iloc[i] == conf.reg_list[i].name
 
-    assert conf.umi_len <= 31
-    RD = 0
-    for ale in alleles:
-        RD += adata.layers[ale]
-    assert np.max(RD.sum(axis = 1)) <= 4 ** conf.umi_len    # cell library size
-    del RD
-    RD = None
-
-    out_samples = adata.obs["cell"].to_numpy()
+    info("save cell IDs ...")
     out_sample_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "samples.tsv")
+        conf.out_dir, conf.out_prefix + ".samples.tsv")
+    save_samples(adata.obs[["cell"]], out_sample_fn)    
+    
+
+    info("save cell annotations ...")
     out_cell_anno_fn = os.path.join(
-        conf.out_dir, conf.out_prefix + "cell_anno.tsv")
-    save_samples(adata.obs[["cell"]], out_sample_fn)
+        conf.out_dir, conf.out_prefix + ".cell_anno.tsv")
     save_cells(adata.obs[["cell", "cell_type"]], out_cell_anno_fn)
+    
+    
+    out_sam_dir = os.path.join(conf.out_dir, "bam")
+    os.makedirs(out_sam_dir, exist_ok = True)
+    
+    out_sam_fn = os.path.join(out_sam_dir, conf.out_prefix + ".possorted.bam")
+    
+    step_dir = os.path.join(conf.out_dir, "steps")
+    os.makedirs(step_dir, exist_ok = True)
+    step = 1
 
 
     # prepare data for multi-processing
     info("prepare data for multi-processing ...")
     
-    data_dir = os.path.join(conf.out_step_dir, "%d_batch_data" % step)
+    data_dir = os.path.join(step_dir, "%d_batch_data" % step)
     os.makedirs(data_dir, exist_ok = True)
     step += 1
-    
-    m_reg = len(conf.reg_list)
     
     # Note, here
     # - max_n_batch: to account for the max allowed files and subfolders in
     #   one folder.
     #   Currently, 2 files output in each batch.
     bd_m, bd_n, bd_reg_indices = split_n2batch(
-                m_reg, conf.ncores, max_n_batch = 15000)
-    info("m_reg=%d; bd_m=%d; bd_n=%d;" % (m_reg, bd_m, bd_n))
+                p, conf.ncores, max_n_batch = 15000)
 
-    
+
     # split features.
-    info("split features ...")
+    info("split features into %d batches ..." % bd_m)
     
     reg_fn_list = []
     for idx, (b, e) in enumerate(bd_reg_indices):
         fn = os.path.join(data_dir, "fet.b%d.features.pickle" % idx)
         reg_fn_list.append(fn)
-        save_feature_objects(conf.reg_list[b:e], fn)
+        save_feature_objects(reg_list[b:e], fn)
             
     out_cumi_files = []      # two layers: allele - feature
     for ale in alleles:
-        fn_list = [reg.allele_data[ale].simu_cumi_fn for reg in conf.reg_list]
-        out_cumi_files.append(fn_list)
+        lst = [reg.allele_data[ale].simu_cumi_fn for reg in reg_list]
+        out_cumi_files.append(lst)
 
-    for reg in conf.reg_list:  # save memory
+    for reg in reg_list:  # save memory
         del reg
-    conf.reg_list.clear()
-    conf.reg_list = None
+    reg_list.clear()
+    reg_list = None
 
     
     # split count adata.
-    info("split count adata ...")
+    info("split count adata into %d batches ..." % bd_m)
 
     count_fn_list = []
     for idx, (b, e) in enumerate(bd_reg_indices):
@@ -180,14 +169,17 @@ def rs_core(conf):
         dat = adata[:, b:e].copy()
         save_h5ad(dat, fn)
         count_fn_list.append(fn)
-    del conf.adata
-    conf.adata = None
+    del adata
+    adata = None
+    
+    del data
+    gc.collect()
     
     
     # sampling seed CUMIs.
     info("sampling seed CUMIs ...")
     
-    smpl_cumi_dir = os.path.join(conf.out_step_dir, "%d_smpl_cumi" % step)
+    smpl_cumi_dir = os.path.join(step_dir, "%d_smpl_cumi" % step)
     os.makedirs(smpl_cumi_dir, exist_ok = True)
     step += 1
 
@@ -220,7 +212,7 @@ def rs_core(conf):
     # are deleted, to avoid memory issues caused by multi-processing.
     info("generate simulated CUMIs ...")
 
-    simu_cumi_dir = os.path.join(conf.out_step_dir, "%d_simu_cumi" % step)
+    simu_cumi_dir = os.path.join(step_dir, "%d_simu_cumi" % step)
     os.makedirs(simu_cumi_dir, exist_ok = True)
     step += 1
 
@@ -240,33 +232,30 @@ def rs_core(conf):
     
     
     # prepare batch-specific BAM files.
-    sam_dir = os.path.join(conf.out_step_dir, "%d_simu_bam" % step)
+    sam_dir = os.path.join(step_dir, "%d_simu_bam" % step)
     os.makedirs(sam_dir, exist_ok = True)
     step += 1
     
 
     # feature-specific read simulation (sampling) with multi-processing.
-    info("start feature-specific read simulation with %d cores ..." % conf.ncores)
+    info("start feature-specific read simulation with %d cores ..." % \
+        min(bd_m, conf.ncores))
 
     pool = multiprocessing.Pool(processes = min(conf.ncores, bd_m))
     mp_result = []
     for i, (b, e) in enumerate(bd_reg_indices):
-        bdata = BatchData(
-            idx = i,
-            conf = conf,
-            reg_obj_fn = reg_fn_list[i],
-            reg_idx_b = b,
-            reg_idx_e = e,
-            alleles = alleles,
-            refseq_fn = conf.refseq_fn,
-            tmp_dir = os.path.join(sam_dir, str(i))
-        )
-        if conf.debug > 0:
-            debug("data of batch-%d before:" % i)
-            bdata.show(fp = sys.stdout, prefix = "\t")
         mp_result.append(pool.apply_async(
             func = rs_features, 
-            args = (bdata, ), 
+            kwds = dict(
+                reg_obj_fn = reg_fn_list[i],
+                reg_idx_b = b,
+                reg_idx_e = e,
+                alleles = alleles,
+                refseq_fn = conf.refseq_fn,
+                tmp_dir = os.path.join(sam_dir, str(i)),
+                conf = conf,
+                idx = i
+            ),
             callback = None,
             error_callback = mp_error_handler
         ))
@@ -274,26 +263,16 @@ def rs_core(conf):
     pool.join()
 
     mp_result = [res.get() for res in mp_result]
-    bdata_list = [item[0] for item in mp_result]
-    bd_fn_list = [item[1] for item in mp_result]
+    info("read simulation multiprocessing finished.")
 
-    # check running status of each sub-process
-    for bdata in bdata_list:         
-        if conf.debug > 0:
-            debug("data of batch-%d after:" %  bdata.idx)
-            bdata.show(fp = sys.stdout, prefix = "\t")
-        if bdata.ret < 0:
-            error("error code for batch-%d: %d" % (bdata.idx, bdata.ret))
-            raise ValueError
-    del bdata_list
             
     # extract feature-specific BAM files.
     reg_sam_fn_list = []
-    for fn_list in bd_fn_list:
-        reg_sam_fn_list.extend(fn_list)
-    reg_sam_list_fn = os.path.join(sam_dir, "features.bam.lst")
-    list2file(reg_sam_fn_list, reg_sam_list_fn)
-    del bd_fn_list
+    for lst in mp_result:
+        reg_sam_fn_list.extend(lst)
+    fn = os.path.join(sam_dir, "features.bam.lst")
+    list2file(reg_sam_fn_list, fn)
+    del mp_result
     info("%d feature-specific BAM files saved." % len(reg_sam_fn_list))
 
     
@@ -336,28 +315,24 @@ def rs_core(conf):
 
         # out_sam_dir : str
         #   Output folder for SAM/BAM file(s).
-        "out_sam_dir": conf.out_sam_dir,
+        "out_sam_dir": out_sam_dir,
 
         # out_sam_fn : str
         #   Path to output BAM file.
-        "out_sam_fn": conf.out_sam_fn
+        "out_sam_fn": out_sam_fn
     }
     return(res)
+
 
 
 def rs_run(conf):
     ret = -1
     res = None
-    cmdline = None
 
     start_time = time.time()
     time_str = time.strftime(
         "%Y-%m-%d %H:%M:%S", time.localtime(start_time))
     info("start time: %s." % time_str)
-
-    if conf.argv is not None:
-        cmdline = " ".join(conf.argv)
-        info("CMD: %s" % cmdline)
 
     try:
         res = rs_core(conf)
@@ -370,9 +345,6 @@ def rs_run(conf):
         info("All Done!")
         ret = 0
     finally:
-        if conf.argv is not None:
-            info("CMD: %s" % cmdline)
-
         end_time = time.time()
         time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
         info("end time: %s" % time_str)
@@ -381,76 +353,66 @@ def rs_run(conf):
     return((ret, res))
 
 
-def prepare_config(conf):
-    """Prepare configures for downstream analysis.
 
-    This function should be called after cmdline is parsed.
-
-    Parameters
-    ----------
-    conf : rs.config.Config
-        Global configuration object.
-
-    Returns
-    -------
-    int
-        Return code. 0 if success, -1 otherwise.
-    """
-    if not conf.out_dir:
-        error("out dir needed!")
-        return(-1)
+def rs_pp(conf):
+    info("configuration:")
+    conf.show(fp = sys.stdout, prefix = "\t")
+    
     os.makedirs(conf.out_dir, exist_ok = True)
 
 
-    if conf.count_fn:
-        if os.path.isfile(conf.count_fn):
-            conf.adata = load_h5ad(conf.count_fn)
-        else:
-            error("count file '%s' does not exist." % conf.count_fn)
-            return(-1)
-    else:
-        error("count file needed!")
-        return(-1)
+    assert_e(conf.count_fn)
+    adata = load_h5ad(conf.count_fn)
+    n, p = adata.shape
+
+    assert "cell" in adata.obs.columns
+    assert "cell_type" in adata.obs.columns
+    assert "feature" in adata.var.columns
+    assert "chrom" in adata.var.columns
+    for ale in conf.alleles:
+        assert ale in adata.layers
+    info("count data loaded, shape = %s." % str(adata.shape))
 
 
-    if conf.feature_fn:
-        if os.path.isfile(conf.feature_fn):
-            conf.reg_list = load_feature_objects(conf.feature_fn)
-            if not conf.reg_list:
-                error("failed to load feature file.")
-                return(-1)
-            info("[input] %d features loaded." % len(conf.reg_list))
-        else:
-            error("feature file '%s' does not exist." % conf.feature_fn)
-            return(-1)
-    else:
-        error("feature file needed!")
-        return(-1)
+    assert_e(conf.feature_fn)
+    reg_list = load_feature_objects(conf.feature_fn)
     
-    for reg in conf.reg_list:
+    assert len(reg_list) == p
+    for i in range(p):
+        assert adata.var["feature"].iloc[i] == reg_list[i].name
+    info("%d features loaded." % len(reg_list))
+    
+    for reg in reg_list:
         reg.out_sam_fn = os.path.join(reg.res_dir, "%s.simu.bam" % reg.name)
 
 
-    if not os.path.isfile(conf.refseq_fn):
-        error("refseq file needed!")
-        return(-1)
+    assert conf.umi_len <= 31
+    RD = sum_layers(adata, layers = conf.alleles)
+    assert np.max(RD.sum(axis = 1)) <= 4 ** conf.umi_len    # cell library size
+    del RD
+    RD = None
+
+
+    assert_e(conf.refseq_fn)
 
     if conf.cell_tag and conf.cell_tag.upper() == "NONE":
         conf.cell_tag = None
 
     if conf.umi_tag and conf.umi_tag.upper() == "NONE":
         conf.umi_tag = None
+        
+        
+    info("updated configuration:")
+    conf.show(fp = sys.stdout, prefix = "\t")
+        
+        
+    res = dict(
+        # adata : anndata.Anndata
+        #   The object storing count matrices.
+        adata = adata,
 
-
-    if conf.out_sam_dir is None:
-        conf.out_sam_dir = os.path.join(conf.out_dir, "bam")
-    os.makedirs(conf.out_sam_dir, exist_ok = True)
-    
-    conf.out_sam_fn = os.path.join(conf.out_sam_dir, \
-                conf.out_prefix + "possorted.bam")
-    
-    if conf.out_step_dir is None:
-        conf.out_step_dir = os.path.join(conf.out_dir, "steps")
-    os.makedirs(conf.out_step_dir, exist_ok = True)
-
-    return(0)
+        # reg_list : list of utils.gfeature.Feature
+        #   A list of features.
+        reg_list = reg_list
+    )
+    return(res)

@@ -2,6 +2,7 @@
 
 
 import sys
+from ..config import Defaults as MainDefaults
 
 COMMAND = "afc"
 
@@ -13,9 +14,7 @@ class Config:
     See :func:`~.main.afc_wrapper()`.
     """
     def __init__(self):
-        # defaults : DefaultConfig
-        #   The default values of parameters.
-        self.defaults = DefaultConfig()
+        self.defaults = Defaults()
 
         # command-line arguments/parameters.
         self.sam_fn = None
@@ -135,26 +134,11 @@ class Config:
         return self.umi_tag is not None
 
 
-class DefaultConfig:
-    def __init__(self):
-        self.DEBUG = 0
-        self.CELL_TAG = "CB"
-        self.UMI_TAG = "UB"
-        self.UMI_TAG_BC = "UB"    # the default umi tag for 10x data.
-        self.NCORES = 1
-        
-        self.MIN_COUNT = 20
-        self.MIN_MAF = 0.1
-        
-        self.STRANDNESS = "forward"
-        self.MIN_INCLUDE = 0.9
 
-        self.MIN_MAPQ = 20
-        self.MIN_LEN = 30
-        self.INCL_FLAG = 0
-        self.EXCL_FLAG_UMI = 772
-        self.EXCL_FLAG_XUMI = 1796
-        self.NO_ORPHAN = True
+class Defaults(MainDefaults):
+    def __init__(self):
+        super().__init__()
+
 
 
 if __name__ == "__main__":

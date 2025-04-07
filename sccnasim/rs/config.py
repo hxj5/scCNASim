@@ -2,7 +2,7 @@
 
 
 import sys
-from ..afc.config import DefaultConfig as AFC_Def_Conf
+from ..config import Defaults as MainDefaults
 
 COMMAND = "rs"
 
@@ -12,16 +12,10 @@ class Config:
 
     Attributes
     ----------
-    See `rs::main::rs_wrapper()`.
+    See :func:`~.main.rs_wrapper()`.
     """
     def __init__(self):
-        # defaults : DefaultConfig
-        #   The default values of parameters.
-        self.defaults = DefaultConfig()
-
-        # argv : list of str or None, default None
-        #   A list of command line arguments, typically from sys.argv.
-        self.argv = None
+        self.defaults = Defaults()
 
         # command-line arguments/parameters.
         self.count_fn = None
@@ -34,22 +28,12 @@ class Config:
         self.umi_tag = self.defaults.UMI_TAG
         self.umi_len = self.defaults.UMI_LEN
         self.ncores = self.defaults.NCORES
-        
-        # derived variables
-
-        # adata : anndata.Anndata
-        #   The object storing count matrices.
-        self.adata = None
-
-        # reg_list : list of utils.gfeature.Feature
-        #   A list of features.
-        self.reg_list = None
-
-        # out_prefix : str
-        #   The prefix of the output files.
-        self.out_prefix = COMMAND + "."
 
         # internal parameters.
+        
+        # out_prefix : str
+        #   The prefix of the output files.
+        self.out_prefix = COMMAND
         
         # cell_raw_tag : str
         #   Tag for uncorrected raw cell tag in seed and simulated BAM.
@@ -75,18 +59,6 @@ class Config:
         #   All alleles.
         self.alleles = ("A", "B", "U")
 
-        # out_sam_dir : str
-        #   Output folder for SAM/BAM file(s).
-        self.out_sam_dir = None
-        
-        # out_sam_fn : str
-        #   Output BAM file.
-        self.out_sam_fn = None
-        
-        # out_step_dir : str
-        #   Output folder for step-wise results.
-        self.out_step_dir = None
-
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -105,27 +77,15 @@ class Config:
         s += "%sumi_len = %s\n" % (prefix, self.umi_len)
         s += "%snumber_of_processes = %d\n" % (prefix, self.ncores)
         s += "%s\n" % prefix
-
-        # derived variables
-
-        s += "%sshape_of_adata = %s\n" % (prefix, self.adata.shape if \
-                self.adata is not None else "None")
-        s += "%snumber_of_features = %d\n" % (prefix, len(self.reg_list) if \
-                self.reg_list is not None else -1)
-        s += "%s\n" % prefix
         
         # internal parameters.
 
+        s += "%sout_prefix = %s\n" % (prefix, self.out_prefix)
         s += "%scell_raw_tag = %s\n" % (prefix, self.cell_raw_tag)
         s += "%sumi_raw_tag = %s\n" % (prefix, self.umi_raw_tag)
         s += "%sbackup_cell_tag = %s\n" % (prefix, self.backup_cell_tag)
         s += "%sbackup_umi_tag = %s\n" % (prefix, self.backup_umi_tag)
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
-        s += "%s\n" % prefix
-
-        s += "%sout_sam_dir = %s\n" % (prefix, self.out_sam_dir)
-        s += "%sout_sam_fn = %s\n" % (prefix, self.out_sam_fn)
-        s += "%sout_step_dir = %s\n" % (prefix, self.out_step_dir)
         s += "%s\n" % prefix
 
         fp.write(s)
@@ -138,10 +98,12 @@ class Config:
         return self.umi_tag is not None
 
 
-class DefaultConfig(AFC_Def_Conf):
+
+class Defaults(MainDefaults):
     def __init__(self):
         super().__init__()
         self.UMI_LEN = 10
+
 
 
 if __name__ == "__main__":
