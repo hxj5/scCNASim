@@ -13,7 +13,7 @@ from logging import warning as warn
 from .config import Config, COMMAND
 from .core import rs_features
 from .cumi import cumi_simu_main, cumi_sample_seed_main
-from .sam import sam_cat_and_sort
+from .sam import sam_cat_and_sort, calc_max_mem
 from ..app import APP, VERSION
 from ..io.base import load_h5ad, save_h5ad,   \
     save_cells, save_samples,    \
@@ -244,6 +244,7 @@ def rs_core(conf):
 
     pool = multiprocessing.Pool(processes = min(conf.ncores, bd_m))
     mp_result = []
+    max_mem, _ = calc_max_mem(conf.ncores, total_mem = 40)
     for i, (b, e) in enumerate(bd_reg_indices):
         mp_result.append(pool.apply_async(
             func = rs_features, 
@@ -255,7 +256,8 @@ def rs_core(conf):
                 refseq_fn = conf.refseq_fn,
                 tmp_dir = os.path.join(sam_dir, str(i)),
                 conf = conf,
-                idx = i
+                idx = i,
+                max_mem = max_mem
             ),
             callback = None,
             error_callback = mp_error_handler
@@ -283,7 +285,7 @@ def rs_core(conf):
     sam_cat_and_sort(
         reg_sam_fn_list, 
         out_sam_fn,
-        max_mem = "4G",
+        max_mem = max_mem,
         ncores = conf.ncores,
         index = True
     )

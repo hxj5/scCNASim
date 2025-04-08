@@ -43,3 +43,16 @@ def sam_cat_and_sort(in_fns, out_fn, max_mem = "4G", ncores = 1, index = True):
     
     if index:
         pysam.index(out_fn)
+        
+        
+
+def calc_max_mem(ncores, total_mem = 40, min_mem = 1, max_mem = 4):
+    if max_mem * ncores <= total_mem:
+        return(("%sG" % max_mem, ncores))
+    
+    if min_mem * ncores > total_mem:
+        ncores = max(1, total_mem // min_mem)
+        return(("%sG" % min_mem, ncores))
+    
+    mem = int(total_mem / ncores)
+    return(("%sG" % mem, ncores)) 

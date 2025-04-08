@@ -23,7 +23,8 @@ def rs_features(
     refseq_fn,
     tmp_dir,
     conf,
-    idx
+    idx,
+    max_mem
 ):
     """Read simulation for a list of features.
     
@@ -47,6 +48,8 @@ def rs_features(
         The configuration object.
     idx : int
         The index of this batch.
+    max_mem : str
+        Maximum memory per thread used by samtools sort.
         
     Returns
     -------
@@ -89,7 +92,7 @@ def rs_features(
         sam_cat_and_sort(
             ale_sam_fn_list,
             reg.out_sam_fn,
-            max_mem = "4G",
+            max_mem = max_mem,
             ncores = 1,
             index = True
         )
