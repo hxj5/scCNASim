@@ -8,7 +8,7 @@ from logging import info, error
 from .sizefactor import fit_libsize, simu_libsize
 from ..utils.grange import str2tuple
 from ..utils.xdata import sum_layers
-from ..utils.xmatrix import sparse2array
+from ..utils.xmatrix import sparse2array, mtx2array1d
 
 
 
@@ -53,7 +53,7 @@ def calc_size_factors(
     if size_factor is None:
         pass
     elif size_factor == "libsize":
-        s_train = np.sum(adata.X, axis = 1)
+        s_train = mtx2array1d(adata.X.sum(axis = 1))
         par = fit_libsize(
             adata,
             cell_type_fit = np.unique(clone_cell_types),
@@ -173,8 +173,8 @@ def qc_libsize(adata, conf, out_dir, out_prefix):
         Number of filtered cells.
     """
     X = adata.X
-    sf = np.sum(X, axis = 1)
-    ef = np.sum(X > 0, axis = 1)     # number of expressed features.
+    sf = mtx2array1d(X.sum(axis = 1))
+    ef = mtx2array1d((X > 0).sum(axis = 1))     # number of expressed features.
     
     os.makedirs(out_dir, exist_ok = True)
 

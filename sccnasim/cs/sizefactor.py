@@ -10,7 +10,7 @@ from logging import info, error
 from ..utils.xmath import   \
     estimate_dist_normal, estimate_dist_lognormal,  \
     fit_dist_t
-from ..utils.xmatrix import sparse2array
+from ..utils.xmatrix import sparse2array, mtx2array1d
 
 
 
@@ -42,7 +42,7 @@ def fit_libsize_cell_type(
         error("invalid distribution '%s'." % dist)
         raise ValueError
     
-    s = np.sum(X, axis = 1)
+    s = mtx2array1d(X.sum(axis = 1))
     par = None
     if dist == "lognormal":
         par = estimate_dist_lognormal(s, shift = 1)

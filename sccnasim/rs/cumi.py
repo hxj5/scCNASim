@@ -25,7 +25,7 @@ from .io import merge_tsv
 from ..io.base import load_h5ad, save_h5ad, load_feature_objects
 from ..utils.base import is_file_empty
 from ..utils.xbarcode import Barcode
-from ..utils.xdata import sum_layers
+from ..utils.xdata import sum_layers, array_to_sparse
 from ..utils.xthread import split_n2batch, mp_error_handler
 from ..utils.zfile import zopen, ZF_F_PLAIN
 
@@ -166,6 +166,10 @@ def cumi_simu_cs_main(
     assert len(alleles) == len(out_files)
     for ale in alleles:
         assert ale in adata.layers
+        
+        
+    # here use "csr" to make row (cell) slicing efficient.
+    adata = array_to_sparse(adata, which = "csr", layers = alleles)
 
     
     # split cells for multi-processing
@@ -280,7 +284,7 @@ def cumi_simu_cs(
     b = Barcode(umi_len)
     for i in range(n):
         cell = cell_list[i]
-        uint_list = b.sample_int(n = np.sum(RD[i, :]), sort = False)
+        uint_list = b.sample_int(n = RD[i, :].sum(), sort = False)
         r = 0
         for j in range(p):
             for k, (ale, fp) in enumerate(zip(alleles, fp_list)):
@@ -568,6 +572,9 @@ def cumi_sample_seed_main(
     # check args.
     adata = load_h5ad(count_fn)
     
+    # here use "csr" to make column (feature) slicing efficient.
+    adata = array_to_sparse(adata, which = "csc", layers = alleles)
+    
     reg_list = load_feature_objects(feature_fn)
         
     assert "feature" in adata.var
@@ -585,7 +592,7 @@ def cumi_sample_seed_main(
             cumis = load_cumi(in_fn)
             x = adata.layers[ale][:, idx]
             if cumis.shape[0] == 0:
-                assert np.sum(x) == 0
+                assert x.sum() == 0
                 with open(out_fn, "w") as fp:
                     pass
                 continue
@@ -630,7 +637,7 @@ def cumi_sample(
     assert len(cells) == len(umis)
     
     m = len(cells)
-    n = np.sum(counts)
+    n = counts.sum()
 
     indices = np.random.choice(
         range(m), 

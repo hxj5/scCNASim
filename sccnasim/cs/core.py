@@ -15,7 +15,7 @@ from .marginal import fit_RD, simu_RD
 from .pp import calc_size_factors, clone_calc_n_cell_each, \
     cna_get_overlap_features, qc_libsize, subset_adata_by_cell_types
 from ..io.base import load_clones, load_cnas, load_h5ad
-from ..utils.xdata import sum_layers
+from ..utils.xdata import sum_layers, array_to_sparse
 
 
 
@@ -31,6 +31,10 @@ def cs_init(conf):
     for var_key in ("feature", "chrom", "start", "end"):
         assert var_key in adata.var.columns
     info("load count data, shape = %s." % str(adata.shape))
+    
+    
+    # here use "csr" to make row (cell) slicing efficient.
+    adata = array_to_sparse(adata, which = "csr", layers = conf.alleles)
 
 
     assert conf.cna_mode in ("hap-aware", "hap-unknown")

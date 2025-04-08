@@ -4,6 +4,7 @@
 import os
 import pickle
 from ..io.counts import save_matrix, save_adata_ml
+from ..utils.xdata import sum_layers
 
 
 
@@ -66,13 +67,7 @@ def cs_save_adata2mtx(
     if len(layers) > 0:
         mtx_sum_fn = os.path.join(
             out_dir, "matrix.%s.sum.mtx" % "_".join(layers))
-        mtx_sum = None
-        for idx, a in enumerate(layers):
-            mtx = adata.layers[a]
-            if idx == 0:
-                mtx_sum = mtx
-            else:
-                mtx_sum += mtx
+        mtx_sum = sum_layers(adata, layers = layers)
         save_matrix(mtx_sum, mtx_sum_fn)
 
         

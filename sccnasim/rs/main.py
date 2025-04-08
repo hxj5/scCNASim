@@ -21,6 +21,7 @@ from ..io.base import load_h5ad, save_h5ad,   \
 from ..utils.base import assert_e
 from ..utils.xdata import sum_layers
 from ..utils.xio import list2file
+from ..utils.xmatrix import mtx2array1d
 from ..utils.xthread import split_n2batch, mp_error_handler
 
 
@@ -388,7 +389,7 @@ def rs_pp(conf):
 
     assert conf.umi_len <= 31
     RD = sum_layers(adata, layers = conf.alleles)
-    assert np.max(RD.sum(axis = 1)) <= 4 ** conf.umi_len    # cell library size
+    assert np.max(mtx2array1d(RD.sum(axis = 1))) <= 4 ** conf.umi_len    # cell library size
     del RD
     RD = None
 

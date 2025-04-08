@@ -9,7 +9,8 @@ import numpy as np
 
 from logging import info, error
 from logging import warning as warn
-from .xmatrix import sparse2array
+from scipy.sparse import issparse
+from .xmatrix import sparse2array, array2sparse
 
 
 
@@ -48,6 +49,40 @@ def add_cell_type_anno(adata, anno):
 
 
 
+def array_to_sparse(adata, which, layers = None, inplace = False):
+    """Convert numpy array in specific layers to sparse matrix.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        The adata object.
+    which : {"coo", "csc", "csr"}
+        Which type of sparse array or matrix to use?
+        - "coo": A sparse array/matrix in COOrdinate format.
+        - "csc": Compressed Sparse Column array/matrix.
+        - "csr": Compressed Sparse Row array/matrix.
+    layers : list of str or None, default None
+        Name of the layers in `adata`, whose numpy array will be converted
+        into sparse matrix.
+        If None, use all layers.    
+    inplace : bool, default False
+        Whether to modify the `adata` inplace.
+    
+    Returns
+    -------
+    adata : anndata.AnnData
+        The updated adata object.
+    """
+    if not inplace:
+        adata = adata.copy()
+    if layers is None:
+        layers = adata.layers.keys()
+    for layer in layers:
+        adata.layers[layer] = array2sparse(adata.layers[layer], which = which)
+    return(adata)
+    
+    
+    
 def check_sanity_layer(adata, layer = None):
     """Sanity check for specific layer of adata.
     
@@ -67,16 +102,22 @@ def check_sanity_layer(adata, layer = None):
     """
     state = 0
 
-    adata, mtx = sparse_to_array(adata, layer)
+    mtx = None
+    if layer is None:
+        mtx = adata.X
+    else:
+        mtx = adata.layers[layer]
+    if not issparse(mtx):
+        mtx = array2sparse(mtx, which = "csr")
     
     # detect nan Value
-    nan_count = np.isnan(mtx).sum()
+    nan_count = np.isnan(mtx.data).sum()
     if nan_count > 0:
         warn("NaN values in layer '%s'!" % layer)
         state |= (1<<0)
     
     # detect negative Value
-    if np.any(mtx < 0):
+    if np.any(mtx.data < 0):
         warn("negative values in layer '%s'!" % layer)
         state |= (1<<1)
     
@@ -184,17 +225,17 @@ def set_ref_cell_types(adata, ref_cell_types = None, inplace = False):
     
 
     
-def sparse_to_array(adata, layer = None, inplace = False):
-    """Convert sparse matrix in specific layer to numpy array.
+def sparse_to_array(adata, layers = None, inplace = False):
+    """Convert sparse matrix in specific layers to numpy array.
 
     Parameters
     ----------
     adata : anndata.AnnData
         The adata object.
-    layer : str or None, default None
-        Name of the layer in `adata`, whose sparse matrix will be converted
+    layers : list of str or None, default None
+        Name of the layers in `adata`, whose sparse matrix will be converted
         into numpy array.
-        If None, the `adata.X` will be used.    
+        If None, use all layers.    
     inplace : bool, default False
         Whether to modify the `adata` inplace.
     
@@ -202,17 +243,14 @@ def sparse_to_array(adata, layer = None, inplace = False):
     -------
     adata : anndata.AnnData
         The updated adata object.
-    numpy.ndarray
-        The converted numpy array.
     """
     if not inplace:
         adata = adata.copy()
-    if layer is None:
-        adata.X = sparse2array(adata.X)
-        return((adata, adata.X))
-    else:
+    if layers is None:
+        layers = adata.layers.keys()
+    for layer in layers:
         adata.layers[layer] = sparse2array(adata.layers[layer])
-        return((adata, adata.layers[layer]))
+    return(adata)
 
     
     

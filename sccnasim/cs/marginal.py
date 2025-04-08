@@ -20,7 +20,7 @@ from ..utils.xio import load_pickle, save_pickle
 from ..utils.xmath import   \
     estimate_dist_nb, estimate_dist_poi,  \
     fit_dist_nb, fit_dist_poi, fit_dist_zinb, fit_dist_zip
-from ..utils.xmatrix import sparse2array
+from ..utils.xmatrix import sparse2array, array2sparse
 from ..utils.xthread import mp_error_handler, split_n2batch
 
 
@@ -308,7 +308,7 @@ def __fit_RD_cell_type_batch(
     pval_cutoff = 0.05    
 ):
     adata = load_h5ad(count_fn)
-    X = adata.X
+    X = adata.X         # should be csc_array or csc_matrix.
     n, p = X.shape
     
     result = []
@@ -317,9 +317,9 @@ def __fit_RD_cell_type_batch(
         "oth": set()               # Indexes of other features.
     }
     for i in range(p):
-        x = X[:, i]
+        x = X[:, i].toarray()
         idx = idx_b + i
-        if np.sum(x > 0) >= min_nonzero_num:
+        if (x > 0).sum() >= min_nonzero_num:
             fet_idx["nz"].add(idx)
             res = __fit_RD_feature(
                 x = x,
@@ -394,13 +394,16 @@ def fit_RD_cell_type(
     if s is not None:
         assert len(s) == n
         
-    n_read = np.sum(adata.X)
+    n_read = adata.X.sum()
 
     
     # feature-specific counts fitting.
     if verbose:
         info("processing %d features in %d cells (ncores = %d) ..." % \
             (p, n, ncores))
+        
+    # here, use "csc" to make column (feature) slicing efficient.
+    adata.X = array2sparse(adata.X, which = "csc")
     
     # split features into batches.
     # here, max_n_batch to account for max number of open files.
@@ -578,7 +581,7 @@ def fit_RD(
     os.makedirs(tmp_dir, exist_ok = True)
 
     #X = sparse2array(adata.X)
-    X = adata.X
+    X = adata.X            # should be "csr_array" or "csr_matrix".
     n, p = X.shape
 
     assert "cell_type" in adata.obs.columns
@@ -851,11 +854,17 @@ def simu_RD_cell_type(
     for res in mp_res:
         result.extend(res)
 
-    # TODO: construct matrix in each batch and then merge here.
+    # TODO:
+    # - construct matrix in each batch and then merge here.
+    # - use scipy.sparse.lil_array/matrix or dok_array/matrix instead of
+    #   ndarray for efficiently constructing and modifying the sparse 
+    #   structure.
     mtx = np.zeros((n, p))
     for dat, index in result:
         mtx[:, index] = dat
     mtx = mtx.astype(dtype)
+    
+    mtx = array2sparse(mtx, which = "csr")
 
     return(mtx)
 
@@ -1089,7 +1098,7 @@ def simu_RD(
         if mtx is None:
             mtx = c_mtx
         else:
-            mtx = np.vstack((mtx, c_mtx))
+            mtx = sp.sparse.vstack([mtx, c_mtx])
     mtx = mtx.astype(dtype)
 
     adata = ad.AnnData(

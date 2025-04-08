@@ -7,7 +7,6 @@ import pandas as pd
 import scipy as sp
 
 from scipy import io
-from scipy import sparse
 from .base import format_anndata
 
 
@@ -705,7 +704,12 @@ def load_matrix(fn):
         mtx = sp.io.mmread(fn)
     except:
         mtx = io.mmread(fn)
-    mtx = mtx.toarray()    # convert from sparse matrix to ndarray to support slicing.
+    
+    # convert from sparse matrix to ndarray to support slicing.
+    #mtx = mtx.toarray()
+    
+    # Note that scipy.sparse csr_array, csr_matrix, csc_array, csc_matrix
+    # also support slicing.
     return(mtx)
 
 
@@ -723,5 +727,7 @@ def save_matrix(mtx, fn):
     -------
     Void.
     """
-    mtx = sparse.csr_matrix(mtx)   # convert from ndarray to sparse matrix to be fully compatible with .mtx format.
+    # convert from ndarray to sparse matrix to be fully compatible with
+    # the scipy.io.mmwrite() function.
+    mtx = sp.sparse.csr_matrix(mtx)
     io.mmwrite(fn, mtx)
