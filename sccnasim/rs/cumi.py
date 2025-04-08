@@ -13,6 +13,7 @@
 #      data.
 
 
+import gc
 import multiprocessing
 import numpy as np
 import os
@@ -295,6 +296,10 @@ def cumi_simu_cs(
     for fp in fp_list:
         fp.close()
 
+    del adata
+    del RD
+    gc.collect()
+
     return(0)
 
 
@@ -409,21 +414,21 @@ def __cumi_extract_fs_batch(
     idx_map = {}
     bd_batches = []
     for idx, (b, e) in enumerate(bd_indices):
-        bd_fn = os.path.join(res_dir, "%d.%d.cumi.tsv" % (depth, idx))
-        bd_fp = zopen(bd_fn, "w", ZF_F_PLAIN)
-        bd_fp_list.append(bd_fp)
+        fn = os.path.join(res_dir, "%d.%d.cumi.tsv" % (depth, idx))
+        fp = zopen(fn, "w", ZF_F_PLAIN)
+        bd_fp_list.append(fp)
         for reg_idx in range(b, e):
             assert reg_idx not in idx_map
-            idx_map[reg_idx] = bd_fp
-        bd_batches.append((b, e - 1, bd_fn))
+            idx_map[reg_idx] = fp
+        bd_batches.append((b, e - 1, fn))
     
     in_fp = open(in_fn, "r")
     for line in in_fp:
         reg_idx, _, cumi = line.partition("\t")
         reg_idx = int(reg_idx)
         assert reg_idx in idx_map
-        bd_fp = idx_map[reg_idx]
-        bd_fp.write(line)
+        fp = idx_map[reg_idx]
+        fp.write(line)
     in_fp.close()
     
     for fp in bd_fp_list:
@@ -464,6 +469,12 @@ def __cumi_extract_fs_batch(
             ))
         pool.close()
         pool.join()
+        
+        
+    del bd_fp_list
+    del idx_map
+    del bd_batches
+    gc.collect()
 
     return(0)
 
@@ -584,6 +595,10 @@ def cumi_sample_seed_main(
                 counts = x,
                 out_fn = out_fn
             )
+            
+    del adata
+    del reg_list
+    gc.collect()
 
     return(0)
 

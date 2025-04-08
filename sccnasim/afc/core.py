@@ -1,6 +1,7 @@
 # core.py - core part of allele-specific feature counting.
 
 
+import gc
 import math
 import numpy as np
 import os
@@ -136,6 +137,12 @@ def fc_features(
     
     info("[Batch-%d] done!" % batch_idx)
 
+
+    del reg_list
+    del mcnt_snp
+    del mcnt_ab
+    del mcnt
+    gc.collect()
 
     res = dict(
         # nr_reg : int

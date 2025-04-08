@@ -1,6 +1,7 @@
 # core.py
 
 
+import gc
 import os
 import pysam
 import shutil
@@ -95,6 +96,10 @@ def rs_features(
     
     reg_sam_fn_list = [reg.out_sam_fn for reg in reg_list]
     shutil.rmtree(tmp_dir)
+    
+    del reg_list
+    del fa
+    gc.collect()
 
     return(reg_sam_fn_list)
 

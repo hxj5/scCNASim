@@ -2,6 +2,7 @@
 
 
 import anndata as ad
+import gc
 import numpy as np
 import os
 import pandas as pd
@@ -287,6 +288,7 @@ def cs_cna_core(
     params_fn = os.path.join(out_dir, "%s.fit.output.params.pickle" % out_prefix)
     save_params(params, params_fn)
     del params
+    gc.collect()
     
     
     info("start simulate RD ...")
@@ -312,6 +314,7 @@ def cs_cna_core(
     params_fn = os.path.join(out_dir, "%s.simu.output.params.pickle" % out_prefix)
     save_params(params, params_fn)
     del params
+    gc.collect()    
     
     
     info("clean tmp files ...")

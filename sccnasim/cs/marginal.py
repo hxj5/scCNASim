@@ -332,6 +332,10 @@ def __fit_RD_cell_type_batch(
             result.append(res)
         else:
             fet_idx["oth"].add(idx)
+            
+    del adata
+    gc.collect()
+    
     return((result, fet_idx))
     
 
@@ -726,6 +730,10 @@ def __simu_RD_cell_type_batch(
             index = par["index"] + 0
         )
         result.append(res)
+        
+    del params
+    del df
+    gc.collect()
 
     return(result)
 
@@ -809,6 +817,7 @@ def simu_RD_cell_type(
         save_params(params["params_nz"].iloc[b:e, ], fn)
         params_fn_list.append(fn)
     del params
+    gc.collect()
     params = None
 
 

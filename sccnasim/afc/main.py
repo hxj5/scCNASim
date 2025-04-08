@@ -306,6 +306,8 @@ def afc_core(conf):
             callback = show_progress,
             error_callback = mp_error_handler
         ))
+        del args
+        gc.collect()
     pool.close()
     pool.join()
 

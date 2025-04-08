@@ -1,6 +1,7 @@
 # sam.py - sam alignment processing.
 
 
+import gc
 import multiprocessing
 import os
 import pysam
@@ -418,7 +419,7 @@ def sam_merge(in_fns, out_fn, ncores = 1):
     sam_merge_from_file(list_fn, out_fn, ncores = ncores)
     
     if is_input_list:
-        os.remove(list_fn)   
+        os.remove(list_fn)
 
 
         
