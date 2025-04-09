@@ -216,6 +216,9 @@ def cs_core(conf):
                 adata_ale.var["feature"] == adata_simu.var["feature"])
         adata_simu.layers[allele] = adata_ale.X
 
+        
+    info("generate random cell barcodes for simulated adata ...")
+    
     adata_simu.obs["cell"] = rand_cell_barcodes(
         m = 16,
         n = adata_simu.shape[0],
@@ -223,12 +226,17 @@ def cs_core(conf):
         sort = True
     )
     
+    
+    info("update .var of simulated adata ...")
+    
     adata = load_h5ad(conf.count_fn)
     assert np.all(adata_simu.var["feature"] == adata.var["feature"])
     adata_simu.var = adata.var
     del adata
 
 
+    info("save simulated counts ...")
+    
     count_fn = os.path.join(conf.out_dir, "%s.counts.h5ad" % \
                                 conf.out_prefix)
     save_h5ad(adata_simu, count_fn)

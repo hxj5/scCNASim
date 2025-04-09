@@ -2,6 +2,7 @@
 
 
 import numpy as np
+import random
 
 
 
@@ -123,7 +124,11 @@ class Barcode:
             The sampled barcodes in integer format.
         """
         assert n <= 4**self.m
-        x = np.random.choice(4**self.m, size = n, replace = False)
+        #x = np.random.choice(4**self.m, size = n, replace = False)
+        
+        # Note, standard random.sample() is much more efficient than
+        # numpy.random.choice() when k << sample-space-size.
+        x = np.array(random.sample(range(4**self.m), k = n))
         if sort:
             x = np.sort(x)     # as self.d is in ascending order.
         assert len(x) == len(np.unique(x))
