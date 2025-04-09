@@ -356,7 +356,8 @@ def afc_core(conf):
             feature_fn = out_feature_fn,
             cell_columns = ["cell"],
             feature_columns = ["chrom", "start", "end", "feature", "strand"],
-            row_is_cell = False
+            row_is_cell = False,
+            sparse_type = "csr"
         )
         if idx == 0:
             adata = dat

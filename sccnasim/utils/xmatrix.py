@@ -30,23 +30,32 @@ def array2sparse(X, which):
         The convertted sparse array or sparse matrix.
     """
     assert which in ("coo", "csc", "csr")
-    try:
-        if which == "coo":
-            X = scipy.sparse.coo_array(X)
-        elif which == "csc":
-            X = scipy.sparse.csc_array(X)
-        elif which == "csr":
-            X = scipy.sparse.csr_array(X)
-    except:
-        if which == "coo":
-            X = scipy.sparse.coo_matrix(X)
-        elif which == "csc":
-            X = scipy.sparse.csc_matrix(X)
-        elif which == "csr":
-            X = scipy.sparse.csr_matrix(X)
+    
+    # anndata seems not accepting sparse array when saving the adata object
+    # into file via write_h5ad ...
+    #try:
+    #    if which == "coo":
+    #        X = scipy.sparse.coo_array(X)
+    #    elif which == "csc":
+    #        X = scipy.sparse.csc_array(X)
+    #    elif which == "csr":
+    #        X = scipy.sparse.csr_array(X)
+    #except:
+    #    if which == "coo":
+    #        X = scipy.sparse.coo_matrix(X)
+    #    elif which == "csc":
+    #        X = scipy.sparse.csc_matrix(X)
+    #    elif which == "csr":
+    #        X = scipy.sparse.csr_matrix(X)
+    if which == "coo":
+        X = scipy.sparse.coo_matrix(X)
+    elif which == "csc":
+        X = scipy.sparse.csc_matrix(X)
+    elif which == "csr":
+        X = scipy.sparse.csr_matrix(X)    
     return(X)
 
-    
+
     
 def sparse2array(X):
     """Convert a sparse matrix to numpy array.

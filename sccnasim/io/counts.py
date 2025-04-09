@@ -8,6 +8,7 @@ import scipy as sp
 
 from scipy import io
 from .base import format_anndata
+from ..utils.xmatrix import array2sparse
 
 
 
@@ -15,7 +16,8 @@ def load_10x_data(
     data_dir, 
     mtx_fn = None, cell_fn = None, feature_fn = None,
     cell_columns = None, feature_columns = None,
-    cell_sep = "\t", feature_sep = "\t"
+    cell_sep = "\t", feature_sep = "\t",
+    sparse_type = "coo"
 ):
     """Load 10x scRNA-seq data stored in a folder.
 
@@ -47,6 +49,11 @@ def load_10x_data(
         The delimiter of the `cell_fn`.
     feature_sep : str, default "\t"
         The delimiter of the `feature_fn`.
+    sparse_type : {"coo", "csc", "csr"}
+        Which type of sparse array or matrix to use?
+        - "coo": A sparse array/matrix in COOrdinate format.
+        - "csc": Compressed Sparse Column array/matrix.
+        - "csr": Compressed Sparse Row array/matrix.
 
     Returns
     -------
@@ -80,7 +87,8 @@ def load_10x_data(
         feature_columns = feature_columns,
         cell_sep = cell_sep,
         feature_sep = feature_sep,
-        row_is_cell = False
+        row_is_cell = False,
+        sparse_type = sparse_type
     )      # feature x cell
 
     adata = adata.transpose()      # cell x feature
@@ -149,7 +157,8 @@ def load_xcltk_data(
     data_dir, 
     mtx_fn = None, cell_fn = None, feature_fn = None,
     cell_columns = None, feature_columns = None,
-    cell_sep = "\t", feature_sep = "\t"
+    cell_sep = "\t", feature_sep = "\t",
+    sparse_type = "coo"
 ):
     """Load xcltk RDR data stored in a folder.
 
@@ -181,6 +190,11 @@ def load_xcltk_data(
         The delimiter of the `cell_fn`.
     feature_sep : str, default "\t"
         The delimiter of the `feature_fn`.
+    sparse_type : {"coo", "csc", "csr"}
+        Which type of sparse array or matrix to use?
+        - "coo": A sparse array/matrix in COOrdinate format.
+        - "csc": Compressed Sparse Column array/matrix.
+        - "csr": Compressed Sparse Row array/matrix.
 
     Returns
     -------
@@ -214,7 +228,8 @@ def load_xcltk_data(
         feature_columns = feature_columns,
         cell_sep = cell_sep,
         feature_sep = feature_sep,
-        row_is_cell = False
+        row_is_cell = False,
+        sparse_type = sparse_type
     )      # feature x cell
 
     adata = adata.transpose()      # cell x feature
@@ -283,7 +298,8 @@ def load_adata_ml(mtx_fn_list, layers,
     cell_fn, feature_fn, 
     cell_columns, feature_columns,
     cell_sep = "\t", feature_sep = "\t",
-    row_is_cell = True
+    row_is_cell = True,
+    sparse_type = "coo"
 ):
     """Load multi-layer adata from files.
 
@@ -310,6 +326,11 @@ def load_adata_ml(mtx_fn_list, layers,
         The delimiter of the `feature_fn`.
     row_is_cell : bool, default True
         Whether the rows of `mtx_fn` are cells.
+    sparse_type : {"coo", "csc", "csr"}
+        Which type of sparse array or matrix to use?
+        - "coo": A sparse array/matrix in COOrdinate format.
+        - "csc": Compressed Sparse Column array/matrix.
+        - "csr": Compressed Sparse Row array/matrix.
 
     Returns
     -------
@@ -325,7 +346,7 @@ def load_adata_ml(mtx_fn_list, layers,
     features = load_features(feature_fn, feature_columns, sep = feature_sep)
 
     for idx, mtx_fn in enumerate(mtx_fn_list):
-        mtx = load_matrix(mtx_fn)
+        mtx = load_matrix(mtx_fn, sparse_type = sparse_type)
         if idx == 0:
             if row_is_cell:
                 adata = ad.AnnData(
@@ -455,7 +476,8 @@ def save_adata_ml(
 def load_adata(mtx_fn, cell_fn, feature_fn, 
     cell_columns, feature_columns,
     cell_sep = "\t", feature_sep = "\t",
-    row_is_cell = True
+    row_is_cell = True,
+    sparse_type = "coo"
 ):
     """Load adata from files.
 
@@ -477,13 +499,18 @@ def load_adata(mtx_fn, cell_fn, feature_fn,
         The delimiter of the `feature_fn`.
     row_is_cell : bool, default True
         Whether the rows of `mtx_fn` are cells.
+    sparse_type : {"coo", "csc", "csr"}
+        Which type of sparse array or matrix to use?
+        - "coo": A sparse array/matrix in COOrdinate format.
+        - "csc": Compressed Sparse Column array/matrix.
+        - "csr": Compressed Sparse Row array/matrix.
 
     Returns
     -------
     anndata.AnnData
         An adata object.
     """
-    mtx = load_matrix(mtx_fn)
+    mtx = load_matrix(mtx_fn, sparse_type = sparse_type)
     cells = load_cells(cell_fn, cell_columns, sep = cell_sep)
     features = load_features(feature_fn, feature_columns, sep = feature_sep)
     if row_is_cell:
@@ -686,13 +713,18 @@ def save_features(df, fn, sep = "\t"):
 
 
     
-def load_matrix(fn):
+def load_matrix(fn, sparse_type = "coo"):
     """Load sparse matrix from file.
 
     Parameters
     ----------
     fn : str
         Path to the input file.
+    sparse_type : {"coo", "csc", "csr"}
+        Which type of sparse array or matrix to use?
+        - "coo": A sparse array/matrix in COOrdinate format.
+        - "csc": Compressed Sparse Column array/matrix.
+        - "csr": Compressed Sparse Row array/matrix.
 
     Returns
     -------
@@ -710,6 +742,7 @@ def load_matrix(fn):
     
     # Note that scipy.sparse csr_array, csr_matrix, csc_array, csc_matrix
     # also support slicing.
+    mtx = array2sparse(mtx, which = sparse_type)
     return(mtx)
 
 
