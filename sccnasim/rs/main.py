@@ -192,7 +192,8 @@ def rs_core(conf):
             kwds = dict(
                 count_fn = count_fn_list[i],
                 feature_fn = reg_fn_list[i],
-                alleles = alleles
+                alleles = alleles,
+                index = i
             ),
             callback = None,
             error_callback = mp_error_handler
@@ -256,7 +257,7 @@ def rs_core(conf):
                 refseq_fn = conf.refseq_fn,
                 tmp_dir = os.path.join(sam_dir, str(i)),
                 conf = conf,
-                idx = i,
+                index = i,
                 max_mem = max_mem
             ),
             callback = None,

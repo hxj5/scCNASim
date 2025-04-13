@@ -75,6 +75,8 @@ def cumi_simu_main(
     int
         Return code. 0 if success, negative otherwise.
     """
+    info("start ...")
+
     # check args.
     assert umi_len <= 31
     
@@ -86,6 +88,8 @@ def cumi_simu_main(
     
     
     # generate *cell x feature* CUMIs for every allele.
+    info("generate cell x feature CUMIs for every allele ...")
+    
     ale_cumi_fn_list = []
     for idx, ale in enumerate(alleles):
         fn = os.path.join(tmp_dir, "%s.cumi.tsv" % ale)
@@ -108,7 +112,11 @@ def cumi_simu_main(
     
     
     # extract feature-specific CUMIs for every allele.
+    info("extract feature-specific CUMIs for every allele ...")
+    
     for ale, fn, out_fns in zip(alleles, ale_cumi_fn_list, out_files):
+        info("extract for allele '%s' ..." % ale)
+
         fs_dir = os.path.join(tmp_dir, "tmp_fs_%s" % ale)
         os.makedirs(fs_dir, exist_ok = True)
         cumi_extract_fs_main(
@@ -340,7 +348,7 @@ def cumi_extract_fs_main(
         out_files = out_files,
         tmp_dir = tmp_dir,
         ncores = ncores,
-        max_per_batch = 900,
+        max_per_batch = 300,
         depth = 0
     )
     return(ret)
@@ -409,16 +417,15 @@ def __cumi_extract_fs_batch(
     #   It will open every batch-specific splitted file simultaneously, 
     #   in total `n_batch` files.
     bd_m, bd_n, bd_indices = split_n2batch(
-        p, ncores, max_n_batch = 900)
-    
-    res_dir = os.path.join(tmp_dir, str(depth))
-    os.makedirs(res_dir, exist_ok = True)
+        p, ncores, min_n_batch = 50, max_n_batch = 300)
     
     bd_fp_list = []
     idx_map = {}
     bd_batches = []
     for idx, (b, e) in enumerate(bd_indices):
-        fn = os.path.join(res_dir, "%d.%d.cumi.tsv" % (depth, idx))
+        b += b0
+        e += b0
+        fn = os.path.join(tmp_dir, "%d_%d.cumi.tsv" % (depth, idx))
         fp = zopen(fn, "w", ZF_F_PLAIN)
         bd_fp_list.append(fp)
         for reg_idx in range(b, e):
@@ -441,13 +448,15 @@ def __cumi_extract_fs_batch(
 
     # next round of extracting and splitting.
     if ncores <= 1:
-        for b, e, fn in bd_batches:
+        for idx, (b, e, fn) in enumerate(bd_batches):
+            res_dir = os.path.join(tmp_dir, "%d_%d" % (depth, idx))
+            os.makedirs(res_dir, exist_ok = True)
             __cumi_extract_fs_batch(
                 in_fn = fn,
                 b0 = b,
                 e0 = e,
                 out_files = out_files[(b-b0):(e-b0+1)],
-                tmp_dir = tmp_dir,
+                tmp_dir = res_dir,
                 ncores = 1,
                 max_per_batch = max_per_batch,
                 depth = depth + 1
@@ -455,7 +464,9 @@ def __cumi_extract_fs_batch(
     else:
         mp_res = []
         pool = multiprocessing.Pool(processes = min(ncores, bd_m))
-        for b, e, fn in bd_batches:
+        for idx, (b, e, fn) in enumerate(bd_batches):
+            res_dir = os.path.join(tmp_dir, "%d_%d" % (depth, idx))
+            os.makedirs(res_dir, exist_ok = True)
             mp_res.append(pool.apply_async(
                 func = __cumi_extract_fs_batch,
                 kwds = dict(
@@ -463,7 +474,7 @@ def __cumi_extract_fs_batch(
                     b0 = b,
                     e0 = e,
                     out_files = out_files[(b-b0):(e-b0+1)],
-                    tmp_dir = tmp_dir,
+                    tmp_dir = res_dir,
                     ncores = 1,
                     max_per_batch = max_per_batch,
                     depth = depth + 1
@@ -548,7 +559,8 @@ def load_cumi(fn, sep = "\t"):
 def cumi_sample_seed_main(
     count_fn,
     feature_fn,
-    alleles
+    alleles,
+    index = None
 ):
     """Main function for sampling feature-specific CUMIs of seed data for
     every allele.
@@ -563,12 +575,18 @@ def cumi_sample_seed_main(
         `~utils.gfeature.Feature` objects.
     alleles : list of str
         A list of alleles.
+    index : int or None
+        The index of the batch.
+        None means there is no batch information.
 
     Returns
     -------
     int
         Return code. 0 if success, negative otherwise.
     """
+    if index is not None:
+        info("[Batch-%d] start ..." % index)
+
     # check args.
     adata = load_h5ad(count_fn)
     
@@ -606,6 +624,9 @@ def cumi_sample_seed_main(
     del adata
     del reg_list
     gc.collect()
+    
+    if index is not None:
+        info("[Batch-%d] done!" % index)
 
     return(0)
 

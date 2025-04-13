@@ -23,7 +23,7 @@ def rs_features(
     refseq_fn,
     tmp_dir,
     conf,
-    idx,
+    index,
     max_mem
 ):
     """Read simulation for a list of features.
@@ -46,7 +46,7 @@ def rs_features(
         The folder to store temporary files.
     conf : :class:`~.config.Config`
         The configuration object.
-    idx : int
+    index : int
         The index of this batch.
     max_mem : str
         Maximum memory per thread used by samtools sort.
@@ -56,6 +56,8 @@ def rs_features(
     list of str
         A list of feature-specific simulated BAM files.
     """
+    info("[Batch-%d] start ..." % index)
+
     reg_list = load_feature_objects(reg_obj_fn)
     assert len(reg_list) == reg_idx_e - reg_idx_b
     
@@ -103,6 +105,8 @@ def rs_features(
     del reg_list
     del fa
     gc.collect()
+    
+    info("[Batch-%d] done!" % index)
 
     return(reg_sam_fn_list)
 

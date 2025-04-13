@@ -71,13 +71,9 @@ def split_n2batch(
     min_n_batch : int or None, default None
         Minimum number of batches.
         None means do not use it.
-        Note that `min_n_batch` and `max_per_batch` should not be specified
-        simultaneously.
     max_n_batch : int or None, default None
         Maximum number of batches.
         None means do not use it.
-        Note that `max_n_batch` and `min_per_batch` should not be specified
-        simultaneously.
     min_per_batch : int or None, default None
         Minimum number of elements for one batch.
         None means do not use it.
@@ -108,7 +104,8 @@ def split_n2batch(
         if max_per_batch is None:
             pass
         else:
-            raise ValueError
+            min_n = N // max_per_batch + 1 - (N % max_per_batch == 0)
+            min_n_batch = max(min_n, min_n_batch)
             
     if max_n_batch is None:
         if min_per_batch is None:
@@ -119,7 +116,8 @@ def split_n2batch(
         if min_per_batch is None:
             pass
         else:
-            raise ValueError
+            max_n = N // min_per_batch
+            max_n_batch = min(max_n, max_n_batch)
     
     # max_n_batch threshold has higher priority than min_n_batch.
     # below codes also work for cases of `min_n_batch` > `max_n_batch`,
@@ -132,3 +130,4 @@ def split_n2batch(
         n_batch = min(n_batch, max_n_batch)
 
     return(split_n2m(N, n_batch))
+

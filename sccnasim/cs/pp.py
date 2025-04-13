@@ -51,15 +51,20 @@ def calc_size_factors(
     s_train = None
     s_simu = None
     if size_factor is None:
-        pass
+        info("size_factor is None - skip fitting and simulating size factors.")
     elif size_factor == "libsize":
+        info("calc training size factors ...")
         s_train = mtx2array1d(adata.X.sum(axis = 1))
+        
+        info("fit size factors ...")
         par = fit_libsize(
             adata,
             cell_type_fit = np.unique(clone_cell_types),
             verbose = verbose,
             **kwargs_fit_sf
         )
+        
+        info("simulate size factors ...")
         s_simu, _ = simu_libsize(
             params = par,
             cell_types = clone_cell_types,

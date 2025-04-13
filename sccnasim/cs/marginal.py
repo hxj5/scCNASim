@@ -612,8 +612,7 @@ def fit_RD(
 
     
     # process by cell type.
-    if verbose:
-        info("fit %d features in %d cell types (ncores = %d) ..." %  \
+    info("fit %d features in %d cell types (ncores = %d) ..." %  \
             (p, len(cell_type_fit), ncores))
 
     # split cells into batches by cell types.
@@ -631,8 +630,7 @@ def fit_RD(
     # model fitting
     params = OrderedDict()
     for c, fn in zip(cell_type_fit, count_fn_list):
-        if verbose:
-            info("processing cell type '%s'." % c)
+        info("fitting RD for cell type '%s'." % c)
 
         c_dir = os.path.join(tmp_dir, c)
         os.makedirs(c_dir, exist_ok = True)
@@ -653,14 +651,14 @@ def fit_RD(
         assert len(par["fet_idx_nz"]) + len(par["fet_idx_oth"]) == p
         params[c] = par
 
-    if verbose:
-        info("fitting statistics:")
-        df = pd.DataFrame(data = {
-            "cell_type": cell_type_fit,
-            "fet_idx_nz": [len(r["fet_idx_nz"]) for r in params.values()],
-            "fet_idx_oth": [len(r["fet_idx_oth"]) for r in params.values()]
-        })
-        info(str(df))
+
+    info("fitting statistics:")
+    df = pd.DataFrame(data = {
+        "cell_type": cell_type_fit,
+        "fet_idx_nz": [len(r["fet_idx_nz"]) for r in params.values()],
+        "fet_idx_oth": [len(r["fet_idx_oth"]) for r in params.values()]
+    })
+    info(str(df))
 
     return((params, features))
 
@@ -981,10 +979,10 @@ def simu_RD(
         assert len(n_cell_each) == len(cell_type_new)
     n_cell_new = np.sum(n_cell_each)
                
-    if verbose:
-        info("simulate %d features in %d new cells from %d cell types (ncores = %d) ..." %  \
+
+    info("simulate %d features in %d new cells from %d cell types (ncores = %d) ..." %  \
             (p, n_cell_new, len(cell_type_new), ncores))
-        info("number of cells in each simulated cell type:\n\t%s." % \
+    info("number of cells in each simulated cell type:\n\t%s." % \
              str(n_cell_each))
 
 
