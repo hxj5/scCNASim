@@ -6,6 +6,7 @@ import os
 import pysam
 import shutil
 
+from logging import info
 from .cumi import load_cumi
 from .fa import FastFA
 from .sam import sam_cat_and_sort

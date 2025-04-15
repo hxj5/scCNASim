@@ -83,7 +83,7 @@ class Config:
         # loss_allele_freq : float
         #   The frequency of the lost allele, to mimic real error rate, i.e.,
         #   sometimes we observe reads from the lost allele.
-        self.loss_allele_freq = 0.001
+        self.loss_allele_freq = 0.01
         
 
     def show(self, fp = None, prefix = ""):

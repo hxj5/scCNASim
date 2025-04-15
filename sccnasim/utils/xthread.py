@@ -93,7 +93,8 @@ def split_n2batch(
         each batch.
     """
     if batch_per_core is None:
-        batch_per_core = min(max(5, round(math.sqrt(ncores) * 2)), 20)
+        #batch_per_core = min(max(5, round(math.sqrt(ncores) * 2)), 20)
+        batch_per_core = 10
         
     if min_n_batch is None:
         if max_per_batch is None:
