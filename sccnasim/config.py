@@ -46,8 +46,8 @@ class Config:
         self.verbose = False
 
         # snp filtering
-        self.min_count = 1
-        self.min_maf = 0
+        self.min_count = 20
+        self.min_maf = 0.1
         
         # read assignment
         self.strandness = self.defaults.STRANDNESS
