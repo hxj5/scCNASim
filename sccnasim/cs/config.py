@@ -22,6 +22,7 @@ class Config:
         self.size_factor = "libsize"
         self.marginal = "auto"
         self.loss_allele_freq = 0.01
+        self.cna_mode = "hap-aware"
         self.ncores = 1
         self.verbose = False
 
@@ -34,13 +35,7 @@ class Config:
         # out_prefix : str
         #   Prefix to the output files.
         self.out_prefix = COMMAND
-        
-        # cna_mode : {"hap-aware", "hap-unknown"}
-        #   The mode of CNA profiles.
-        #   - hap-aware: haplotype/allele aware.
-        #   - hap-unknown: haplotype/allele unknown.
-        self.cna_mode = "hap-aware"
-        
+
         # alleles : list of str
         #   The alleles to be used for count simulation.
         self.alleles = ("A", "B", "U")
@@ -96,6 +91,7 @@ class Config:
         s += "%ssize_factor = %s\n" % (prefix, self.size_factor)
         s += "%smarginal = %s\n" % (prefix, self.marginal)
         s += "%sloss_allele_freq = %f\n" % (prefix, self.loss_allele_freq)
+        s += "%scna_mode = %s\n" % (prefix, self.cna_mode)
         s += "%sncores = %s\n" % (prefix, self.ncores)
         s += "%sverbose = %s\n" % (prefix, self.verbose)
 
@@ -103,8 +99,7 @@ class Config:
         s += "%skwargs_fit_rd = %s\n" % (prefix, self.kwargs_fit_rd)
         
         # internal parameters.
-        s += "%sout_prefix = %s\n" % (prefix, self.out_prefix)        
-        s += "%scna_mode = %s\n" % (prefix, self.cna_mode)
+        s += "%sout_prefix = %s\n" % (prefix, self.out_prefix)
         s += "%salleles = %s\n" % (prefix, str(self.alleles))
         s += "%sqc_min_library_size = %s\n" % (prefix, self.qc_min_library_size)
         s += "%sqc_max_library_size = %s\n" % (prefix, self.qc_max_library_size)

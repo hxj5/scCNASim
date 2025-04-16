@@ -386,6 +386,7 @@ def main_core(conf):
         size_factor = conf.size_factor,
         marginal = conf.marginal,
         loss_allele_freq = conf.loss_allele_freq,
+        cna_mode = "hap-aware",
         ncores = conf.ncores,
         verbose = conf.verbose,
         kwargs_fit_sf = conf.kwargs_fit_sf,

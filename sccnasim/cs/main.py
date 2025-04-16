@@ -298,6 +298,7 @@ def cs_wrapper(
     size_factor = "libsize", 
     marginal = "auto", 
     loss_allele_freq = 0.01,
+    cna_mode = "hap-aware",
     ncores = 1, verbose = False,
     kwargs_fit_sf = None, kwargs_fit_rd = None
 ):
@@ -352,6 +353,10 @@ def cs_wrapper(
     loss_allele_freq : float, default 0.01
         The frequency of the lost allele, to mimic real error rate, i.e.,
         sometimes we observe reads from the lost allele.
+    cna_mode : {"hap-aware", "hap-unknown"}
+        The mode of CNA profiles.
+        - hap-aware: haplotype/allele aware.
+        - hap-unknown: haplotype/allele unknown.
     ncores : int, default 1
         The number of cores/sub-processes.
     verbose : bool, default False
@@ -393,13 +398,12 @@ def cs_wrapper(
     conf.size_factor = size_factor
     conf.marginal = marginal
     conf.loss_allele_freq = loss_allele_freq
+    conf.cna_mode = cna_mode
     conf.ncores = ncores
     conf.verbose = verbose
 
     conf.kwargs_fit_sf = {} if kwargs_fit_sf is None else kwargs_fit_sf
     conf.kwargs_fit_rd = {} if kwargs_fit_rd is None else kwargs_fit_rd
-    
-    conf.cna_mode = "hap-aware"
     
     ret, res = cs_run(conf)
     return((ret, res))
