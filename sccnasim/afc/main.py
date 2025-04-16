@@ -365,6 +365,10 @@ def afc_core(conf):
             adata.X = None
         else:
             adata.layers[ale] = dat.X
+
+    # TODO: when adata .X is None, saving the adata into “.h5py” file can raise error 
+    # `while writing key 'x' of <class 'h5py._hl.group.group'> to / `
+    # for specific version of anndata and h5py.
     save_h5ad(adata.transpose(), out_count_fn)
 
 
