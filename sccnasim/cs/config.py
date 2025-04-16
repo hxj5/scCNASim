@@ -21,6 +21,7 @@ class Config:
 
         self.size_factor = "libsize"
         self.marginal = "auto"
+        self.loss_allele_freq = 0.01
         self.ncores = 1
         self.verbose = False
 
@@ -80,11 +81,6 @@ class Config:
         #   The upper quantile of cell-wise statistics.
         self.qc_cw_up_quantile = 0.995
         
-        # loss_allele_freq : float
-        #   The frequency of the lost allele, to mimic real error rate, i.e.,
-        #   sometimes we observe reads from the lost allele.
-        self.loss_allele_freq = 0.01
-        
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -99,6 +95,7 @@ class Config:
 
         s += "%ssize_factor = %s\n" % (prefix, self.size_factor)
         s += "%smarginal = %s\n" % (prefix, self.marginal)
+        s += "%sloss_allele_freq = %f\n" % (prefix, self.loss_allele_freq)
         s += "%sncores = %s\n" % (prefix, self.ncores)
         s += "%sverbose = %s\n" % (prefix, self.verbose)
 
@@ -114,7 +111,6 @@ class Config:
         s += "%sqc_min_features = %s\n" % (prefix, self.qc_min_features)
         s += "%sqc_cw_low_quantile = %s\n" % (prefix, self.qc_cw_low_quantile)
         s += "%sqc_cw_up_quantile = %s\n" % (prefix, self.qc_cw_up_quantile)
-        s += "%sloss_allele_freq = %f\n" % (prefix, self.loss_allele_freq)
         s += "%s\n" % prefix
 
         fp.write(s)

@@ -37,6 +37,7 @@ def main_wrapper(
     merge_features_how = "quantile",
     size_factor = "libsize",
     marginal = "auto",
+    loss_allele_freq = 0.01,
     kwargs_fit_sf = None,
     kwargs_fit_rd = None,
     chroms = "human_autosome",
@@ -140,6 +141,9 @@ def main_wrapper(
         - "poi" (Poisson).
         - "nb" (Negative Binomial).
         - "zinb" (Zero-Inflated Negative Binomial).
+    loss_allele_freq : float, default 0.01
+        The frequency of the lost allele, to mimic real error rate, i.e.,
+        sometimes we observe reads from the lost allele.
     kwargs_fit_sf : dict or None, default None
         The additional kwargs passed to function 
         :func:`~.marginal.fit_libsize_wrapper` for fitting size factors.
@@ -235,6 +239,7 @@ def main_wrapper(
     # count simulation.
     conf.size_factor = size_factor
     conf.marginal = marginal
+    conf.loss_allele_freq = loss_allele_freq
     if kwargs_fit_sf is None:
         conf.kwargs_fit_sf = dict()
     else:
@@ -380,6 +385,7 @@ def main_core(conf):
         out_dir = os.path.join(conf.out_dir, "%d_cs" % step),
         size_factor = conf.size_factor,
         marginal = conf.marginal,
+        loss_allele_freq = conf.loss_allele_freq,
         ncores = conf.ncores,
         verbose = conf.verbose,
         kwargs_fit_sf = conf.kwargs_fit_sf,

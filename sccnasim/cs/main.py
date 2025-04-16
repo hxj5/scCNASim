@@ -295,7 +295,9 @@ def cs_wrapper(
     count_fn,
     clone_anno_fn, cna_profile_fn,
     out_dir,
-    size_factor = "libsize", marginal = "auto",
+    size_factor = "libsize", 
+    marginal = "auto", 
+    loss_allele_freq = 0.01,
     ncores = 1, verbose = False,
     kwargs_fit_sf = None, kwargs_fit_rd = None
 ):
@@ -347,6 +349,9 @@ def cs_wrapper(
         - "poi" (Poisson).
         - "nb" (Negative Binomial).
         - "zinb" (Zero-Inflated Negative Binomial).
+    loss_allele_freq : float, default 0.01
+        The frequency of the lost allele, to mimic real error rate, i.e.,
+        sometimes we observe reads from the lost allele.
     ncores : int, default 1
         The number of cores/sub-processes.
     verbose : bool, default False
@@ -387,6 +392,7 @@ def cs_wrapper(
 
     conf.size_factor = size_factor
     conf.marginal = marginal
+    conf.loss_allele_freq = loss_allele_freq
     conf.ncores = ncores
     conf.verbose = verbose
 

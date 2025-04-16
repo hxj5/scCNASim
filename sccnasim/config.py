@@ -33,6 +33,7 @@ class Config:
         # count simulation.
         self.size_factor = "libsize"
         self.marginal = "auto"
+        self.loss_allele_freq = 0.01
         self.kwargs_fit_sf = dict()
         self.kwargs_fit_rd = dict()
 
@@ -86,6 +87,7 @@ class Config:
 
         s += "%ssize_factor = %s\n" % (prefix, self.size_factor)
         s += "%smarginal = %s\n" % (prefix, self.marginal)
+        s += "%sloss_allele_freq = %f\n" % (prefix, self.loss_allele_freq)
         s += "%skwargs_fit_sf = %s\n" % (prefix, str(self.kwargs_fit_sf))
         s += "%skwargs_fit_rd = %s\n" % (prefix, str(self.kwargs_fit_rd))
         s += "%s\n" % prefix
