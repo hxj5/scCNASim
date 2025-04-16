@@ -6,7 +6,9 @@ import multiprocessing
 import os
 import pysam
 import shutil
+import subprocess
 
+from logging import info, error
 from .base import is_vector
 from .xio import file2list, list2file
 from .xthread import split_n2batch, mp_error_handler
@@ -306,12 +308,31 @@ def sam_cat(in_fns, out_fn, ncores = 1):
         
         
 def sam_cat_from_file(list_fn, out_fn, ncores = 1):
-    pysam.cat(
-        "-b", list_fn,
-        "-o", out_fn,
-        "--no-PG", 
-        "-@", str(ncores-1)
-    )
+    # pysam v0.23.0 has a bug that it does not recognize the "-@/--threads"
+    # option.
+    try:
+        pysam.cat(
+            "-b", list_fn,
+            "-o", out_fn,
+            "--no-PG", 
+            "--threads", str(ncores-1)
+        )
+    except pysam.utils.SamtoolsError as e:
+        error("catch pysam.utils.SamtoolsError:")
+        error(str(e))
+        info("try using samtools instead of pysam ...")
+        proc = subprocess.Popen(
+            args = "samtools cat -b %s -o %s --no-PG --threads %d" % \
+                        (list_fn, out_fn, ncores - 1),
+            shell = True,
+            executable = "/bin/bash",
+            stdout = subprocess.PIPE,
+            stderr = subprocess.PIPE
+        )
+        outs, errs = proc.communicate()
+        ret = proc.returncode
+        if ret != 0:
+            raise RuntimeError(str(errs.decode()))
 
 
 
