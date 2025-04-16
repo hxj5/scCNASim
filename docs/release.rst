@@ -4,6 +4,47 @@
    =======
 
 
+Release v0.4.1 (16/04/2025)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This version improves its computational efficiency in terms of running speed
+and memory usage, mainly in the cs and rs modules.
+Specifically,
+
+* try to use sparse matrix instead of numpy ndarray to store counts.
+* cs: improve batch assignment in fit_RD() and simu_RD() to make full use of 
+  multiprocessing pool.
+* rs: optimize ``max_mem`` to 4G in pysam.sort to speedup.
+  Now the peak memory of the whole framework is roughly ``4G * ncores`` for
+  scRNA-seq data of typical size.
+* utils.xbarcode: use standard random.sample() instead of numpy.random.choice().
+* improve multiprocessing memory footprint via gc.collect().
+
+Implementation:
+
+* main: add interface to ``loss_allele_freq``.
+  Note that setting the ``loss_allele_freq`` from 0.01 to 0.001 leads to
+  failure of detecting LOHs by Numbat, possibly because of allelic signal loss
+  resulting from the homozygous SNP filtering in Numbat.
+* cs: add interface to ``cna_mode``.
+* set default ``min_count = 20`` and ``min_maf = 0.1``.
+* cs: restructure the function for allele-specific count simulation, to make
+  it more modular.
+* minor restructure all four modules, wrapping the steps of loading data and
+  checking arguments into xxx_init() or xxx_pp().
+
+Bug fix:
+
+* replace loc with iloc in DataFrame.
+* utils: use samtools cat when pysam.cat raises error as some version of pysam
+  does not recognize "-@/--threads" option.
+* afc: mark one issue of anndata that it cannot save adata whose ".X" is None.
+
+Others:
+
+* delete deprecated source codes.
+
+
+
 Release v0.4.0 (30/03/2025)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This version restructure the afc and rs modules by using the feature (gene)
