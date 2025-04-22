@@ -19,3 +19,4 @@ from .main import main_wrapper
 # https://stackoverflow.com/questions/42950256/how-to-import-private-functions-with-import
 __all__ = ["__version__"]
 __version__ = VERSION
+

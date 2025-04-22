@@ -17,6 +17,8 @@ An example is:
 
 .. code-block:: python
 
+   from sccnasim import main_wrapper
+
    main_wrapper(
        sam_fn = "{sample}.bam",
        cell_anno_fn = "cell_anno.tsv", 
