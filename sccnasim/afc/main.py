@@ -239,9 +239,12 @@ def afc_core(conf):
     # - max_n_batch: to account for the max allowed files and subfolders in
     #   one folder.
     #   Currently, 6 files output in each batch.
+    # - batch_per_core: it seems the overall running time becomes longer when
+    #   the number of batches increases too much, possibly due to the overhead
+    #   of loading BAM and features in each batch.
     m_reg = len(reg_list)
     bd_m, bd_n, bd_reg_indices = split_n2batch(
-            m_reg, conf.ncores, max_n_batch = 5000)
+            m_reg, conf.ncores, batch_per_core = 3, max_n_batch = 5000)
     info("features are split into %d batches." % bd_m)
     
     bd_dir_list = []
