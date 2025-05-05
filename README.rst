@@ -10,6 +10,7 @@ transcriptomics.
 It mainly takes existing alignment file, phased SNPs, and a clonal CNA profile
 as input, and outputs new alignments with designated signals of CNAs and 
 clonal structure. 
+
 The core idea involves processing haplotype-specific reads separately, 
 including fitting and simulating haplotype-specific gene expression counts, 
 followed by UMI (read) sampling.

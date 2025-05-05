@@ -52,7 +52,7 @@ def pp_core(conf):
     # merge overlapping features.
     merged_feature_fn = os.path.join(conf.out_dir, 
         conf.out_prefix_pp + ".features.filter_chrom.resolve_overlap.tsv")
-    if conf.merge_features_how == "none":
+    if conf.merge_features_how == "raw":
         merged_feature_fn = filter_chrom_feature_fn
         info("skip resolving overlapping features.")
     else:
@@ -306,7 +306,7 @@ def pp_wrapper(
         - "unstranded": no strand information.
     merge_features_how : str, default "quantile"
         How to merge overlapping features.
-        "none" - Leave all input gene annotations unchanged.
+        "raw" - Leave all input gene annotations unchanged.
         "quantile" - alias to "quantile2".
         "quantile2" - remove highly overlapping genes.
             Remove genes with number of overlapping genes larger than a given

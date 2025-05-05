@@ -349,6 +349,12 @@ def afc_core(conf):
         ) < 0:
             error("errcode -17")
             raise ValueError
+            
+    shutil.rmtree(tmp_dir)
+    
+    
+    # process multi-feature UMIs.
+    
 
 
     # construct adata and save into h5ad file.
@@ -383,8 +389,7 @@ def afc_core(conf):
 
     # clean
     info("clean ...")
-    
-    shutil.rmtree(tmp_dir)
+
 
     res = {
         # fet_obj_fn : str

@@ -121,7 +121,7 @@ def main_wrapper(
         A file listing sample IDs, each per line.
     merge_features_how : str, default "quantile"
         How to merge overlapping features.
-        "none" - Leave all input gene annotations unchanged.
+        "raw" - Leave all input gene annotations unchanged.
         "quantile" - alias to "quantile2".
         "quantile2" - remove highly overlapping genes.
             Remove genes with number of overlapping genes larger than a given
