@@ -45,6 +45,7 @@ def main_wrapper(
     ncores = 1, seed = 123, verbose = False,
     min_count = 1, min_maf = 0,
     strandness = "forward", min_include = 0.9,
+    xf_tag = "xf",
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
     no_orphan = True,
@@ -196,6 +197,10 @@ def main_wrapper(
     min_include : int or float, default 0.9
         Minimum length of included part within specific feature.
         If float between (0, 1), it is the minimum fraction of included length.
+    xf_tag : str or None, default "xf"
+        The extra alignment flags set by CellRanger or SpaceRanger.
+        If set, only reads with tag's value 17 or 25 will count.
+        If `None`, turn this tag off.
     min_mapq : int, default 20
         Minimum MAPQ for read filtering.
     min_len : int, default 30
@@ -274,6 +279,7 @@ def main_wrapper(
 
 
     # read filtering.
+    conf.xf_tag = xf_tag
     conf.min_mapq = min_mapq
     conf.min_len = min_len
     conf.incl_flag = incl_flag
@@ -352,6 +358,7 @@ def main_core(conf):
         min_maf = conf.min_maf,
         strandness = conf.strandness,
         min_include = conf.min_include,
+        xf_tag = conf.xf_tag,
         min_mapq = conf.min_mapq,
         min_len = conf.min_len,
         incl_flag = conf.incl_flag,

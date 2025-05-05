@@ -16,7 +16,14 @@ from .xthread import split_n2batch, mp_error_handler
 
 
 def check_read(read, conf):
-    return(check_basic(read, conf))
+    if conf.xf_tag:
+        if not read.has_tag(conf.xf_tag):
+            return(-101)
+        xf = read.get_tag(conf.xf_tag)
+        if xf not in (17, 25):
+            return(-102)
+    ret = check_basic(read, conf)
+    return(ret)
 
 
 

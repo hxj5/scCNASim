@@ -55,6 +55,7 @@ class Config:
         self.min_include = self.defaults.MIN_INCLUDE
 
         # read filtering.
+        self.xf_tag = self.defaults.XF_TAG
         self.min_mapq = self.defaults.MIN_MAPQ
         self.min_len = self.defaults.MIN_LEN
         self.incl_flag = self.defaults.INCL_FLAG
@@ -63,6 +64,7 @@ class Config:
 
         # others
         self.debug_level = 0
+
 
     def show(self, fp = None, prefix = ""):
         if fp is None:
@@ -109,6 +111,7 @@ class Config:
         s += "%smin_include = %f\n" % (prefix, self.min_include)
         s += "%s\n" % prefix
 
+        s += "%sxf_tag = %s\n" % (prefix, str(self.xf_tag))
         s += "%smin_mapq = %d\n" % (prefix, self.min_mapq)
         s += "%smin_len = %d\n" % (prefix, self.min_len)
         s += "%sinclude_flag = %d\n" % (prefix, self.incl_flag)
@@ -130,6 +133,9 @@ class Config:
 
     def use_umi(self):
         return self.umi_tag is not None
+    
+    def use_xf(self):
+        return self.xf_tag is not None
 
     
 
@@ -148,6 +154,7 @@ class Defaults:
         self.STRANDNESS = "forward"
         self.MIN_INCLUDE = 0.9
 
+        self.XF_TAG = "xf"
         self.MIN_MAPQ = 20
         self.MIN_LEN = 30
         self.INCL_FLAG = 0
