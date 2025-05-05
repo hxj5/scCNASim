@@ -7,6 +7,7 @@ Manual
    :local:
 
 
+
 Quick Usage
 -----------
 First, please look at `Input`_ to prepare the input data.
@@ -40,6 +41,7 @@ You may also run each step (module) explicitly by calling corresponding
 wrapper functions (see ``Tutorial`` page).
 
 See `Implementation`_ for details of the four modules.
+
 
 
 Input
@@ -288,6 +290,7 @@ which should not happen on normal diploid genome.
   clones in this file.
 
 
+
 Output
 ------
 The final output is available at folder ``{out_dir}/4_rs``.
@@ -319,6 +322,7 @@ clone : str
 
 Note that there is a one-column TSV file storing ``cell`` (cell barcodes or
 sample ID) only, located at ``{out_dir}/4_rs/rs.samples.tsv``.
+
 
 
 Implementation
@@ -611,6 +615,7 @@ Note that
 
 The output reads of all chromosomes will be merged into new BAM file(s) and
 stored in folder ``{out_dir}/4_rs/bam``.
+
 
 
 .. _CHISEL: https://www.nature.com/articles/s41587-020-0661-6
