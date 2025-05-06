@@ -1,15 +1,17 @@
 # main.py - main() function for preprocessing.
 
 
+import numpy as np
 import os
 import shutil
 import sys
 import time
 
 from logging import info, error
+from logging import warning as warn
 from .config import Config
 from ..utils.clone import load_clones
-from ..utils.gcna import load_cnas, merge_cna_profile
+from ..utils.gcna import load_cnas, check_dup_cna, merge_cna_profile
 from ..utils.gfeature import filter_features_by_chroms, filter_dup_features,  \
     merge_features_quantile2, merge_features_union, \
     sort_features
@@ -29,7 +31,7 @@ def pp_core(conf):
     chrom_list = [format_chrom(c) for c in conf.chroms.split(",")]
 
     
-    # process feature file.
+    # copy feature file.
     raw_feature_fn = os.path.join(conf.out_dir, \
                             conf.out_prefix_raw + ".features.tsv")
     shutil.copy(conf.feature_fn, raw_feature_fn)
@@ -37,8 +39,7 @@ def pp_core(conf):
     
     
     # filter duplicated features.
-    filter_dup_feature_fn = os.path.join(conf.out_dir,
-            conf.out_prefix_pp + ".features.filter_dup.tsv")
+    filter_dup_feature_fn = raw_feature_fn.replace(".tsv", ".filter_dup.tsv")
     r, n_old, n_new = filter_dup_features(
         in_fn = conf.feature_fn,
         out_fn = filter_dup_feature_fn,
@@ -52,8 +53,8 @@ def pp_core(conf):
 
 
     # filter features based on input chromosomes.
-    filter_chrom_feature_fn = os.path.join(conf.out_dir,
-            conf.out_prefix_pp + ".features.filter_dup.filter_chrom.tsv")
+    filter_chrom_feature_fn = filter_dup_feature_fn.replace(
+        ".tsv", ".filter_chrom.tsv")
     r, n_old, n_new = filter_features_by_chroms(
         in_fn = filter_dup_feature_fn,
         out_fn = filter_chrom_feature_fn,
@@ -67,8 +68,8 @@ def pp_core(conf):
 
     
     # merge overlapping features.
-    merged_feature_fn = os.path.join(conf.out_dir, 
-        conf.out_prefix_pp + ".features.filter_dup.filter_chrom.resolve_overlap.tsv")
+    merged_feature_fn = filter_chrom_feature_fn.replace(
+        ".tsv", ".resolve_overlap.tsv")
     if conf.merge_features_how == "raw":
         merged_feature_fn = filter_chrom_feature_fn
         info("skip resolving overlapping features.")
@@ -101,12 +102,11 @@ def pp_core(conf):
         
         
     # sort features.
-    sorted_feature_fn = os.path.join(conf.out_dir, 
-        conf.out_prefix_pp + ".features.filter_chrom.resolve_overlap.sort.tsv")
+    sorted_feature_fn = merged_feature_fn.replace(".tsv", ".sort.tsv")
     sort_features(merged_feature_fn, sorted_feature_fn)
 
 
-    # process SNP file.
+    # copy SNP file.
     suffix = get_file_suffix(conf.snp_fn)
     raw_snp_fn = os.path.join(
         conf.out_dir, conf.out_prefix_raw + ".snp." + suffix)
@@ -114,12 +114,12 @@ def pp_core(conf):
     info("SNP file copied to '%s'." % raw_snp_fn)
     
     
-    # check duplicate records.
+    # check duplicate SNPs.
     n_dup = check_dup_snp(raw_snp_fn)
     assert n_dup == 0
 
 
-    # process clone anno information file.
+    # copy clone anno information file.
     raw_clone_anno_fn = os.path.join(
         conf.out_dir, conf.out_prefix_raw + ".clone_anno.tsv")
     shutil.copy(conf.clone_anno_fn, raw_clone_anno_fn)
@@ -131,15 +131,23 @@ def pp_core(conf):
     if len(clones) != clone_anno.shape[0]:
         error("duplicate clones in anno file '%s'." % conf.clone_anno_fn)
         raise ValueError
+
     cell_types = clone_anno["cell_type"].unique()
     info("%d clones use %d cell types." % (len(clones), len(cell_types)))
     
 
-    # process CNA profile file.
-    # merge CNA profiles.
+    # copy CNA profile file.
     raw_cna_profile_fn = os.path.join(
         conf.out_dir, conf.out_prefix_raw + ".cna_profile.tsv")
     shutil.copy(conf.cna_profile_fn, raw_cna_profile_fn)
+    
+    
+    # check duplicate CNAs.
+    n_dup = check_dup_cna(raw_cna_profile_fn)
+    assert n_dup == 0
+    
+
+    # merge CNA profiles.
     merged_cna_profile_fn = os.path.join(conf.out_dir, 
         conf.out_prefix_pp + ".cna_profile.tsv")
     r, n_old, n_new = merge_cna_profile(
@@ -152,6 +160,8 @@ def pp_core(conf):
         raise ValueError
     info("%d CNA records merged from %d old ones." % (n_new, n_old))
 
+    
+    # check every clone in merged CNA file is present in clone annotations.
     cna_profile = load_cnas(merged_cna_profile_fn, sep = "\t")
     cna_clones = cna_profile["clone"].unique()
     for c in cna_clones:
@@ -162,12 +172,19 @@ def pp_core(conf):
     info("there are %d CNA clones." % len(cna_clones))
 
 
-    # process cell annotation file.
-    # subset cell annotations by cell type.
+    # copy cell annotation file.
     raw_cell_anno_fn = os.path.join(
         conf.out_dir, conf.out_prefix_raw + ".cell_anno.tsv")
     shutil.copy(conf.cell_anno_fn, raw_cell_anno_fn)
-    cell_anno = load_cells(conf.cell_anno_fn)
+    
+    
+    # check duplicate cells.
+    n_dup = check_dup_cell(raw_cell_anno_fn)
+    assert n_dup == 0
+    
+    
+    # subset cell annotations by cell type.
+    cell_anno = load_cells(raw_cell_anno_fn)
     cell_anno_new = cell_anno[cell_anno["cell_type"].isin(cell_types)]
     cell_anno_fn_new = os.path.join(
         conf.out_dir, conf.out_prefix_pp + ".cell_anno.tsv")
@@ -345,3 +362,25 @@ def pp_wrapper(
     
     ret, res = pp_run(conf)
     return((ret, res))
+
+
+
+def check_dup_cell(fn):
+    """Check duplicated records in the cell annotation file.
+    
+    Parameters
+    ----------
+    fn : str
+        Path to the cell annotation file.
+    
+    Returns
+    -------
+    int
+        Number of duplicates in the file.
+    """
+    df = load_cells(fn)
+    bool_dup = df.duplicated("cell")
+    n_dup = np.sum(bool_dup)
+    if n_dup > 0:
+        warn("%d/%d duplicates in cell annotations." % (n_dup, df.shape[0]))
+    return(n_dup)

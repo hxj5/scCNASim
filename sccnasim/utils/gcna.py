@@ -2,8 +2,10 @@
 
 
 import functools
+import numpy as np
 import pandas as pd
 from logging import error
+from logging import warning as warn
 from .grange import cmp_two_intervals
 from ..xlib.xbase import is_file_empty
 from ..xlib.xfile import zopen
@@ -436,6 +438,28 @@ def save_cna_profile(dat, fn):
             ]) + "\n"
         fp.write(s)
     fp.close()
+    
+    
+
+def check_dup_cna(fn):
+    """Check duplicated records in the CNA profile file.
+    
+    Parameters
+    ----------
+    fn : str
+        Path to the CNA profile file.
+    
+    Returns
+    -------
+    int
+        Number of duplicates in the file.
+    """
+    df = load_cnas(fn, sep = "\t")
+    bool_dup = df.duplicated()
+    n_dup = np.sum(bool_dup)
+    if n_dup > 0:
+        warn("%d/%d duplicates in CNA profiles." % (n_dup, df.shape[0]))
+    return(n_dup)
     
 
     
