@@ -6,7 +6,7 @@ import os
 import pandas as pd
 from logging import info
 from logging import warning as warn
-from ..xlib.xrange import Region, RegionSet  \
+from ..xlib.xrange import Region, RegionSet,  \
     format_chrom, format_start, format_end, reg2str
 from ..xlib.xvcf import vcf_load
 

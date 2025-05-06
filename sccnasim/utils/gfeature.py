@@ -11,7 +11,7 @@ from .allele import AlleleData
 from .grange import cmp_two_intervals
 from ..xlib.xbase import is_file_empty
 from ..xlib.xio import save_multi_column_file
-from ..xlib.xrange import Region, RegionSet  \
+from ..xlib.xrange import Region, RegionSet,  \
     format_chrom, format_start, format_end, reg2str
 
 

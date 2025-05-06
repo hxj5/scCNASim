@@ -9,7 +9,7 @@ from logging import warning as warn
 from .grange import cmp_two_intervals
 from ..xlib.xbase import is_file_empty
 from ..xlib.xfile import zopen
-from ..xlib.xrange import Region, RegionSet  \
+from ..xlib.xrange import Region, RegionSet,  \
     format_chrom, format_start, format_end, reg2str
 
 

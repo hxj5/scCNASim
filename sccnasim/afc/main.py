@@ -15,6 +15,7 @@ from .core import fc_features
 from .io import load_feature_from_txt,  \
     load_snp_from_vcf, load_snp_from_tsv,  \
     merge_mtx
+from .mfu import mfu_main
 from ..app import APP, VERSION
 from ..utils.gfeature import assign_feature_batch,  \
     load_feature_objects, save_feature_objects
@@ -361,12 +362,38 @@ def afc_core(conf):
     
     # process multi-feature UMIs.
     if conf.multi_mapper_how == "discard":
+        info("multi_mapper_how = '%s'; processing multi-feature UMIs ..." % \
+            conf.multi_mapper_how)
+        
+        count_dir = os.path.join(conf.out_dir, "matrix_uniq")
+        os.makedirs(count_dir, exist_ok = True)
+        
+        tmp_dir = os.path.join(conf.out_dir, "tmp_mfu")
+        os.makedirs(tmp_dir, exist_ok = True)
+        
+        mfu_main(
+            alleles = conf.cumi_alleles,
+            multi_mapper_how = conf.multi_mapper_how,
+            fet_obj_fn = out_fet_obj_fn,
+            sample_fn = out_sample_fn,
+            feature_fn = out_feature_fn,
+            count_dir = count_dir,
+            tmp_dir = tmp_dir,
+            out_prefix = "afc",
+            ncores = conf.ncores
+        )
+        
+        #shutil.rmtree(tmp_dir)
         
     elif conf.multi_mapper_how == "dup":
         info("multi_mapper_how = '%s'; skip processing multi-feature UMIs ..." % \
              conf.multi_mapper_how)
+        
     else:
         raise ValueError("invalid multi_mapper_how = '%s'." % conf.multi_mapper_how)
+        
+
+    sys.exit(123)     # for debug
 
 
     # construct adata and save into h5ad file.

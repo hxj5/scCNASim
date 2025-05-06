@@ -7,10 +7,10 @@ import pysam
 import shutil
 
 from logging import info
-from .cumi import load_cumi
 from .fa import FastFA
 from .sam import sam_cat_and_sort
 from .snp import SNPSet, mask_read
+from ..utils.cumi import load_cumi
 from ..utils.gfeature import load_feature_objects
 from ..utils.hapidx import hap2idx
 

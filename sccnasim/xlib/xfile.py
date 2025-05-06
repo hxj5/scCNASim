@@ -159,6 +159,53 @@ def zopen(file_name, mode, file_type = None, is_bytes = False, encoding = None):
 
 
 
+def zconcat(in_fn_list, in_format, 
+              out_fn, out_fmode, out_format, 
+              remove = False):
+    """Concatenate a list of files.
+
+    Parameters
+    ----------
+    in_fn_list : list of str
+        Pathes to the files to be concatenated.
+    in_format : int
+        The format of each file in `in_fn_list`.
+        It should be compatible with the `file_type` in :func:`zopen`.
+    out_fn : str
+        Path to the output file.
+    out_fmode : str
+        The file mode of the `out_fn`.
+        It should be compatible with the `mode` in :func:`zopen`.
+    out_format : int
+        The file format of `out_fn`.
+        It should be compatible with the `file_type` in :func:`zopen`.
+    remove : bool, default False
+        Whether to remove the files in `in_fn_list` after concatenation.
+
+    Returns
+    -------
+    int
+        Return code. 0 if success, negative otherwise.
+    """
+    bufsize = 1048576   # 1M
+    is_bytes = "b" in out_fmode
+    out_fp = zopen(out_fn, out_fmode, out_format, is_bytes)
+    in_fmode = "rb" if is_bytes else "rt"
+    for in_fn in in_fn_list:
+        with zopen(in_fn, in_fmode, in_format) as in_fp:
+            while True:
+                dat = in_fp.read(bufsize)
+                if not dat:
+                    break
+                out_fp.write(dat)
+    out_fp.close()
+    if remove:
+        for in_fn in in_fn_list:
+            os.remove(in_fn)
+    return(0)
+
+
+
 # file type / format.
 ZF_F_PLAIN = 0
 ZF_F_GZIP = 1

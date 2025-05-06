@@ -1,8 +1,7 @@
 # io.py
 
 
-from ..afc.io import merge_tsv as afc_merge_tsv
-from ..xlib.xfile import ZF_F_PLAIN
+from ..xlib.xfile import ZF_F_PLAIN, zconcat
 
 
 
@@ -25,7 +24,7 @@ def merge_tsv(in_fn_list, out_fn, remove = False):
     int
         Return code. 0 if success, negative otherwise.
     """
-    return afc_merge_tsv(
+    return zconcat(
         in_fn_list = in_fn_list,
         in_format = ZF_F_PLAIN, 
         out_fn = out_fn,

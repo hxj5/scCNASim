@@ -7,7 +7,7 @@ from logging import error
 from logging import warning as warn
 from ..utils.gfeature import Feature, load_features
 from ..utils.gsnp import SNP, SNPSet, load_snps
-from ..xlib.xfile import zopen
+from ..xlib.xfile import zopen, zconcat
 from ..xlib.xvcf import vcf_load
 
 
@@ -305,22 +305,11 @@ def merge_tsv(in_fn_list, in_format,
     int
         Return code. 0 if success, negative otherwise.
     """
-    bufsize = 1048576   # 1M
-    is_bytes = "b" in out_fmode
-    out_fp = zopen(out_fn, out_fmode, out_format, is_bytes)
-    in_fmode = "rb" if is_bytes else "rt"
-    for in_fn in in_fn_list:
-        with zopen(in_fn, in_fmode, in_format) as in_fp:
-            while True:
-                dat = in_fp.read(bufsize)
-                if not dat:
-                    break
-                out_fp.write(dat)
-    out_fp.close()
-    if remove:
-        for in_fn in in_fn_list:
-            os.remove(in_fn)
-    return(0)
+    ret = zconcat(
+        in_fn_list, in_format, 
+        out_fn, out_fmode, out_format, 
+        remove = remove)
+    return(ret)
 
 
 

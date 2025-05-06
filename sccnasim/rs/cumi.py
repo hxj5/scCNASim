@@ -23,6 +23,7 @@ import shutil
 from logging import info
 from .io import merge_tsv
 from ..utils.cdata import sum_layers
+from ..utils.cumi import load_cumi
 from ..utils.gfeature import load_feature_objects
 from ..xlib.xbarcode import Barcode
 from ..xlib.xbase import is_file_empty
@@ -334,7 +335,7 @@ def cumi_extract_fs_main(
         A list of output files storing feature-specific CUMIs from all cells.
     tmp_dir : str
         Path to folder storing temporary data.
-    ncores : int, default 1
+    ncores : int
         Number of cores.
 
     Returns
@@ -386,7 +387,7 @@ def __cumi_extract_fs_batch(
         A list of output files storing feature-specific CUMIs from all cells.
     tmp_dir : str
         Path to folder storing temporary data.
-    ncores : int, default 1
+    ncores : int
         Number of cores.
     max_per_batch : int
         Maximum number of features allowed to be processed simultaneously.
@@ -543,17 +544,6 @@ def cumi_extract_fs(
         fp.close()
 
     return(0)
-
-
-
-def load_cumi(fn, sep = "\t"):
-    """Load CUMIs from file."""
-    if is_file_empty(fn):
-        df = pd.DataFrame(columns = ["cell", "umi"])
-        return(df)
-    dat = pd.read_csv(fn, sep = sep, header = None)
-    dat.columns = ["cell", "umi"]
-    return(dat)
 
 
 
