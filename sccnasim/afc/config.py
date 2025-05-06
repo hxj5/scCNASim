@@ -4,6 +4,8 @@
 import sys
 from ..config import Defaults as MainDefaults
 
+
+
 COMMAND = "afc"
 
 class Config:

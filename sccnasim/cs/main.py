@@ -16,9 +16,9 @@ from .config import Config
 from .core import cs_init, cs_pp, cs_cna_core
 from .gcna import calc_cn_fold
 from .io import cs_save_adata2mtx, save_params
-from ..io.base import load_h5ad, save_h5ad
-from ..utils.xbarcode import rand_cell_barcodes
-from ..utils.xio import load_pickle, save_pickle
+from ..xlib.xbarcode import rand_cell_barcodes
+from ..xlib.xdata import load_h5ad, save_h5ad
+from ..xlib.xio import load_pickle, save_pickle
 
 
 

@@ -5,10 +5,10 @@ import os
 
 from logging import error
 from logging import warning as warn
-from ..io.base import load_features, load_snps
-from ..utils.gfeature import SNP, SNPSet, Feature
-from ..utils.vcf import vcf_load
-from ..utils.zfile import zopen
+from ..utils.gfeature import Feature, load_features
+from ..utils.gsnp import SNP, SNPSet, load_snps
+from ..xlib.xfile import zopen
+from ..xlib.xvcf import vcf_load
 
 
 

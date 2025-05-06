@@ -2,7 +2,8 @@
 
 
 import pysam
-from ..utils.sam import sam_cat, sam_sort
+from ..xlib.xsam import sam_cat, sam_sort
+
 
 
 def sam_cat_and_sort(in_fns, out_fn, max_mem = "4G", ncores = 1, index = True):

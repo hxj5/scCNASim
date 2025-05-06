@@ -22,12 +22,13 @@ import shutil
 
 from logging import info
 from .io import merge_tsv
-from ..io.base import load_h5ad, save_h5ad, load_feature_objects
-from ..utils.base import is_file_empty
-from ..utils.xbarcode import Barcode
-from ..utils.xdata import sum_layers, array_to_sparse
-from ..utils.xthread import split_n2batch, mp_error_handler
-from ..utils.zfile import zopen, ZF_F_PLAIN
+from ..utils.cdata import sum_layers
+from ..utils.gfeature import load_feature_objects
+from ..xlib.xbarcode import Barcode
+from ..xlib.xbase import is_file_empty
+from ..xlib.xdata import load_h5ad, save_h5ad, array_to_sparse
+from ..xlib.xthread import split_n2batch, mp_error_handler
+from ..xlib.xfile import zopen, ZF_F_PLAIN
 
 
 

@@ -11,7 +11,7 @@ from .cumi import load_cumi
 from .fa import FastFA
 from .sam import sam_cat_and_sort
 from .snp import SNPSet, mask_read
-from ..io.base import load_feature_objects
+from ..utils.gfeature import load_feature_objects
 from ..utils.hapidx import hap2idx
 
 

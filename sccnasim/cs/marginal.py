@@ -13,15 +13,15 @@ import scipy as sp
 from collections import OrderedDict
 from logging import info, error, debug
 from .io import load_params, save_params
-from ..io.base import load_h5ad, save_h5ad
-from ..utils import base as xbase
-from ..utils import xmath
-from ..utils.xio import load_pickle, save_pickle
-from ..utils.xmath import   \
+from ..xlib.xbase import is_scalar_numeric
+from ..xlib.xdata import load_h5ad, save_h5ad
+from ..xlib.xio import load_pickle, save_pickle
+from ..xlib.xmath import   \
     estimate_dist_nb, estimate_dist_poi,  \
-    fit_dist_nb, fit_dist_poi, fit_dist_zinb, fit_dist_zip
-from ..utils.xmatrix import sparse2array, array2sparse
-from ..utils.xthread import mp_error_handler, split_n2batch
+    fit_dist_nb, fit_dist_poi, fit_dist_zinb, fit_dist_zip,  \
+    rand_zinb
+from ..xlib.xmatrix import sparse2array, array2sparse
+from ..xlib.xthread import mp_error_handler, split_n2batch
 
 
 
@@ -694,7 +694,7 @@ def simu_RD_feature(params, n, s = None, s_type = None):
         else:
             error("invalid size factor '%s'." % s_type)
             raise ValueError
-    dat = xmath.rand_zinb(
+    dat = rand_zinb(
         mu = mu + 0.0,
         alpha = disp + 0.0,
         infl = infl + 0.0,
@@ -1018,7 +1018,7 @@ def simu_RD(
     if total_count_new is None:
         pass
     else:
-        assert xbase.is_scalar_numeric(total_count_new) or \
+        assert is_scalar_numeric(total_count_new) or \
             len(total_count_new) == len(cell_type_new)
 
     total_count_old = np.array([params[c]["n_read"] for c in cell_type_old])
@@ -1030,7 +1030,7 @@ def simu_RD(
     r = None                      # scaling factor
     if total_count_new is None:
         r = np.repeat(1.0, n_cell_types)
-    elif xbase.is_scalar_numeric(total_count_new):
+    elif is_scalar_numeric(total_count_new):
         r = np.repeat(
             total_count_new/np.sum(total_count_old / n_cell_old * n_cell_each),
             n_cell_types)

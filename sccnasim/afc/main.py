@@ -12,20 +12,20 @@ from logging import debug, error, info
 from logging import warning as warn
 from .config import Config, COMMAND
 from .core import fc_features
-from .io import load_feature_from_txt, \
-    load_snp_from_vcf, load_snp_from_tsv, \
+from .io import load_feature_from_txt,  \
+    load_snp_from_vcf, load_snp_from_tsv,  \
     merge_mtx
 from ..app import APP, VERSION
-from ..io.base import load_bams, load_barcodes, load_samples,  \
-    load_list_from_str, save_h5ad,   \
+from ..utils.gfeature import assign_feature_batch,  \
     load_feature_objects, save_feature_objects
-from ..io.counts import load_adata
-from ..utils.base import assert_e
-from ..utils.gfeature import assign_feature_batch
-from ..utils.xio import load_pickle, save_pickle
-from ..utils.xlog import init_logging
-from ..utils.xthread import split_n2batch, mp_error_handler
-from ..utils.zfile import ZF_F_GZIP, ZF_F_PLAIN
+from ..utils.io import load_bams, load_barcodes, load_samples,  \
+    load_list_from_str
+from ..xlib.xbase import assert_e
+from ..xlib.xdata import load_adata, save_h5ad
+from ..xlib.xfile import ZF_F_GZIP, ZF_F_PLAIN
+from ..xlib.xio import load_pickle, save_pickle
+from ..xlib.xlog import init_logging
+from ..xlib.xthread import split_n2batch, mp_error_handler
 
 
 

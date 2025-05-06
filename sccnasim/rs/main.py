@@ -15,14 +15,14 @@ from .core import rs_features
 from .cumi import cumi_simu_main, cumi_sample_seed_main
 from .sam import sam_cat_and_sort, calc_max_mem
 from ..app import APP, VERSION
-from ..io.base import load_h5ad, save_h5ad,   \
-    save_cells, save_samples,    \
-    load_feature_objects, save_feature_objects
-from ..utils.base import assert_e
-from ..utils.xdata import sum_layers
-from ..utils.xio import list2file
-from ..utils.xmatrix import mtx2array1d
-from ..utils.xthread import split_n2batch, mp_error_handler
+from ..utils.cdata import sum_layers
+from ..utils.gfeature import load_feature_objects, save_feature_objects
+from ..utils.io import save_cells, save_samples
+from ..xlib.xbase import assert_e
+from ..xlib.xdata import load_h5ad, save_h5ad
+from ..xlib.xio import list2file
+from ..xlib.xmatrix import mtx2array1d
+from ..xlib.xthread import split_n2batch, mp_error_handler
 
 
 

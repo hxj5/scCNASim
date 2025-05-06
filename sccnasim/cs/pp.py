@@ -6,9 +6,9 @@ import os
 
 from logging import info, error
 from .sizefactor import fit_libsize, simu_libsize
-from ..utils.grange import str2tuple
-from ..utils.xdata import sum_layers
-from ..utils.xmatrix import sparse2array, mtx2array1d
+from ..utils.cdata import sum_layers
+from ..xlib.xmatrix import sparse2array, mtx2array1d
+from ..xlib.xrange import str2tuple
 
 
 

@@ -4,6 +4,7 @@
 from ..utils.sam import get_query_bases
 
 
+
 # TODO: UMI/read collapsing.
 class UCount:
     """Counting unit for one fetched UMI or read pair of specific SNP.

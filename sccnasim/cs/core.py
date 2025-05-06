@@ -14,8 +14,10 @@ from .io import load_params, save_params
 from .marginal import fit_RD, simu_RD
 from .pp import calc_size_factors, clone_calc_n_cell_each, \
     cna_get_overlap_features, qc_libsize, subset_adata_by_cell_types
-from ..io.base import load_clones, load_cnas, load_h5ad
-from ..utils.xdata import sum_layers, array_to_sparse
+from ..utils.cdata import sum_layers
+from ..utils.clone import load_clones
+from ..utils.gcna import load_cnas
+from ..xlib.xdata import array_to_sparse, load_h5ad
 
 
 

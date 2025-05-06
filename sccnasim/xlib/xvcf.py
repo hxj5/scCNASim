@@ -1,4 +1,4 @@
-# vcf.py - VCF file routine.
+# xvcf.py - VCF file routine.
 
 
 import gzip
@@ -12,7 +12,7 @@ import time
 
 from logging import error, info
 from logging import warning as warn
-from .base import assert_e, assert_n
+from .xbase import assert_e, assert_n
 
 
 

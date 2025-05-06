@@ -11,11 +11,11 @@ from logging import debug, error, info
 from .mcount_ab import MCount as ABFeatureMCount
 from .mcount_feature import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
-from ..io.base import load_feature_objects, save_feature_objects
+from ..utils.gfeature import load_feature_objects, save_feature_objects
 from ..utils.hapidx import hap2idx, idx2hap
-from ..utils.sam import check_read, check_strand, check_included, \
-    sam_fetch
-from ..utils.zfile import zopen, ZF_F_GZIP
+from ..utils.sam import check_read, check_strand, check_included
+from ..xlib.xfile import zopen, ZF_F_GZIP
+from ..xlib.xsam import sam_fetch
 
 
 # NOTE: 

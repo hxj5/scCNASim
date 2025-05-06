@@ -1,4 +1,4 @@
-# adata.py - adata object processing.
+# cdata.py - processing count adata.
 
 # Note:
 # - it is non-trival to modify the anndata inplace (see
@@ -10,7 +10,7 @@ import numpy as np
 from logging import info, error
 from logging import warning as warn
 from scipy.sparse import issparse
-from .xmatrix import sparse2array, array2sparse
+from ..xlib.xmatrix import array2sparse
 
 
 
@@ -46,43 +46,9 @@ def add_cell_type_anno(adata, anno):
         anno[["cell", "cell_type"]], on = "cell", how = "left", 
         left_index = True)
     return((0, adata))
-
-
-
-def array_to_sparse(adata, which, layers = None, inplace = False):
-    """Convert numpy array in specific layers to sparse matrix.
-
-    Parameters
-    ----------
-    adata : anndata.AnnData
-        The adata object.
-    which : {"coo", "csc", "csr"}
-        Which type of sparse array or matrix to use?
-        - "coo": A sparse array/matrix in COOrdinate format.
-        - "csc": Compressed Sparse Column array/matrix.
-        - "csr": Compressed Sparse Row array/matrix.
-    layers : list of str or None, default None
-        Name of the layers in `adata`, whose numpy array will be converted
-        into sparse matrix.
-        If None, use all layers.    
-    inplace : bool, default False
-        Whether to modify the `adata` inplace.
-    
-    Returns
-    -------
-    adata : anndata.AnnData
-        The updated adata object.
-    """
-    if not inplace:
-        adata = adata.copy()
-    if layers is None:
-        layers = adata.layers.keys()
-    for layer in layers:
-        adata.layers[layer] = array2sparse(adata.layers[layer], which = which)
-    return(adata)
     
     
-    
+
 def check_sanity_layer(adata, layer = None):
     """Sanity check for specific layer of adata.
     
@@ -222,38 +188,9 @@ def set_ref_cell_types(adata, ref_cell_types = None, inplace = False):
         if ref_cell_types is not None:
             warn("column 'cell_type' is missing.")
     return(adata)
-    
 
-    
-def sparse_to_array(adata, layers = None, inplace = False):
-    """Convert sparse matrix in specific layers to numpy array.
 
-    Parameters
-    ----------
-    adata : anndata.AnnData
-        The adata object.
-    layers : list of str or None, default None
-        Name of the layers in `adata`, whose sparse matrix will be converted
-        into numpy array.
-        If None, use all layers.    
-    inplace : bool, default False
-        Whether to modify the `adata` inplace.
-    
-    Returns
-    -------
-    adata : anndata.AnnData
-        The updated adata object.
-    """
-    if not inplace:
-        adata = adata.copy()
-    if layers is None:
-        layers = adata.layers.keys()
-    for layer in layers:
-        adata.layers[layer] = sparse2array(adata.layers[layer])
-    return(adata)
 
-    
-    
 def sum_layers(adata, layers = None):
     """Calculate the sum of specific layers.
 

@@ -2,7 +2,8 @@
 
 
 from logging import error, debug, info
-from ..utils.grange import format_chrom
+from ..xlib.xrange import format_chrom
+
 
 
 class SNPSet:

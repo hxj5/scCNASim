@@ -1,13 +1,11 @@
-# CNA simulation in single-cell and spatial transcriptomics.
+# Haplotype-aware CNA simulation from single-cell and spatial transcriptomics.
 
 from . import afc
-from . import app
-from . import config
 from . import cs
-from . import io
 from . import pp
 from . import rs
 from . import utils
+from . import xlib
 
 from .app import VERSION
 from .config import Config
@@ -19,4 +17,3 @@ from .main import main_wrapper
 # https://stackoverflow.com/questions/42950256/how-to-import-private-functions-with-import
 __all__ = ["__version__"]
 __version__ = VERSION
-

@@ -2,7 +2,7 @@
 
 
 from ..afc.io import merge_tsv as afc_merge_tsv
-from ..utils.zfile import ZF_F_PLAIN
+from ..xlib.xfile import ZF_F_PLAIN
 
 
 

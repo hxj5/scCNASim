@@ -1,14 +1,151 @@
-# counts.py - RD matrix input and output.
+# xdata.py - adata object processing.
+
+# Note:
+# - it is non-trival to modify the anndata inplace (see
+#   https://github.com/scverse/anndata/issues/170 for details).
 
 
 import anndata as ad
+import numpy as np
 import os
 import pandas as pd
 import scipy as sp
 
+from logging import info, error
+from logging import warning as warn
 from scipy import io
-from .base import format_anndata
-from ..utils.xmatrix import array2sparse
+from scipy.sparse import issparse
+from .xmatrix import sparse2array, array2sparse
+
+
+
+def array_to_sparse(adata, which, layers = None, inplace = False):
+    """Convert numpy array in specific layers to sparse matrix.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        The adata object.
+    which : {"coo", "csc", "csr"}
+        Which type of sparse array or matrix to use?
+        - "coo": A sparse array/matrix in COOrdinate format.
+        - "csc": Compressed Sparse Column array/matrix.
+        - "csr": Compressed Sparse Row array/matrix.
+    layers : list of str or None, default None
+        Name of the layers in `adata`, whose numpy array will be converted
+        into sparse matrix.
+        If None, use all layers.    
+    inplace : bool, default False
+        Whether to modify the `adata` inplace.
+    
+    Returns
+    -------
+    adata : anndata.AnnData
+        The updated adata object.
+    """
+    if not inplace:
+        adata = adata.copy()
+    if layers is None:
+        layers = adata.layers.keys()
+    for layer in layers:
+        adata.layers[layer] = array2sparse(adata.layers[layer], which = which)
+    return(adata)
+
+
+
+def sparse_to_array(adata, layers = None, inplace = False):
+    """Convert sparse matrix in specific layers to numpy array.
+
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        The adata object.
+    layers : list of str or None, default None
+        Name of the layers in `adata`, whose sparse matrix will be converted
+        into numpy array.
+        If None, use all layers.    
+    inplace : bool, default False
+        Whether to modify the `adata` inplace.
+    
+    Returns
+    -------
+    adata : anndata.AnnData
+        The updated adata object.
+    """
+    if not inplace:
+        adata = adata.copy()
+    if layers is None:
+        layers = adata.layers.keys()
+    for layer in layers:
+        adata.layers[layer] = sparse2array(adata.layers[layer])
+    return(adata)
+
+
+
+def format_adata(adata, row_is_cell = True):
+    """Format anndata object.
+    
+    Parameters
+    ----------
+    adata : anndata.AnnData
+        The object to be formatted.
+    row_is_cell : bool, default True
+        Whether the rows (obs) are cells.
+    
+    Returns
+    -------
+    anndata.AnnData
+        The formatted object.
+    """
+    if adata is None:
+        return(adata)
+    
+    adata.obs.index = adata.obs.index.astype(str)      # otherwise, anndata will complain about integer index
+    adata.var.index = adata.var.index.astype(str)
+
+    if row_is_cell is True:
+        if adata.var is not None and "chrom" in adata.var.columns:
+            adata.var["chrom"] = adata.var["chrom"].astype(str)
+            adata.var["chrom"] = adata.var["chrom"].map(format_chrom)
+    else:
+        if adata.obs is not None and "chrom" in adata.obs.columns:
+            adata.obs["chrom"] = adata.obs["chrom"].astype(str)
+            adata.obs["chrom"] = adata.obs["chrom"].map(format_chrom)
+
+    return(adata)
+
+
+
+def load_h5ad(fn):
+    """Wrapper to load anndata h5ad file.
+
+    Parameters
+    ----------
+    fn : str
+        Path to the h5ad file.
+
+    Returns
+    -------
+    anndata.AnnData
+    """
+    adata = ad.read_h5ad(fn)
+    adata = format_adata(adata)
+    return(adata)
+
+
+def save_h5ad(
+    adata, 
+    filename = None, 
+    compression = "gzip", 
+    compression_opts = None, 
+    as_dense = ()
+):
+    return(adata.write_h5ad(
+        filename = filename,
+        compression = compression,
+        compression_opts = compression_opts,
+        as_dense = as_dense
+    ))
 
 
 
@@ -364,7 +501,7 @@ def load_adata_ml(mtx_fn_list, layers,
         else:
             adata.layers[layers[idx]] = mtx
 
-    adata = format_anndata(adata, row_is_cell = row_is_cell)
+    adata = format_adata(adata, row_is_cell = row_is_cell)
     return(adata)
 
 
@@ -523,7 +660,7 @@ def load_adata(mtx_fn, cell_fn, feature_fn,
             X = mtx, 
             obs = features,
             var = cells)
-    adata = format_anndata(adata, row_is_cell = row_is_cell)
+    adata = format_adata(adata, row_is_cell = row_is_cell)
     return(adata)
 
 

@@ -1,6 +1,7 @@
 # mcount_ab.py - counting machine for haplotype A and B in feature level.
 
 
+
 # TODO: UMI/read collapsing.
 class UCount:
     """Counting unit for one UMI or read pair.

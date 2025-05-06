@@ -8,8 +8,9 @@ import seaborn as sns
 
 from logging import error
 from logging import warning as warn
-from ..utils.base import is_function, is_vector
-from ..utils.xmatrix import sparse2array
+from ..xlib.xbase import is_function, is_vector
+from ..xlib.xmatrix import sparse2array
+
 
 
 ### Cell-wise metrics

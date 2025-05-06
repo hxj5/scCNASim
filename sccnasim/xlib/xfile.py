@@ -1,4 +1,4 @@
-# zfile.py - wrapper of file object, supporting GZIP/BGZIP. 
+# xfile.py - wrapper of file object, supporting GZIP/BGZIP. 
 
 # Note that there's a bug when reading BGZIP file with pysam (issue #438):
 #   it will stop reading when encounting a blank line, this could be caused 

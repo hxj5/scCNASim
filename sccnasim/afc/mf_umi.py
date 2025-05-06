@@ -3,7 +3,8 @@
 
 
 import os
-from ..io.base import load_feature_objects, load_samples, load_features
+from ..utils.gfeature import load_feature_objects, load_features
+from ..utils.io import load_samples
 
 
 

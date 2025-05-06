@@ -3,7 +3,8 @@
 
 import pysam
 from logging import error, debug
-from ..utils.grange import format_chrom
+from ..xlib.xrange import format_chrom
+
 
 
 class FastFA:

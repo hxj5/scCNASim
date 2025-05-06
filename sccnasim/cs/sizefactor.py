@@ -7,10 +7,10 @@ import scipy as sp
 
 from collections import OrderedDict
 from logging import info, error
-from ..utils.xmath import   \
+from ..xlib.xmath import   \
     estimate_dist_normal, estimate_dist_lognormal,  \
     fit_dist_t
-from ..utils.xmatrix import sparse2array, mtx2array1d
+from ..xlib.xmatrix import sparse2array, mtx2array1d
 
 
 

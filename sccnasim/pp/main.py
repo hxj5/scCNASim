@@ -8,13 +8,14 @@ import time
 
 from logging import info, error
 from .config import Config
-from .gcna import merge_cna_profile
-from .gfeature import filter_features_by_chroms, filter_dup_features,  \
+from ..utils.clone import load_clones
+from ..utils.gcna import load_cnas, merge_cna_profile
+from ..utils.gfeature import filter_features_by_chroms, filter_dup_features,  \
     merge_features_quantile2, merge_features_union, \
     sort_features
-from .gsnp import get_file_suffix, check_dup_snp
-from ..io.base import load_cells, load_cnas, load_clones
-from ..utils.grange import format_chrom
+from ..utils.gsnp import get_file_suffix, check_dup_snp
+from ..utils.io import load_cells
+from ..xlib.xrange import format_chrom
 
 
 

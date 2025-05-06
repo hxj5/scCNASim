@@ -1,10 +1,14 @@
-# xcna.py - clonal CNA profile.
+# gcna.py - clonal CNA profile.
 
 
+import functools
+import pandas as pd
 from logging import error
-from .grange import Region, RegionSet
-from .zfile import zopen
-from ..io.base import load_cnas
+from .grange import cmp_two_intervals
+from ..xlib.xbase import is_file_empty
+from ..xlib.xfile import zopen
+from ..xlib.xrange import Region, RegionSet  \
+    format_chrom, format_start, format_end, reg2str
 
 
 
@@ -294,9 +298,80 @@ class CloneCNAProfile:
             return((ret, hits))
         else:
             return((0, []))
-
-
         
+        
+
+def load_cnas(fn, sep = "\t", cna_mode = "hap-aware"):
+    """Load clonal CNA profile from a header-free file.
+    
+    Parameters
+    ----------
+    fn : str
+        Path to a a header-free file containing clonal CNA profile, whose
+        first several columns should be:
+        - "chrom" (str): chromosome name of the CNA region.
+        - "start" (int): start genomic position of the CNA region, 1-based
+          and inclusive.
+        - "end" (int): end genomic position of the CNA region, 1-based and
+          inclusive.
+        - "clone" (str): clone ID.
+        if `cna_mode` is "hap-aware":
+        - "cn_ale0" (int): copy number of the first allele.
+        - "cn_ale1" (int): copy number of the second allele.
+        otherwise:
+        - "cn" (int): copy number of both alleles.
+    sep : str, default "\t"
+        File delimiter.
+    cna_mode : {"hap-aware", "hap-unknown"}
+        The mode of CNA profiles.
+        - "hap-aware": haplotype/allele aware.
+        - "hap-unknown": haplotype/allele unknown.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The loaded clonal CNA profile, whose first several columns are
+        "chrom", "start", "end", "clone", 
+        and
+        - if `cna_mode` is "hap-aware": "cn_ale0", and "cn_ale1", "region";
+        - otherwise: "cn", "region".
+        Note that "region" is a formatted string combining "chrom", "start",
+        and "end".
+    """
+    df = None
+    if is_file_empty(fn):
+        if cna_mode == "hap-aware":
+            df = pd.DataFrame(columns = ["chrom", "start", "end", "clone", \
+                        "cn_ale0", "cn_ale1", "region"])
+        else:
+            df = pd.DataFrame(columns = ["chrom", "start", "end", "clone", \
+                        "cn", "region"])
+        return(df)
+    
+    df = pd.read_csv(fn, sep = sep, header = None, dtype = {0: str})
+    df.columns = df.columns.astype(str)
+    
+    if cna_mode == "hap-aware":
+        assert df.shape[1] >= 6
+        df.columns.values[:6] = [
+            "chrom", "start", "end", "clone", "cn_ale0", "cn_ale1"]
+    else:
+        assert df.shape[1] >= 5
+        df.columns.values[:5] = [
+            "chrom", "start", "end", "clone", "cn"]        
+
+    df["chrom"] = df["chrom"].map(format_chrom)
+    df["start"] = df["start"].map(format_start)
+    df["end"] = df["end"].map(format_end)
+    df["region"] = [reg2str(
+                        df["chrom"].iloc[i], 
+                        df["start"].iloc[i], 
+                        df["end"].iloc[i]
+                    ) for i in range(df.shape[0])]
+    return(df)
+
+
+
 def load_cna_profile(fn, sep = "\t"):
     """Load CNA profiles from file.
 
@@ -361,3 +436,113 @@ def save_cna_profile(dat, fn):
             ]) + "\n"
         fp.write(s)
     fp.close()
+    
+
+    
+def merge_cna_profile(in_fn, out_fn, max_gap = 1):
+    """Merge adjacent regions with the same CNA profiles.
+
+    Merge adjacent regions with the same allele-specific copy number
+    profile in each CNA clone.
+
+    Parameters
+    ----------
+    in_fn : str
+        Path to input file.
+    out_fn : str
+        Path to output file.
+    max_gap : int, default 1
+        The maximum gap length that is allowed between two adjacent regions.
+        `1` for strict adjacence.
+
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative if error.
+    int
+        Number of records before merging.
+    int
+        Number of records after merging.
+    """
+    sep = "\t"
+    n_old, n_new = -1, -1
+
+    # load data
+    try:
+        df = load_cnas(in_fn, sep = sep)
+    except Exception as e:
+        error("load CNA profile file failed '%s'." % str(e))
+        return((-3, n_old, n_new))
+    n_old = df.shape[0]
+
+    dat = {}
+    for i in range(df.shape[0]):
+        rec = df.iloc[i, ]
+        chrom = rec["chrom"]
+        clone = rec["clone"]
+        if clone not in dat:
+            dat[clone] = {}
+        if chrom not in dat[clone]:
+            dat[clone][chrom] = {}
+        cns = "%d_%d" % (rec["cn_ale0"], rec["cn_ale1"])
+        if cns not in dat[clone][chrom]:
+            dat[clone][chrom][cns] = []
+        dat[clone][chrom][cns].append((rec["start"], rec["end"]))
+
+
+    # merge (clone-specific) adjacent CNAs.
+    for clone, cl_dat in dat.items():
+        for chrom, ch_dat in cl_dat.items():
+            for cns in ch_dat.keys():
+                iv_list = sorted(
+                    ch_dat[cns], 
+                    key = functools.cmp_to_key(cmp_two_intervals)
+                )
+                s1, e1 = iv_list[0]
+                new_list = []
+                for s2, e2 in iv_list[1:]:
+                    if s2 <= e1 + max_gap:    # overlap adjacent region
+                        e1 = max(e1, e2)
+                    else:                     # otherwise
+                        new_list.append((s1, e1))
+                        s1, e1 = s2, e2
+                new_list.append((s1, e1))
+                ch_dat[cns] = new_list
+
+
+    # check whether there are (strictly) overlapping regions with 
+    # distinct profiles.
+    for clone, cl_dat in dat.items():
+        for chrom, ch_dat in cl_dat.items():
+            iv_list = []
+            for cns in ch_dat.keys():
+                cn_ale0, cn_ale1 = [int(x) for x in cns.split("_")]
+                iv_list.extend(
+                    [(s, e, cn_ale0, cn_ale1) for s, e in ch_dat[cns]])
+            iv_list = sorted(
+                iv_list, 
+                key = functools.cmp_to_key(cmp_two_intervals)
+            )
+            s1, e1 = iv_list[0][:2]
+            for iv in iv_list[1:]:
+                s2, e2 = iv[:2]
+                if s2 <= e1:    # overlap adjacent region
+                    error("distinct CNA profiles '%s', (%d, %d) and (%d, %d)." % 
+                        (chrom, s1, e1, s2, e2))
+                    return((-5, n_old, n_new))
+            cl_dat[chrom] = iv_list
+
+
+    # save profile
+    n_new = 0
+    fp = open(out_fn, "w")
+    for clone in sorted(dat.keys()):
+        cl_dat = dat[clone]
+        for chrom in sorted(cl_dat.keys()):
+            ch_dat = cl_dat[chrom]
+            for s, e, cn_ale0, cn_ale1 in ch_dat:
+                fp.write("\t".join([chrom, str(s), str(e), \
+                    clone, str(cn_ale0), str(cn_ale1)]) + "\n")
+                n_new += 1
+    fp.close()
+    return((0, n_old, n_new))

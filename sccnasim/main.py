@@ -13,12 +13,13 @@ from .afc.main import afc_wrapper
 from .app import APP, VERSION
 from .config import Config
 from .cs.main import cs_wrapper
-from .io.base import load_cells, load_h5ad, save_h5ad, load_features
 from .pp.main import pp_wrapper
 from .rs.main import rs_wrapper
-from .utils.base import assert_e
-from .utils.gfeature import assign_feature_batch
-from .utils.xlog import init_logging
+from .utils.gfeature import assign_feature_batch, load_features
+from .utils.io import load_cells
+from .xlib.xbase import assert_e
+from .xlib.xdata import load_h5ad, save_h5ad
+from .xlib.xlog import init_logging
 
 
 
