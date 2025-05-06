@@ -41,6 +41,7 @@ def afc_wrapper(
     min_count = 20, min_maf = 0.1,
     strandness = "forward",
     min_include = 0.9,
+    multi_mapper_how = "discard",
     xf_tag = "xf",
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
@@ -114,6 +115,10 @@ def afc_wrapper(
     min_include : int or float, default 0.9
         Minimum length of included part within specific feature.
         If float between (0, 1), it is the minimum fraction of included length.
+    multi_mapper_how : {"discard", "dup"}
+        How to process the multi-feature UMIs (reads).
+        - "discard": discard the UMI.
+        - "dup": count the UMI for every mapped gene.
     xf_tag : str or None, default "xf"
         The extra alignment flags set by CellRanger or SpaceRanger.
         If set, only reads with tag's value 17 or 25 will count.
@@ -162,6 +167,7 @@ def afc_wrapper(
 
     conf.strandness = strandness
     conf.min_include = min_include
+    conf.multi_mapper_how = multi_mapper_how
 
     conf.xf_tag = xf_tag
     conf.min_mapq = min_mapq
@@ -354,7 +360,13 @@ def afc_core(conf):
     
     
     # process multi-feature UMIs.
-    
+    if conf.multi_mapper_how == "discard":
+        
+    elif conf.multi_mapper_how == "dup":
+        info("multi_mapper_how = '%s'; skip processing multi-feature UMIs ..." % \
+             conf.multi_mapper_how)
+    else:
+        raise ValueError("invalid multi_mapper_how = '%s'." % conf.multi_mapper_how)
 
 
     # construct adata and save into h5ad file.

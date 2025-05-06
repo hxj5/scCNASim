@@ -9,9 +9,10 @@ import time
 from logging import info, error
 from .config import Config
 from .gcna import merge_cna_profile
-from .gfeature import filter_features_by_chroms, \
+from .gfeature import filter_features_by_chroms, filter_dup_features,  \
     merge_features_quantile2, merge_features_union, \
     sort_features
+from .gsnp import get_file_suffix, check_dup_snp
 from ..io.base import load_cells, load_cnas, load_clones
 from ..utils.grange import format_chrom
 
@@ -32,13 +33,28 @@ def pp_core(conf):
                             conf.out_prefix_raw + ".features.tsv")
     shutil.copy(conf.feature_fn, raw_feature_fn)
     info("feature file copied to '%s'." % raw_feature_fn)
-
     
+    
+    # filter duplicated features.
+    filter_dup_feature_fn = os.path.join(conf.out_dir,
+            conf.out_prefix_pp + ".features.filter_dup.tsv")
+    r, n_old, n_new = filter_dup_features(
+        in_fn = conf.feature_fn,
+        out_fn = filter_dup_feature_fn,
+        keep = "first"
+    )
+    if r < 0:
+        error("filter duplicated features failed (%d)." % r)
+        raise ValueError
+    info("%d features kept from %d old ones after filtering duplicates." % \
+         (n_new, n_old))
+
+
     # filter features based on input chromosomes.
     filter_chrom_feature_fn = os.path.join(conf.out_dir,
-            conf.out_prefix_pp + ".features.filter_chrom.tsv")
+            conf.out_prefix_pp + ".features.filter_dup.filter_chrom.tsv")
     r, n_old, n_new = filter_features_by_chroms(
-        in_fn = conf.feature_fn,
+        in_fn = filter_dup_feature_fn,
         out_fn = filter_chrom_feature_fn,
         chrom_list = chrom_list
     )
@@ -51,7 +67,7 @@ def pp_core(conf):
     
     # merge overlapping features.
     merged_feature_fn = os.path.join(conf.out_dir, 
-        conf.out_prefix_pp + ".features.filter_chrom.resolve_overlap.tsv")
+        conf.out_prefix_pp + ".features.filter_dup.filter_chrom.resolve_overlap.tsv")
     if conf.merge_features_how == "raw":
         merged_feature_fn = filter_chrom_feature_fn
         info("skip resolving overlapping features.")
@@ -90,38 +106,25 @@ def pp_core(conf):
 
 
     # process SNP file.
-    suffix = None
-    snp_fn = conf.snp_fn.lower()
-    if snp_fn and "." in snp_fn:
-        if snp_fn.endswith(".vcf"):
-            suffix = "vcf"
-        elif snp_fn.endswith(".vcf.gz"):
-            suffix = "vcf.gz"
-        elif snp_fn.endswith(".tsv"):
-            suffix = "tsv"
-        elif snp_fn.endswith(".tsv.gz"):
-            suffix = "tsv.gz"
-        elif snp_fn.endswith(".txt"):
-            suffix = "txt"
-        elif snp_fn.endswith(".txt.gz"):
-            suffix = "txt.gz"
-        else:
-            suffix = "txt"
-            if snp_fn.endswith(".gz"):
-                suffix += ".gz"
-    else:
-        suffix = "txt"
+    suffix = get_file_suffix(conf.snp_fn)
     raw_snp_fn = os.path.join(
         conf.out_dir, conf.out_prefix_raw + ".snp." + suffix)
     shutil.copy(conf.snp_fn, raw_snp_fn)
     info("SNP file copied to '%s'." % raw_snp_fn)
+    
+    
+    # check duplicate records.
+    n_dup = check_dup_snp(raw_snp_fn)
+    assert n_dup == 0
 
 
     # process clone anno information file.
-    # check duplicate records.
     raw_clone_anno_fn = os.path.join(
         conf.out_dir, conf.out_prefix_raw + ".clone_anno.tsv")
     shutil.copy(conf.clone_anno_fn, raw_clone_anno_fn)
+    
+    
+    # check duplicate clone annotations.
     clone_anno = load_clones(conf.clone_anno_fn)
     clones = clone_anno["clone"].unique()
     if len(clones) != clone_anno.shape[0]:
@@ -306,16 +309,16 @@ def pp_wrapper(
         - "unstranded": no strand information.
     merge_features_how : str, default "quantile"
         How to merge overlapping features.
-        "raw" - Leave all input gene annotations unchanged.
-        "quantile" - alias to "quantile2".
-        "quantile2" - remove highly overlapping genes.
-            Remove genes with number of overlapping genes larger than a given
-            value. Default is the 0.99 quantile among all genes that have 
-            overlaps.
-        "union" - keep the union range of gene overlaps.
-            Replace consecutive overlapping genes with their union genomic 
-            range, i.e., aggregate overlapping genes into non-overlapping
-            super-genes.
+        - "raw": Leave all input gene annotations unchanged.
+        - "quantile": alias to "quantile2".
+        - "quantile2": remove highly overlapping genes.
+           Remove genes with number of overlapping genes larger than a given
+           value. Default is the 0.99 quantile among all genes that have 
+           overlaps.
+        - "union": keep the union range of gene overlaps.
+           Replace consecutive overlapping genes with their union genomic 
+           range, i.e., aggregate overlapping genes into non-overlapping
+           super-genes.
 
     Returns
     -------

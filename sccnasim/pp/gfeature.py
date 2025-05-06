@@ -10,6 +10,44 @@ from ..utils.grange import format_chrom
 
 
 
+def filter_dup_features(in_fn, out_fn, keep = "first"):
+    """Filter duplicated features.
+    
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input file.
+    out_fn : str
+        Path to the output file.
+    keep : {"first", "last", False}, default "first"
+        Determines which duplicates (if any) to keep.
+        - "first": Drop duplicates except for the first occurrence.
+        - "last": Drop duplicates except for the last occurrence.
+        - False: Drop all duplicates.
+    
+    Returns
+    -------
+    int
+        The return code. 0 if success, negative if error.
+    int
+        Number of records before filtering.
+    int
+        Number of records after filtering.    
+    """
+    sep = "\t"
+    
+    df = load_features(in_fn, sep = sep)
+    n_old = df.shape[0]
+    
+    df_new = df.drop_duplicates("feature", keep = keep, ignore_index = True)
+    n_new = df_new.shape[0]
+    
+    save_features(df_new, out_fn, sep = sep)
+    
+    return((0, n_old, n_new))
+
+
+
 def filter_features_by_chroms(in_fn, out_fn, chrom_list):
     """Filter features by chromosomes.
     

@@ -53,6 +53,7 @@ class Config:
         # read assignment
         self.strandness = self.defaults.STRANDNESS
         self.min_include = self.defaults.MIN_INCLUDE
+        self.multi_mapper_how = self.defaults.MULTI_MAPPER_HOW
 
         # read filtering.
         self.xf_tag = self.defaults.XF_TAG
@@ -109,6 +110,7 @@ class Config:
 
         s += "%sstrandness = %s\n" % (prefix, self.strandness)
         s += "%smin_include = %f\n" % (prefix, self.min_include)
+        s += "%smulti_mapper_how = %s\n" % (prefix, self.multi_mapper_how)
         s += "%s\n" % prefix
 
         s += "%sxf_tag = %s\n" % (prefix, str(self.xf_tag))
@@ -153,6 +155,7 @@ class Defaults:
         
         self.STRANDNESS = "forward"
         self.MIN_INCLUDE = 0.9
+        self.MULTI_MAPPER_HOW = "discard"
 
         self.XF_TAG = "xf"
         self.MIN_MAPQ = 20

@@ -44,7 +44,7 @@ def main_wrapper(
     cell_tag = "CB", umi_tag = "UB", umi_len = 10,
     ncores = 1, seed = 123, verbose = False,
     min_count = 1, min_maf = 0,
-    strandness = "forward", min_include = 0.9,
+    strandness = "forward", min_include = 0.9, multi_mapper_how = "discard",
     xf_tag = "xf",
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
@@ -121,16 +121,16 @@ def main_wrapper(
         A file listing sample IDs, each per line.
     merge_features_how : str, default "quantile"
         How to merge overlapping features.
-        "raw" - Leave all input gene annotations unchanged.
-        "quantile" - alias to "quantile2".
-        "quantile2" - remove highly overlapping genes.
-            Remove genes with number of overlapping genes larger than a given
-            value (default is the 0.99 quantile among all genes that have 
-            overlaps).
-        "union" - keep the union range of gene overlaps.
-            Replace consecutive overlapping genes with their union genomic 
-            range, i.e., aggregate overlapping genes into non-overlapping
-            super-genes.
+        - "raw": Leave all input gene annotations unchanged.
+        - "quantile": alias to "quantile2".
+        - "quantile2": remove highly overlapping genes.
+           Remove genes with number of overlapping genes larger than a given
+           value (default is the 0.99 quantile among all genes that have 
+           overlaps).
+        - "union": keep the union range of gene overlaps.
+           Replace consecutive overlapping genes with their union genomic 
+           range, i.e., aggregate overlapping genes into non-overlapping
+           super-genes.
     size_factor : str or None, default "libsize"
         The type of size factor.
         Currently, only support "libsize" (library size).
@@ -197,6 +197,10 @@ def main_wrapper(
     min_include : int or float, default 0.9
         Minimum length of included part within specific feature.
         If float between (0, 1), it is the minimum fraction of included length.
+    multi_mapper_how : {"discard", "dup"}
+        How to process the multi-feature UMIs (reads).
+        - "discard": discard the UMI.
+        - "dup": count the UMI for every mapped gene.
     xf_tag : str or None, default "xf"
         The extra alignment flags set by CellRanger or SpaceRanger.
         If set, only reads with tag's value 17 or 25 will count.
@@ -276,6 +280,7 @@ def main_wrapper(
     # read assignment.
     conf.strandness = strandness
     conf.min_include = min_include
+    conf.multi_mapper_how = multi_mapper_how
 
 
     # read filtering.
@@ -358,6 +363,7 @@ def main_core(conf):
         min_maf = conf.min_maf,
         strandness = conf.strandness,
         min_include = conf.min_include,
+        multi_mapper_how = conf.multi_mapper_how,
         xf_tag = conf.xf_tag,
         min_mapq = conf.min_mapq,
         min_len = conf.min_len,
@@ -495,6 +501,8 @@ def main_init(conf):
     assert_e(conf.refseq_fn)
     
     assert conf.strandness in ("forward", "reverse", "unstranded")
+    
+    assert conf.multi_mapper_how in ("discard", "dup")
 
     return(0)
 
