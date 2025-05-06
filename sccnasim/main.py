@@ -15,8 +15,8 @@ from .config import Config
 from .cs.main import cs_wrapper
 from .pp.main import pp_wrapper
 from .rs.main import rs_wrapper
+from .utils.cellanno import load_cells
 from .utils.gfeature import assign_feature_batch, load_features
-from .utils.io import load_cells
 from .xlib.xbase import assert_e
 from .xlib.xdata import load_h5ad, save_h5ad
 from .xlib.xlog import init_logging

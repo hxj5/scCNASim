@@ -9,8 +9,8 @@ import pickle
 from logging import info, error
 from .allele import AlleleData
 from .grange import cmp_two_intervals
-from .io import save_multi_column_file
 from ..xlib.xbase import is_file_empty
+from ..xlib.xio import save_multi_column_file
 from ..xlib.xrange import Region, RegionSet  \
     format_chrom, format_start, format_end, reg2str
 

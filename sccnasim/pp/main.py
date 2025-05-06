@@ -10,13 +10,13 @@ import time
 from logging import info, error
 from logging import warning as warn
 from .config import Config
+from ..utils.cellanno import load_cells, check_dup_cell
 from ..utils.clone import load_clones
 from ..utils.gcna import load_cnas, check_dup_cna, merge_cna_profile
 from ..utils.gfeature import filter_features_by_chroms, filter_dup_features,  \
     merge_features_quantile2, merge_features_union, \
     sort_features
 from ..utils.gsnp import get_file_suffix, check_dup_snp
-from ..utils.io import load_cells
 from ..xlib.xrange import format_chrom
 
 
@@ -362,25 +362,3 @@ def pp_wrapper(
     
     ret, res = pp_run(conf)
     return((ret, res))
-
-
-
-def check_dup_cell(fn):
-    """Check duplicated records in the cell annotation file.
-    
-    Parameters
-    ----------
-    fn : str
-        Path to the cell annotation file.
-    
-    Returns
-    -------
-    int
-        Number of duplicates in the file.
-    """
-    df = load_cells(fn)
-    bool_dup = df.duplicated("cell")
-    n_dup = np.sum(bool_dup)
-    if n_dup > 0:
-        warn("%d/%d duplicates in cell annotations." % (n_dup, df.shape[0]))
-    return(n_dup)
