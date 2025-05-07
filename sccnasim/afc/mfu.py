@@ -115,6 +115,21 @@ def mfu_main(
     )
     step += 1
     
+    
+    # extract allele-specific CUMIs.
+    info("extract allele-specific CUMIs ...")
+    
+    res_dir = os.path.join(tmp_dir, "%d_cumi_as" % step)
+    os.makedirs(res_dir, exist_ok = True)
+    cumi_as_fns = [os.path.join(res_dir, "%s.cumi.tsv" % ale) \
+                     for ale in alleles]
+    mfu_as_main(
+        in_fn = cumi_cs_fn,
+        out_fns = cumi_as_fns,
+        alleles = alleles
+    )
+    step += 1
+    
     #samples : dict of {str : int}
     #Each key is a cell barcode, value is 0-based index of the cell.
     
@@ -150,15 +165,14 @@ def mfu_cs_main(
 
     Returns
     -------
-    Dict
-        The results.
+    int
+        Return code. 0 if success, negative otherwise.
     """
     # check args.
     assert multi_mapper_how in ("discard", "dup")
     os.makedirs(tmp_dir, exist_ok = True)
-    
-    
-    __mfu_cs_batch(
+
+    ret = __mfu_cs_batch(
         in_fn = in_fn,
         out_fn = out_fn,
         samples = samples,
@@ -168,6 +182,7 @@ def mfu_cs_main(
         max_per_batch = 500,
         depth = 0
     )
+    return(ret)
     
 
     
@@ -351,6 +366,45 @@ def mfu_cs(
         pass
     mfu_save_cumi(df, out_fn)
     return(0)
+
+
+
+def mfu_as_main(in_fn, out_fns, alleles):
+    """Extract allele-specific CUMIs.
+    
+    Parameters
+    ----------
+    in_fn : str
+        Path to the input 4-column CUMI file.
+    out_fns : list of str
+        Path to the allele-specific 3-column CUMI files.
+    alleles : list of str
+        Alleles.
+        
+    Returns
+    -------
+    Void.    
+    """
+    assert len(out_fns) == len(alleles)
+    
+    idx_map = {}
+    fp_list = []
+    for ale, fn in zip(alleles, out_fns):
+        fp = zopen(fn, "w", ZF_F_PLAIN)
+        fp_list.append(fp)
+        idx_map[ale] = fp
+    
+    in_fp = open(in_fn, "r")
+    for line in in_fp:
+        s, _, ale = line.rpartition("\t")
+        ale = ale.rstrip()
+        assert ale in idx_map
+        fp = idx_map[ale]
+        fp.write(s + "\n")
+    in_fp.close()
+    
+    for fp in fp_list:
+        fp.close()
 
     
     
