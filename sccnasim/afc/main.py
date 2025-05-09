@@ -116,10 +116,10 @@ def afc_wrapper(
     min_include : int or float, default 0.9
         Minimum length of included part within specific feature.
         If float between (0, 1), it is the minimum fraction of included length.
-    multi_mapper_how : {"discard", "dup"}
+    multi_mapper_how : {"discard", "duplicate"}
         How to process the multi-feature UMIs (reads).
         - "discard": discard the UMI.
-        - "dup": count the UMI for every mapped gene.
+        - "duplicate": count the UMI for every mapped gene.
     xf_tag : str or None, default "xf"
         The extra alignment flags set by CellRanger or SpaceRanger.
         If set, only reads with tag's value 17 or 25 will count.
@@ -394,7 +394,7 @@ def afc_core(conf):
         
         #shutil.rmtree(tmp_dir)
         
-    elif conf.multi_mapper_how == "dup":
+    elif conf.multi_mapper_how == "duplicate":
         info("multi_mapper_how = '%s'; skip processing multi-feature UMIs ..." % \
              conf.multi_mapper_how)
         

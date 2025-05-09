@@ -42,10 +42,10 @@ def mfu_main(
     ----------
     alleles : list of str
         A list of alleles.
-    multi_mapper_how : {"discard", "dup"}
+    multi_mapper_how : {"discard", "duplicate"}
         How to process the multi-feature UMIs (reads).
         - "discard": discard the UMI.
-        - "dup": count the UMI for every mapped gene.
+        - "duplicate": count the UMI for every mapped gene.
     fet_obj_fn : str
         The python pickle file storing `~..utils.gfeature.Feature` objects.
     out_fet_obj_fn : str
@@ -234,10 +234,10 @@ def mfu_cs_main(
     samples : list of str
         A list of cell barcodes.
         Its order should match that in count matrices.
-    multi_mapper_how : {"discard", "dup"}
+    multi_mapper_how : {"discard", "duplicate"}
         How to process the multi-feature UMIs (reads).
         - "discard": discard the UMI.
-        - "dup": count the UMI for every mapped gene.
+        - "duplicate": count the UMI for every mapped gene.
     tmp_dir : str
         Folder to store temporary data.
     ncores : int
@@ -248,7 +248,7 @@ def mfu_cs_main(
     Void.
     """
     # check args.
-    assert multi_mapper_how in ("discard", "dup")
+    assert multi_mapper_how in ("discard", "duplicate")
     os.makedirs(tmp_dir, exist_ok = True)
 
     __mfu_cs_batch(
@@ -288,10 +288,10 @@ def __mfu_cs_batch(
         Path to the output 4-column CUMI file.
     samples : list of str
         A list of cell barcodes.
-    multi_mapper_how : {"discard", "dup"}
+    multi_mapper_how : {"discard", "duplicate"}
         How to process the multi-feature UMIs (reads).
         - "discard": discard the UMI.
-        - "dup": count the UMI for every mapped gene.
+        - "duplicate": count the UMI for every mapped gene.
     tmp_dir : str
         Path to folder storing temporary data.
     ncores : int, default 1
@@ -422,10 +422,10 @@ def mfu_cs(
         Path to the input 4-column CUMI file.
     out_fn : str
         Path to the output 4-column CUMI file.
-    multi_mapper_how : {"discard", "dup"}
+    multi_mapper_how : {"discard", "duplicate"}
         How to process the multi-feature UMIs (reads).
         - "discard": discard the UMI.
-        - "dup": count the UMI for every mapped gene.
+        - "duplicate": count the UMI for every mapped gene.
         
     Returns
     -------
