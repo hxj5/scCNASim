@@ -168,11 +168,11 @@ def check_dup_snp(fn):
     int
         Number of duplicates in the SNP file.
     """
-    fn = fn.lower()
+    fn_lower = fn.lower()
     
     df, bool_dup = None, None
-    if fn.endswith(".vcf") or fn.endswith(".vcf.gz") or \
-                fn.endswith(".vcf.bgz"):
+    if fn_lower.endswith(".vcf") or fn_lower.endswith(".vcf.gz") or \
+                fn_lower.endswith(".vcf.bgz"):
         df, header = vcf_load(fn)
         bool_dup = df.duplicated(["CHROM", "POS"])
     else:

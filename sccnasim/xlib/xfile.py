@@ -9,6 +9,7 @@
 
 
 import gzip
+import os
 import pysam
 
 

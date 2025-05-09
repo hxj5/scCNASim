@@ -16,6 +16,7 @@ from logging import warning as warn
 from scipy import io
 from scipy.sparse import issparse
 from .xmatrix import sparse2array, array2sparse
+from .xrange import format_chrom
 
 
 

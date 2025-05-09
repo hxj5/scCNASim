@@ -1,5 +1,13 @@
 # mfu.py - multi-feature UMIs.
 
+# To process the multi-feature UMIs given the feature-specific CUMIs.
+# While it is easy to load all CUMIs into an DataFrame and then group by
+# cells and UMIs, it may be memory consuming when the total number of CUMIs
+# is huge.
+# Therefore, we use the strategy of divide-and-conquer to split the CUMIs
+# into batches and merge them after processing CUMIs in each batch.
+
+
 
 import gc
 import multiprocessing
