@@ -28,7 +28,7 @@ class Config:
         self.sample_id_fn = None
         
         # preprocessing.
-        self.merge_features_how = "quantile"
+        self.overlap_features_how = "quantile"
 
         # count simulation.
         self.size_factor = "libsize"
@@ -85,7 +85,7 @@ class Config:
         s += "%ssample_id_file = %s\n" % (prefix, self.sample_id_fn)
         s += "%s\n" % prefix
         
-        s += "%smerge_features_how = %s\n" % (prefix, str(self.merge_features_how))
+        s += "%soverlap_features_how = %s\n" % (prefix, str(self.overlap_features_how))
         s += "%s\n" % prefix
 
         s += "%ssize_factor = %s\n" % (prefix, self.size_factor)

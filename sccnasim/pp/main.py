@@ -13,8 +13,8 @@ from .config import Config
 from ..utils.cellanno import load_cells, check_dup_cell
 from ..utils.clone import load_clones
 from ..utils.gcna import load_cnas, check_dup_cna, merge_cna_profile
-from ..utils.gfeature import filter_features_by_chroms, filter_dup_features,  \
-    merge_features_quantile2, merge_features_union, \
+from ..utils.gfeature import filter_features_by_chroms, filter_duplicate_features,  \
+    filter_overlap_features_quantile, merge_overlap_features_union, \
     sort_features
 from ..utils.gsnp import get_file_suffix, check_dup_snp
 from ..xlib.xrange import format_chrom
@@ -40,7 +40,7 @@ def pp_core(conf):
     
     # filter duplicated features.
     filter_dup_feature_fn = raw_feature_fn.replace(".tsv", ".filter_dup.tsv")
-    r, n_old, n_new = filter_dup_features(
+    r, n_old, n_new = filter_duplicate_features(
         in_fn = conf.feature_fn,
         out_fn = filter_dup_feature_fn,
         keep = "first"
@@ -67,32 +67,32 @@ def pp_core(conf):
          (n_new, n_old))
 
     
-    # merge overlapping features.
-    merged_feature_fn = filter_chrom_feature_fn.replace(
+    # process overlapping features.
+    resolve_overlap_feature_fn = filter_chrom_feature_fn.replace(
         ".tsv", ".resolve_overlap.tsv")
-    if conf.merge_features_how == "raw":
-        merged_feature_fn = filter_chrom_feature_fn
+    if conf.overlap_features_how == "raw":
+        resolve_overlap_feature_fn = filter_chrom_feature_fn
         info("skip resolving overlapping features.")
     else:
         r, n_old, n_new = None, None, None
-        if conf.merge_features_how in ("quantile", "quantile2"):
-            r, n_old, n_new = merge_features_quantile2(
+        if conf.overlap_features_how == "quantile":
+            r, n_old, n_new = filter_overlap_features_quantile(
                 in_fn = filter_chrom_feature_fn,
-                out_fn = merged_feature_fn,
+                out_fn = resolve_overlap_feature_fn,
                 stranded = conf.is_stranded(),
                 max_gap = 1,
                 quantile = 0.99
             )
-        elif conf.merge_features_how == "union":
-            r, n_old, n_new = merge_features_union(
+        elif conf.overlap_features_how == "union":
+            r, n_old, n_new = merge_overlap_features_union(
                 in_fn = filter_chrom_feature_fn,
-                out_fn = merged_feature_fn,
+                out_fn = resolve_overlap_feature_fn,
                 stranded = conf.is_stranded(),
                 max_gap = 1
             )
         else:
             error("invalid method '%s' to resolve overlapping features." %
-                    conf.merge_features_how)
+                    conf.overlap_features_how)
             raise ValueError
         if r < 0:
             error("resolve overlapping features failed (%d)." % r)
@@ -102,8 +102,8 @@ def pp_core(conf):
         
         
     # sort features.
-    sorted_feature_fn = merged_feature_fn.replace(".tsv", ".sort.tsv")
-    sort_features(merged_feature_fn, sorted_feature_fn)
+    sorted_feature_fn = resolve_overlap_feature_fn.replace(".tsv", ".sort.tsv")
+    sort_features(resolve_overlap_feature_fn, sorted_feature_fn)
 
 
     # copy SNP file.
@@ -264,7 +264,7 @@ def pp_wrapper(
     cell_anno_fn, feature_fn, snp_fn,
     clone_anno_fn, cna_profile_fn,
     out_dir, chroms = None, strandness = "forward",
-    merge_features_how = "quantile"
+    overlap_features_how = "quantile"
 ):
     """Wrapper for running the pp (preprocessing) module.
 
@@ -325,11 +325,10 @@ def pp_wrapper(
         - "reverse": SE antisense; PE R1 sense and R2 antisense;
             e.g., 10x 5' data.
         - "unstranded": no strand information.
-    merge_features_how : str, default "quantile"
-        How to merge overlapping features.
+    overlap_features_how : str, default "quantile"
+        How to process overlapping features.
         - "raw": Leave all input gene annotations unchanged.
-        - "quantile": alias to "quantile2".
-        - "quantile2": remove highly overlapping genes.
+        - "quantile": remove highly overlapping genes.
            Remove genes with number of overlapping genes larger than a given
            value. Default is the 0.99 quantile among all genes that have 
            overlaps.
@@ -358,7 +357,7 @@ def pp_wrapper(
     conf.chroms = chroms
     
     conf.strandness = strandness
-    conf.merge_features_how = merge_features_how
+    conf.overlap_features_how = overlap_features_how
     
     ret, res = pp_run(conf)
     return((ret, res))

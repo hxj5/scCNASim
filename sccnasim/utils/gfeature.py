@@ -197,7 +197,7 @@ def save_feature_objects(obj, fn):
 
 
   
-def filter_dup_features(in_fn, out_fn, keep = "first"):
+def filter_duplicate_features(in_fn, out_fn, keep = "first"):
     """Filter duplicated features.
     
     Parameters
@@ -273,7 +273,7 @@ def filter_features_by_chroms(in_fn, out_fn, chrom_list):
 
 
 
-def merge_features_quantile2(
+def filter_overlap_features_quantile(
     in_fn, out_fn, 
     stranded = True, max_gap = 1,
     quantile = 0.99
@@ -390,7 +390,7 @@ def merge_features_quantile2(
 
 
 
-def merge_features_union(
+def merge_overlap_features_union(
     in_fn,
     out_fn, 
     stranded = True,

@@ -25,7 +25,7 @@ class Config:
         self.out_dir = None
         self.chroms = ",".join([str(c) for c in range(1, 23)])
         self.strandness = "forward"
-        self.merge_features_how = "quantile"
+        self.overlap_features_how = "quantile"
 
         # internal parameters.
         
@@ -56,7 +56,7 @@ class Config:
         s += "%sout_dir = %s\n" % (prefix, self.out_dir)
         s += "%schroms = %s\n" % (prefix, self.chroms)
         s += "%sstrandness = %s\n" % (prefix, self.strandness)
-        s += "%smerge_features_how = %s\n" % (prefix, str(self.merge_features_how))
+        s += "%soverlap_features_how = %s\n" % (prefix, str(self.overlap_features_how))
         s += "%s\n" % prefix
 
         # internal parameters.

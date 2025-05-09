@@ -35,7 +35,7 @@ def main_wrapper(
     refseq_fn,
     out_dir,
     sam_list_fn = None, sample_ids = None, sample_id_fn = None,
-    merge_features_how = "quantile",
+    overlap_features_how = "quantile",
     size_factor = "libsize",
     marginal = "auto",
     loss_allele_freq = 0.01,
@@ -120,11 +120,10 @@ def main_wrapper(
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
-    merge_features_how : str, default "quantile"
-        How to merge overlapping features.
+    overlap_features_how : str, default "quantile"
+        How to process overlapping features.
         - "raw": Leave all input gene annotations unchanged.
-        - "quantile": alias to "quantile2".
-        - "quantile2": remove highly overlapping genes.
+        - "quantile": remove highly overlapping genes.
            Remove genes with number of overlapping genes larger than a given
            value (default is the 0.99 quantile among all genes that have 
            overlaps).
@@ -243,7 +242,7 @@ def main_wrapper(
     
     
     # preprocessing.
-    conf.merge_features_how = merge_features_how
+    conf.overlap_features_how = overlap_features_how
 
 
     # count simulation.
@@ -324,7 +323,7 @@ def main_core(conf):
         out_dir = os.path.join(conf.out_dir, "%d_pp" % step),
         chroms = conf.chroms,
         strandness = conf.strandness,
-        merge_features_how = conf.merge_features_how
+        overlap_features_how = conf.overlap_features_how
     )
     if pp_ret < 0:
         error("preprocessing failed (%d)." % pp_ret)
