@@ -201,13 +201,6 @@ def rs_core(conf):
         ))
     pool.close()
     pool.join()
-    
-    ret_list = [res.get() for res in mp_result]
-    for i, ret in enumerate(ret_list):
-        if ret != 0:
-            error("sampling seed CUMIs failed in batch-%d (errcode %d)." % \
-                 (i, ret))
-            raise ValueError
 
 
     # generate simulated CUMIs
@@ -219,7 +212,7 @@ def rs_core(conf):
     os.makedirs(simu_cumi_dir, exist_ok = True)
     step += 1
 
-    ret = cumi_simu_main(
+    cumi_simu_main(
         count_fn = conf.count_fn,
         n = n,
         p = p,
@@ -229,9 +222,6 @@ def rs_core(conf):
         tmp_dir = simu_cumi_dir,
         ncores = conf.ncores
     )
-    if ret != 0:
-        error("generate simulated CUMIs failed (errcode %d)." % ret)
-        raise ValueError
     
     
     # prepare batch-specific BAM files.

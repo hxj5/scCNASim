@@ -335,12 +335,12 @@ def afc_core(conf):
     # merge feature objects containing post-filtering SNPs.
     info("merge feature objects ...")
 
-    out_fet_obj_fn = fet_obj_fn.replace(".pickle", ".snp_filter.pickle")
+    fet_obj_snp_filter_fn = fet_obj_fn.replace(".pickle", ".snp_filter.pickle")
     reg_list = []
     for fn in reg_fn_list:
         lst = load_feature_objects(fn)
         reg_list.extend(lst)
-    save_feature_objects(reg_list, out_fet_obj_fn)
+    save_feature_objects(reg_list, fet_obj_snp_filter_fn)
 
 
     # merge count matrices.
@@ -356,7 +356,8 @@ def afc_core(conf):
         ) < 0:
             error("errcode -17")
             raise ValueError
-            
+    
+    out_fet_obj_fn = fet_obj_snp_filter_fn
     shutil.rmtree(tmp_dir)
     
     
@@ -371,10 +372,13 @@ def afc_core(conf):
         tmp_dir = os.path.join(conf.out_dir, "tmp_mfu")
         os.makedirs(tmp_dir, exist_ok = True)
         
-        mfu_main(
+        fet_obj_mfu_fn = fet_obj_snp_filter_fn.replace(".pickle", ".mfu.pickle")
+        
+        res = mfu_main(
             alleles = conf.cumi_alleles,
             multi_mapper_how = conf.multi_mapper_how,
-            fet_obj_fn = out_fet_obj_fn,
+            fet_obj_fn = fet_obj_snp_filter_fn,
+            out_fet_obj_fn = fet_obj_mfu_fn,
             sample_fn = out_sample_fn,
             feature_fn = out_feature_fn,
             count_dir = count_dir,
@@ -382,6 +386,11 @@ def afc_core(conf):
             out_prefix = "afc",
             ncores = conf.ncores
         )
+        
+        out_sample_fn = res["out_sample_fn"]
+        out_feature_fn = res["out_feature_fn"]
+        out_fet_obj_fn = res["out_fet_obj_fn"]
+        out_mtx_fns = res["out_mtx_fns"]
         
         #shutil.rmtree(tmp_dir)
         
@@ -391,9 +400,6 @@ def afc_core(conf):
         
     else:
         raise ValueError("invalid multi_mapper_how = '%s'." % conf.multi_mapper_how)
-        
-
-    sys.exit(123)     # for debug
 
 
     # construct adata and save into h5ad file.
@@ -430,18 +436,18 @@ def afc_core(conf):
     info("clean ...")
 
 
-    res = {
+    res = dict(
         # fet_obj_fn : str
         #   Path to a python pickle file storing the `reg_list`.
         #   It will be re-loaded for read sampling.
-        "fet_obj_fn": out_fet_obj_fn,
+        fet_obj_fn = out_fet_obj_fn,
 
         # count_fn : str
         #   Path to a ".adata" file storing a :class:`~anndata.Anndata`
         #   object, which contains all allele-specific *cell x feature* count
         #   matrices.
-        "count_fn": out_count_fn
-    }
+        count_fn = out_count_fn
+    )
     return(res)
 
 

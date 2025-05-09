@@ -74,8 +74,7 @@ def cumi_simu_main(
 
     Returns
     -------
-    int
-        Return code. 0 if success, negative otherwise.
+    Void.
     """
     info("start ...")
 
@@ -100,15 +99,14 @@ def cumi_simu_main(
     cs_dir = os.path.join(tmp_dir, "tmp_cs")
     os.makedirs(cs_dir, exist_ok = True)
     
-    if cumi_simu_cs_main(
+    cumi_simu_cs_main(
         count_fn = count_fn,
         alleles = alleles,
         umi_len = umi_len,
         out_files = ale_cumi_fn_list,
         tmp_dir = cs_dir,
         ncores = ncores
-    ) < 0:
-        return(-3)
+    )
     
     shutil.rmtree(cs_dir)
     
@@ -128,8 +126,6 @@ def cumi_simu_main(
             ncores = ncores
         )
         shutil.rmtree(fs_dir)
-        
-    return(0)
 
 
 
@@ -165,8 +161,7 @@ def cumi_simu_cs_main(
 
     Returns
     -------
-    int
-        Return code. 0 if success, negative otherwise.
+    Void.
     """
     # check args.
     adata = load_h5ad(count_fn)
@@ -226,11 +221,6 @@ def cumi_simu_cs_main(
     pool.close()
     pool.join()
     
-    ret_list = [res.get() for res in mp_res]
-    for ret in ret_list:
-        if ret != 0:
-            return(-3)
-    
     
     # merge CUMI files.
     for idx, ale in enumerate(alleles):
@@ -244,8 +234,6 @@ def cumi_simu_cs_main(
     # clean tmp files.
     for fn in cell_count_fn_list:
         os.remove(fn)
-        
-    return(0)
 
 
 
@@ -274,8 +262,7 @@ def cumi_simu_cs(
 
     Returns
     -------
-    int
-        Return code. 0 if success, negative otherwise.
+    Void.
     """
     # check args.
     adata = load_h5ad(count_fn)
@@ -314,8 +301,6 @@ def cumi_simu_cs(
     del RD
     gc.collect()
 
-    return(0)
-
 
 
 def cumi_extract_fs_main(
@@ -340,10 +325,9 @@ def cumi_extract_fs_main(
 
     Returns
     -------
-    int
-        Return code. 0 if success, negative otherwise.
+    Void.
     """
-    ret = __cumi_extract_fs_batch(
+    __cumi_extract_fs_batch(
         in_fn = in_fn,
         b0 = 0,
         e0 = len(out_files) - 1,
@@ -353,7 +337,6 @@ def cumi_extract_fs_main(
         max_per_batch = 300,
         depth = 0
     )
-    return(ret)
 
 
 
@@ -396,20 +379,19 @@ def __cumi_extract_fs_batch(
 
     Returns
     -------
-    int
-        Return code. 0 if success, negative otherwise.
+    Void.
     """
     p = len(out_files)
     assert p == e0 - b0 + 1
     
     if p <= max_per_batch:
-        ret = cumi_extract_fs(
+        cumi_extract_fs(
             in_fn = in_fn,
             out_files = out_files,
             b = b0,
             e = e0
         )
-        return(ret)
+        return
 
 
     # split the input CUMI file into smaller batches.
@@ -493,8 +475,6 @@ def __cumi_extract_fs_batch(
     del bd_batches
     gc.collect()
 
-    return(0)
-
 
 
 def cumi_extract_fs(
@@ -520,8 +500,7 @@ def cumi_extract_fs(
         
     Returns
     -------
-    int
-        Return code. 0 if success, negative otherwise.
+    Void.
     """
     # check args.
     assert len(out_files) == e - b + 1
@@ -542,8 +521,6 @@ def cumi_extract_fs(
     
     for fp in reg_fp_list:
         fp.close()
-
-    return(0)
 
 
 
@@ -572,8 +549,7 @@ def cumi_sample_seed_main(
 
     Returns
     -------
-    int
-        Return code. 0 if success, negative otherwise.
+    Void.
     """
     if index is not None:
         info("[Batch-%d] start ..." % index)
@@ -618,8 +594,6 @@ def cumi_sample_seed_main(
     
     if index is not None:
         info("[Batch-%d] done!" % index)
-
-    return(0)
 
 
 
