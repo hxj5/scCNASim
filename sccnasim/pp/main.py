@@ -39,7 +39,8 @@ def pp_core(conf):
     
     
     # filter duplicated features.
-    filter_dup_feature_fn = raw_feature_fn.replace(".tsv", ".filter_dup.tsv")
+    fn = os.path.join(conf.out_dir, conf.out_prefix_pp + ".features.tsv")
+    filter_dup_feature_fn = fn.replace(".tsv", ".filter_dup.tsv")
     r, n_old, n_new = filter_duplicate_features(
         in_fn = conf.feature_fn,
         out_fn = filter_dup_feature_fn,

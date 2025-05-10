@@ -392,7 +392,7 @@ def afc_core(conf):
         out_fet_obj_fn = res["out_fet_obj_fn"]
         out_mtx_fns = res["out_mtx_fns"]
         
-        #shutil.rmtree(tmp_dir)
+        shutil.rmtree(tmp_dir)
         
     elif conf.multi_mapper_how == "duplicate":
         info("multi_mapper_how = '%s'; skip processing multi-feature UMIs ..." % \
