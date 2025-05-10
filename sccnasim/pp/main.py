@@ -265,7 +265,7 @@ def pp_wrapper(
     cell_anno_fn, feature_fn, snp_fn,
     clone_anno_fn, cna_profile_fn,
     out_dir, chroms = None, strandness = "forward",
-    overlap_features_how = "quantile"
+    overlap_features_how = "raw"
 ):
     """Wrapper for running the pp (preprocessing) module.
 
@@ -326,7 +326,7 @@ def pp_wrapper(
         - "reverse": SE antisense; PE R1 sense and R2 antisense;
             e.g., 10x 5' data.
         - "unstranded": no strand information.
-    overlap_features_how : str, default "quantile"
+    overlap_features_how : str, default "raw"
         How to process overlapping features.
         - "raw": Leave all input gene annotations unchanged.
         - "quantile": remove highly overlapping genes.

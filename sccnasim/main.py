@@ -35,7 +35,7 @@ def main_wrapper(
     refseq_fn,
     out_dir,
     sam_list_fn = None, sample_ids = None, sample_id_fn = None,
-    overlap_features_how = "quantile",
+    overlap_features_how = "raw",
     size_factor = "libsize",
     marginal = "auto",
     loss_allele_freq = 0.01,
@@ -120,7 +120,7 @@ def main_wrapper(
         at the same time.
     sample_id_fn : str or None, default None
         A file listing sample IDs, each per line.
-    overlap_features_how : str, default "quantile"
+    overlap_features_how : str, default "raw"
         How to process overlapping features.
         - "raw": Leave all input gene annotations unchanged.
         - "quantile": remove highly overlapping genes.

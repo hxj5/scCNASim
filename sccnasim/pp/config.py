@@ -25,7 +25,7 @@ class Config:
         self.out_dir = None
         self.chroms = ",".join([str(c) for c in range(1, 23)])
         self.strandness = "forward"
-        self.overlap_features_how = "quantile"
+        self.overlap_features_how = "raw"
 
         # internal parameters.
         

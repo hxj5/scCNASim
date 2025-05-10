@@ -28,7 +28,7 @@ class Config:
         self.sample_id_fn = None
         
         # preprocessing.
-        self.overlap_features_how = "quantile"
+        self.overlap_features_how = "raw"
 
         # count simulation.
         self.size_factor = "libsize"
