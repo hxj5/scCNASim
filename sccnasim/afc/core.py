@@ -13,7 +13,7 @@ from .mcount_feature import MCount as FeatureMCount
 from .mcount_snp import MCount as SNPMCount
 from ..utils.gfeature import load_feature_objects, save_feature_objects
 from ..utils.hapidx import hap2idx, idx2hap
-from ..utils.sam import check_read, check_strand, check_included
+from ..utils.sam import check_read
 from ..xlib.xfile import zopen, ZF_F_GZIP
 from ..xlib.xsam import sam_fetch
 
@@ -209,11 +209,7 @@ def fc_fet1(reg, alleles, sam_list, mcnt, mcnt_snp, mcnt_ab, conf):
         if not itr:    
             continue
         for read in itr:
-            if check_read(read, conf) < 0:
-                continue
-            if check_strand(read, reg.strand, conf.strandness) < 0:
-                continue
-            if check_included(read, reg.start, reg.end, conf.min_include) < 0:
+            if check_read(read, reg, conf) < 0:
                 continue
             if conf.use_barcodes():
                 ret, smp, umi, ale_idx = mcnt.push_read(read)
@@ -357,11 +353,7 @@ def plp_snp(snp, sam_list, mcnt, conf, reg):
         if not itr:    
             continue
         for read in itr:
-            if check_read(read, conf) < 0:
-                continue
-            if check_strand(read, reg.strand, conf.strandness) < 0:
-                continue
-            if check_included(read, reg.start, reg.end, conf.min_include) < 0:
+            if check_read(read, reg, conf) < 0:
                 continue
             if conf.use_barcodes():
                 ret = mcnt.push_read(read)

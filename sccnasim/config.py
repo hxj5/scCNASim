@@ -54,9 +54,10 @@ class Config:
         self.strandness = self.defaults.STRANDNESS
         self.min_include = self.defaults.MIN_INCLUDE
         self.multi_mapper_how = self.defaults.MULTI_MAPPER_HOW
+        self.xf_tag = self.defaults.XF_TAG
+        self.gene_tag = self.defaults.GENE_TAG
 
         # read filtering.
-        self.xf_tag = self.defaults.XF_TAG
         self.min_mapq = self.defaults.MIN_MAPQ
         self.min_len = self.defaults.MIN_LEN
         self.incl_flag = self.defaults.INCL_FLAG
@@ -111,9 +112,10 @@ class Config:
         s += "%sstrandness = %s\n" % (prefix, self.strandness)
         s += "%smin_include = %f\n" % (prefix, self.min_include)
         s += "%smulti_mapper_how = %s\n" % (prefix, self.multi_mapper_how)
+        s += "%sxf_tag = %s\n" % (prefix, str(self.xf_tag))
+        s += "%sgene_tag = %s\n" % (prefix, str(self.gene_tag))
         s += "%s\n" % prefix
 
-        s += "%sxf_tag = %s\n" % (prefix, str(self.xf_tag))
         s += "%smin_mapq = %d\n" % (prefix, self.min_mapq)
         s += "%smin_len = %d\n" % (prefix, self.min_len)
         s += "%sinclude_flag = %d\n" % (prefix, self.incl_flag)
@@ -138,6 +140,9 @@ class Config:
     
     def use_xf(self):
         return self.xf_tag is not None
+    
+    def use_gene(self):
+        return self.gene_tag is not None
 
     
 
@@ -156,8 +161,9 @@ class Defaults:
         self.STRANDNESS = "forward"
         self.MIN_INCLUDE = 0.9
         self.MULTI_MAPPER_HOW = "discard"
-
         self.XF_TAG = "xf"
+        self.GENE_TAG = "GN"
+        
         self.MIN_MAPQ = 20
         self.MIN_LEN = 30
         self.INCL_FLAG = 0

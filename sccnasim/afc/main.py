@@ -43,7 +43,7 @@ def afc_wrapper(
     strandness = "forward",
     min_include = 0.9,
     multi_mapper_how = "discard",
-    xf_tag = "xf",
+    xf_tag = "xf", gene_tag = "GN",
     min_mapq = 20, min_len = 30,
     incl_flag = 0, excl_flag = -1,
     no_orphan = True,
@@ -121,8 +121,11 @@ def afc_wrapper(
         - "discard": discard the UMI.
         - "duplicate": count the UMI for every mapped gene.
     xf_tag : str or None, default "xf"
-        The extra alignment flags set by CellRanger or SpaceRanger.
+        The extra alignment flags set by tools like CellRanger or SpaceRanger.
         If set, only reads with tag's value 17 or 25 will count.
+        If `None`, turn this tag off.
+    gene_tag : str or None, default "GN"
+        The tag for gene name set by tools like CellRanger or SpaceRanger.
         If `None`, turn this tag off.
     min_mapq : int, default 20
         Minimum MAPQ for read filtering.
@@ -169,8 +172,9 @@ def afc_wrapper(
     conf.strandness = strandness
     conf.min_include = min_include
     conf.multi_mapper_how = multi_mapper_how
-
     conf.xf_tag = xf_tag
+    conf.gene_tag = gene_tag
+    
     conf.min_mapq = min_mapq
     conf.min_len = min_len
     conf.incl_flag = incl_flag

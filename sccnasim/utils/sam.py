@@ -11,13 +11,23 @@ from logging import info, error
 
 
 
-def check_read(read, conf):
+def check_read(read, reg, conf):
     if conf.xf_tag:
         if not read.has_tag(conf.xf_tag):
             return(-101)
         xf = read.get_tag(conf.xf_tag)
         if xf not in (17, 25):
             return(-102)
+    if conf.gene_tag:
+        if not read.has_tag(conf.gene_tag):
+            return(-106)
+        gene = read.get_tag(conf.gene_tag)
+        if gene != reg.name:
+            return(-107)
+    if check_strand(read, reg.strand, conf.strandness) < 0:
+        return(-111)
+    if check_included(read, reg.start, reg.end, conf.min_include) < 0:
+        return(-112)
     ret = check_basic(read, conf)
     return(ret)
 
