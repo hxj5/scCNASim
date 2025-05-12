@@ -14,7 +14,8 @@ First, please look at `Input`_ to prepare the input data.
 
 Then call the ``main_wrapper()`` function to run the simulation pipeline.
 
-An example is:
+For typical single-cell or spatial transcriptomics data from 10x Genomics
+platform, an example is:
 
 .. code-block:: python
 
@@ -25,22 +26,255 @@ An example is:
        cell_anno_fn = "cell_anno.tsv", 
        feature_fn = "hg38.features.tsv",
        phased_snp_fn = "phased.snp.vcf.gz",
-       clone_meta_fn = "clone_anno.tsv",
+       clone_anno_fn = "clone_anno.tsv",
        cna_profile_fn = "cna_profile.tsv", 
        refseq_fn = "hg38.fa",
        out_dir = "./simu_result",
-       cell_tag = "CB", 
-       umi_tag = "UB",
-       ncores = 10, 
-       verbose = False
+       umi_len = 10,
+       strandness = "forward",      # set to "reverse" for typical 10x PE 5' scRNA-seq data.
+       ncores = 10
    )
 
-The full parameters can be found at ``main_wrapper()`` in the ``API`` page.
+The full parameters can be found at section `Full Parameters`_.
 
 You may also run each step (module) explicitly by calling corresponding 
 wrapper functions (see ``Tutorial`` page).
 
 See `Implementation`_ for details of the four modules.
+
+
+
+Full Parameters
+---------------
+
+.. code-block:: python
+
+    main_wrapper(
+        sam_fn,
+        cell_anno_fn, feature_fn, phased_snp_fn,
+        clone_anno_fn, cna_profile_fn, 
+        refseq_fn,
+        out_dir,
+        sam_list_fn = None, sample_ids = None, sample_id_fn = None,
+        overlap_features_how = "raw",
+        size_factor = "libsize",
+        marginal = "auto",
+        loss_allele_freq = 0.01,
+        kwargs_fit_sf = None,
+        kwargs_fit_rd = None,
+        chroms = "human_autosome",
+        cell_tag = "CB", umi_tag = "UB", umi_len = 10,
+        ncores = 1, seed = 123, verbose = False,
+        min_count = 1, min_maf = 0,
+        strandness = "forward", min_include = 0.9, multi_mapper_how = "discard",
+        xf_tag = "xf", gene_tag = "GN",
+        min_mapq = 20, min_len = 30,
+        incl_flag = 0, excl_flag = -1,
+        no_orphan = True,
+        debug_level = 0
+    )
+
+    
+The details are listed below:
+
+sam_fn : str or None
+    Comma separated indexed BAM file.
+    Note that one and only one of `sam_fn` and `sam_list_fn` should be
+    specified.
+
+cell_anno_fn : str
+    The cell annotation file. 
+    It is a header-free TSV file and its first two columns are:
+    - "cell" (str): cell barcodes.
+    - "cell_type" (str): cell type.
+
+feature_fn : str
+    A TSV file listing target features. 
+    It is header-free and its first 5 columns shoud be: 
+    - "chrom" (str): chromosome name of the feature.
+    - "start" (int): start genomic position of the feature, 1-based
+      and inclusive.
+    - "end" (int): end genomic position of the feature, 1-based and
+      inclusive.
+    - "feature" (str): feature name.
+    - "strand" (str): feature strand, either "+" (positive) or 
+      "-" (negative).
+
+phased_snp_fn : str
+    A TSV or VCF file listing phased SNPs.
+    If TSV, it is a header-free file containing SNP annotations, whose
+    first six columns should be:
+    - "chrom" (str): chromosome name of the SNP.
+    - "pos" (int): genomic position of the SNP, 1-based.
+    - "ref" (str): the reference allele of the SNP.
+    - "alt" (str): the alternative allele of the SNP.
+    - "ref_hap" (int): the haplotype index of `ref`, one of {0, 1}.
+    - "alt_hap" (int): the haplotype index of `alt`, one of {1, 0}.
+    If VCF, it should contain "GT" in its "FORMAT" field.
+
+clone_anno_fn : str
+    A TSV file listing clonal anno information.
+    It is header-free and its first 3 columns are:
+    - "clone" (str): clone ID.
+    - "source_cell_type" (str): the source cell type of `clone`.
+    - "n_cell" (int): number of cells in the `clone`. If negative, 
+      then it will be set as the number of cells in `source_cell_type`.
+
+cna_profile_fn : str
+    A TSV file listing clonal CNA profiles. 
+    It is header-free and its first 6 columns are:
+    - "chrom" (str): chromosome name of the CNA region.
+    - "start" (int): start genomic position of the CNA region, 1-based
+      and inclusive.
+    - "end" (int): end genomic position of the CNA region, 1-based and
+      inclusive.
+    - "clone" (str): clone ID.
+    - "cn_ale0" (int): copy number of the first allele.
+    - "cn_ale1" (int): copy number of the second allele.
+
+refseq_fn : str
+    A FASTA file storing reference genome sequence.
+
+out_dir : str
+    The output folder.
+
+sam_list_fn : str or None, default None
+    A file listing indexed BAM files, each per line.
+
+sample_ids : str or None, default None
+    Comma separated sample IDs.
+    It should be specified for well-based or bulk data.
+    When `barcode_fn` is not specified, the default value will be
+    "SampleX", where "X" is the 0-based index of the BAM file(s).
+    Note that `sample_ids` and `sample_id_fn` should not be specified
+    at the same time.
+
+sample_id_fn : str or None, default None
+    A file listing sample IDs, each per line.
+
+overlap_features_how : str, default "raw"
+    How to process overlapping features.
+    - "raw": Leave all input gene annotations unchanged.
+    - "quantile": remove highly overlapping genes.
+       Remove genes with number of overlapping genes larger than a given
+       value (default is the 0.99 quantile among all genes that have 
+       overlaps).
+    - "union": keep the union range of gene overlaps.
+       Replace consecutive overlapping genes with their union genomic 
+       range, i.e., aggregate overlapping genes into non-overlapping
+       super-genes.
+
+size_factor : str or None, default "libsize"
+    The type of size factor.
+    Currently, only support "libsize" (library size).
+    Set to `None` if do not use size factors for model fitting.
+
+marginal : {"auto", "poi", "nb", "zinb"}
+    Type of marginal distribution.
+    One of
+    - "auto" (auto select).
+    - "poi" (Poisson).
+    - "nb" (Negative Binomial).
+    - "zinb" (Zero-Inflated Negative Binomial).
+
+loss_allele_freq : float, default 0.01
+    The frequency of the lost allele, to mimic real error rate, i.e.,
+    sometimes we observe reads from the lost allele.
+
+kwargs_fit_sf : dict or None, default None
+    The additional kwargs passed to function 
+    :func:`~.marginal.fit_libsize_wrapper` for fitting size factors.
+    The available arguments are:
+    - dist : {"lognormal", "swr", "normal", "t"}
+        Type of distribution.
+    If None, set to `{}`.
+
+kwargs_fit_rd : dict or None, default None
+    The additional kwargs passed to function 
+    :func:`~.marginal.fit_RD_wrapper` for fitting read depth.
+    The available arguments are:
+    - min_nonzero_num : int, default 3
+        The minimum number of cells that have non-zeros for one feature.
+        If smaller than the cutoff, then the feature will not be fitted
+        (i.e., its mean will be directly treated as 0).
+    - max_iter : int, default 1000
+        Number of maximum iterations in model fitting.
+    - pval_cutoff : float, default 0.05
+        The p-value cutoff for model selection with GLR test.
+    If None, set to `{}`.
+
+chroms : str, default "human_autosome"
+    Comma separated chromosome names.
+    Reads in other chromosomes will not be used for sampling and hence
+    will not be present in the output BAM file(s).
+    If "human_autosome", set to `"1,2,...22"`.
+
+cell_tag : str or None, default "CB"
+    Tag for cell barcodes, set to None when using sample IDs.
+
+umi_tag : str or None, default "UB"
+    Tag for UMI, set to None when reads only.
+
+umi_len : int, default 10
+    Length of output UMI barcode.
+
+ncores : int, default 1
+    Number of cores.
+
+seed : int or None, default 123
+    Seed for random numbers.
+    None means not using a fixed seed.
+
+verbose : bool, default False
+    Whether to show detailed logging information.
+
+min_count : int, default 1
+    Minimum aggragated count for SNP.
+
+min_maf : float, default 0
+    Minimum minor allele fraction for SNP.
+
+strandness : {"forward", "reverse", "unstranded"}
+    Strandness of the sequencing protocol.
+    - "forward": SE sense; PE R1 antisense and R2 sense;
+        e.g., 10x 3' data.
+    - "reverse": SE antisense; PE R1 sense and R2 antisense;
+        e.g., 10x 5' data.
+    - "unstranded": no strand information.
+
+min_include : int or float, default 0.9
+    Minimum length of included part within specific feature.
+    If float between (0, 1), it is the minimum fraction of included length.
+
+multi_mapper_how : {"discard", "duplicate"}
+    How to process the multi-feature UMIs (reads).
+    - "discard": discard the UMI.
+    - "duplicate": count the UMI for every mapped gene.
+
+xf_tag : str or None, default "xf"
+    The extra alignment flags set by tools like CellRanger or SpaceRanger.
+    If set, only reads with tag's value 17 or 25 will count.
+    If `None`, turn this tag off.
+
+gene_tag : str or None, default "GN"
+    The tag for gene name set by tools like CellRanger or SpaceRanger.
+    If `None`, turn this tag off.
+
+min_mapq : int, default 20
+    Minimum MAPQ for read filtering.
+
+min_len : int, default 30
+    Minimum mapped length for read filtering.
+
+incl_flag : int, default 0
+    Required flags: skip reads with all mask bits unset.
+
+excl_flag : int, default -1
+    Filter flags: skip reads with any mask bits set.
+    Value -1 means setting it to 772 when using UMI, or 1796 otherwise.
+
+no_orphan : bool, default True
+    If `False`, do not skip anomalous read pairs.
 
 
 
@@ -361,150 +595,12 @@ To speedup, features are splitted into batches for multi-processing.
 In one feature, the haplotype state of each UMI/read is inferred by
 integrating haplotype information from all SNPs covered by the UMI/read.
 
-Haplotype state of UMI/read pair in SNP scale
-+++++++++++++++++++++++++++++++++++++++++++++
-Firstly, SNP pileup is performmed to fetch the reads covering the SNPs that
-are located within the feature.
-For each SNP, the haplotype state of its fetched UMI/read pair is inferred by
-comparing the fetched SNP allele to the phased ones, e.g., 
-if the fetched allele is 'A' in one UMI/read pair, and the phased REF and ALT
-alleles are 'A' and 'C', respectively, then the UMI/read pair would be 
-inferred as from the REF haplotype given the SNP.
-
-All available haplotype state of UMI/read pair in SNP scale are listed below:
-
-.. list-table:: SNP-scale haplotype state
-   :align: center
-   :widths: 15 30 55
-   :header-rows: 1
-
-   * - Index
-     - String
-     - Brief Description
-   * - 0
-     - ref (reference)
-     - The fetched SNP allele is on the reference haplotype.
-   * - 1
-     - alt (alternative)
-     - The fetched SNP allele is on the alternative haplotype.
-   * - -1
-     - oth (others)
-     - Some allele is fetched but is on neither the reference nor 
-       alternative haplotype.
-   * - -2 
-     - unknown
-     - No allele is fetched (the value is None).
-
-
-Haplotype state of UMI/read pair in feature scale
-+++++++++++++++++++++++++++++++++++++++++++++++++
-Secondly, the final haplotype state of one UMI/read pair (in feature scale)
-is inferred by integrating information from all SNPs covered by the 
-UMI/read pair.
-
-All available haplotype state of UMI/read pair in feature scale are listed
-below:
-
-.. list-table:: Feature-scale haplotype state
-   :align: center
-   :widths: 15 30 55
-   :header-rows: 1
-
-   * - Index
-     - String
-     - Brief Description
-   * - 0
-     - ref (reference)
-     - Reference haplotype has supporting SNPs but alternative haplotype does
-       not.
-   * - 1
-     - alt (alternative)
-     - Alternative haplotype has supporting SNPs but reference haplotype does
-       not.
-   * - 2 
-     - both
-     - Both reference and alternative haplotypes have supporting SNPs.
-   * - -1
-     - oth (others)
-     - Neither reference nor alternative haplotype has supporting SNPs, but
-       other alleles (bases) in SNP level are fetched.
-   * - -2
-     - unknown
-     - The UMI/read pair is fetched by some SNPs, but no any alleles (bases)
-       are fetched.
-
-
-Final haplotype state of UMI/read pair
-++++++++++++++++++++++++++++++++++++++
-Lastly, all reads of the feature will be iterated, including both fetched 
-reads of given SNPs and other reads covering no SNPs.
-The haplotype state of each iterated UMI/read pair is determined based on 
-previous step.
-
-All final haplotype state of UMI/read pair in feature scale are listed
-below:
-
-.. list-table:: Final haplotype state
-   :widths: 15 25 60
-   :header-rows: 1
-
-   * - Index
-     - String
-     - Brief Description
-   * - 0
-     - A (Haplotype-A; ref)
-     - Haplotype A has supporting SNPs but haplotype B does not.
-   * - 1
-     - B (Haplotype-B; alt)
-     - Haplotype B has supporting SNPs but haplotype A does not.
-   * - 2 
-     - D (Duplicate; both)
-     - Both haplotype A and B have supporting SNPs.
-   * - -1
-     - O (Others)
-     - Neither haplotype A nor B has supporting SNPs, but other alleles 
-       (bases) in SNP level are fetched.
-   * - -2
-     - U (Unknown)
-     - The UMI/read pair is fetched by some SNPs, but no any alleles (bases)
-       are fetched.
-   * - -3
-     - U (Unknown)
-     - The UMI/read pair is not fetched by any SNPs.
-
 The output allele-specific *feature x cell* count matrices are at folder 
 ``{out_dir}/2_afc/counts``.
 
 Additionally, all the count matrices are also saved into one anndata ".h5ad"
 file, ``{out_dir}/2_afc/afc.counts.cell_anno.h5ad``, which will be used by 
 downstream ``cs`` module.
-
-
-The allele-specific UMIs
-++++++++++++++++++++++++
-Although there are in total 6 haplotype states available, only 3 of them,
-including "A", "B", "U" (merged from haplotype index -2 and -3), will be used
-for downstream ``rs`` module.
-Reads of the other 3 haplotype states are excluded from downstream analysis.
-
-The extracted allele-specific UMIs (CUMIs) are stored in each corresponding
-header-free TSV file, i.e., 
-``{out_dir}/2_afc/{batch}/{feature}/{feature}.{haplotype}.aln.afc.tsv``.
-These files contain 2 columns ``cell``, ``UMI``, where
-
-cell : str
-    The cell barcode (droplet-based data) or sample ID (well-based data).
-
-UMI : str
-    The UMI barcode (droplet-based data) or query name (well-based data).
-
-An example is as follows:
-
-.. code-block::
-
-   ACCCACTCAGTTTACG-1      AGCAGATCAG
-   ACGATGTTCACCTCGT-1      AATTTACGCA
-   AGCGTATAGCCGCCTA-1      GGTCTCAGCT
 
 
 The ``cs`` (count simulation) module
@@ -523,39 +619,6 @@ separately, mainly following three steps:
 #. Generate new feature-specific counts based on the updated parameters.
 
 
-Fit input feature-specific counts
-+++++++++++++++++++++++++++++++++
-For each haplotype-specific *cell x feature* count matrix, features are 
-processed separately within each cell type using multi-processing.
-For feature counts in a specific cell type, the counts are modelled with one
-of the four distribution: "poi" (Poisson), "nb" (Negative Binomial), "zip" 
-(Zero-Inflated Poisson), and "zinb" (Zero-Inflated Negative Binomial), either
-speficied by users or using a data-driven auto-selected strategy.
-
-
-Update parameters based on CNA profile
-++++++++++++++++++++++++++++++++++++++
-The fitted feature-specific parameters are updated, multiplying a coefficient
-of copy number fold based on the CNA profile.
-For example, if one feature overlaps a copy loss region (e.g., either 1,0 or
-0,1) in certain CNA clone, then the CN fold of this feature in this clone
-would be less than 1.0 (e.g., 0.5).
-If the feature overlaps a copy gain region (e.g., 1,2 or 2,1), then the CN
-fold is larger than 1.0 (e.g., 1.5).
-If the feature overlaps a LOH region (e.g., either 0,2 or 2,0), then the CN
-fold is 1.0.
-
-
-Generate new feature-specific counts
-++++++++++++++++++++++++++++++++++++
-The updated parameters are used for generation of new haplotype-specific
-*cell x feature* count matrices.
-All haplotype-specific count matrices will then be merged to construct a 
-anndata ".h5ad" file, located at ``{out_dir}/3_cs/cs.counts.h5ad``.
-Additionally, the parameters are also outputted, to a python pickle file
-``{out_dir}/3_cs/cs.params.pickle``.
-
-
 The ``rs`` (read simulation) module
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This module simulates new reads for new clonal single cells by sampling reads
@@ -569,50 +632,6 @@ Specifically, it includes following steps:
 #. Sample *cell x feature* CUMIs based on simulated counts.
 #. Extract output reads according to the sampled CUMIs.
 
-
-Sample *cell x feature* CUMIs
-+++++++++++++++++++++++++++++
-To generate new reads, CUMIs are first sampled instead of reads themselves to
-improve computational efficiency.
-CUMIs are representative strings of reads sharing the same cell and UMI
-barcodes (droplet-based data) or sample ID and read query name (well-based
-data).
-The haplotype-specific CUMIs have been extracted for each feature and
-stored in TSV files, e.g.,
-``{out_dir}/2_afc/{batch}/{feature}/{feature}.{haplotype}.aln.afc.tsv``.
-For each feature, CUMIs from all input cells are sampled with replacement in
-a pseudo-bulk manner, based on the simulated counts, to generate a list of 
-sampled CUMIs (and corresponding new CUMIs) for each new single cell.
-
-
-Extract output reads
-++++++++++++++++++++
-The simulator extracts the reads from the input BAM file(s) based on the
-sampled CUMIs by matching the CUMIs of reads with all sampled CUMIs.
-To speedup, reads of different chromosomes are iterated in parallel using
-multi-processing.
-For one iterated read, if its CUMI matches some sampled CUMIs, the read
-will be extracted and modified before being outputted:
-
-* assigned with corresponding new CUMI(s), i.e., new cell and UMI tags
-  (droplet-based data) or new sample ID and query name (well-based data).
-* its query name is added with a unique suffix.
-* other information of the read, such as FLAG, CIGAR, SEQ, and QUAL, is not 
-  changed.
-
-Note that
-
-* one source read could be sampled and outputted multiple times
-  (e.g., sampled multiple times by one new cell or sampled by more than one 
-  new cells).
-  The combination of new CUMI and query name ensures that each read in the 
-  output BAM file(s) is unique. 
-* sampling is performmed in units of UMI group (droplet-based data) or
-  read pair (well-based data).
-  The output reads will be assigned the same new CUMI, i.e., in the same
-  output UMI group or read pair, each time their source group of reads are 
-  sampled.
-
 The output reads of all chromosomes will be merged into new BAM file(s) and
 stored in folder ``{out_dir}/4_rs/bam``.
 
@@ -620,3 +639,4 @@ stored in folder ``{out_dir}/4_rs/bam``.
 
 .. _CHISEL: https://www.nature.com/articles/s41587-020-0661-6
 .. _XClone: https://www.biorxiv.org/content/10.1101/2023.04.03.535352v2
+
