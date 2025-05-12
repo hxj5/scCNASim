@@ -85,12 +85,14 @@ sam_fn : str or None
 cell_anno_fn : str
     The cell annotation file. 
     It is a header-free TSV file and its first two columns are:
+    
     - "cell" (str): cell barcodes.
     - "cell_type" (str): cell type.
 
 feature_fn : str
     A TSV file listing target features. 
     It is header-free and its first 5 columns shoud be: 
+    
     - "chrom" (str): chromosome name of the feature.
     - "start" (int): start genomic position of the feature, 1-based
       and inclusive.
@@ -104,17 +106,20 @@ phased_snp_fn : str
     A TSV or VCF file listing phased SNPs.
     If TSV, it is a header-free file containing SNP annotations, whose
     first six columns should be:
+    
     - "chrom" (str): chromosome name of the SNP.
     - "pos" (int): genomic position of the SNP, 1-based.
     - "ref" (str): the reference allele of the SNP.
     - "alt" (str): the alternative allele of the SNP.
     - "ref_hap" (int): the haplotype index of `ref`, one of {0, 1}.
     - "alt_hap" (int): the haplotype index of `alt`, one of {1, 0}.
+    
     If VCF, it should contain "GT" in its "FORMAT" field.
 
 clone_anno_fn : str
     A TSV file listing clonal anno information.
     It is header-free and its first 3 columns are:
+    
     - "clone" (str): clone ID.
     - "source_cell_type" (str): the source cell type of `clone`.
     - "n_cell" (int): number of cells in the `clone`. If negative, 
@@ -123,6 +128,7 @@ clone_anno_fn : str
 cna_profile_fn : str
     A TSV file listing clonal CNA profiles. 
     It is header-free and its first 6 columns are:
+    
     - "chrom" (str): chromosome name of the CNA region.
     - "start" (int): start genomic position of the CNA region, 1-based
       and inclusive.
@@ -154,6 +160,7 @@ sample_id_fn : str or None, default None
 
 overlap_features_how : str, default "raw"
     How to process overlapping features.
+    
     - "raw": Leave all input gene annotations unchanged.
     - "quantile": remove highly overlapping genes.
        Remove genes with number of overlapping genes larger than a given
@@ -172,6 +179,7 @@ size_factor : str or None, default "libsize"
 marginal : {"auto", "poi", "nb", "zinb"}
     Type of marginal distribution.
     One of
+    
     - "auto" (auto select).
     - "poi" (Poisson).
     - "nb" (Negative Binomial).
@@ -185,6 +193,7 @@ kwargs_fit_sf : dict or None, default None
     The additional kwargs passed to function 
     :func:`~.marginal.fit_libsize_wrapper` for fitting size factors.
     The available arguments are:
+    
     - dist : {"lognormal", "swr", "normal", "t"}
         Type of distribution.
     If None, set to `{}`.
@@ -193,6 +202,7 @@ kwargs_fit_rd : dict or None, default None
     The additional kwargs passed to function 
     :func:`~.marginal.fit_RD_wrapper` for fitting read depth.
     The available arguments are:
+    
     - min_nonzero_num : int, default 3
         The minimum number of cells that have non-zeros for one feature.
         If smaller than the cutoff, then the feature will not be fitted
@@ -201,6 +211,7 @@ kwargs_fit_rd : dict or None, default None
         Number of maximum iterations in model fitting.
     - pval_cutoff : float, default 0.05
         The p-value cutoff for model selection with GLR test.
+        
     If None, set to `{}`.
 
 chroms : str, default "human_autosome"
@@ -236,6 +247,7 @@ min_maf : float, default 0
 
 strandness : {"forward", "reverse", "unstranded"}
     Strandness of the sequencing protocol.
+    
     - "forward": SE sense; PE R1 antisense and R2 sense;
         e.g., 10x 3' data.
     - "reverse": SE antisense; PE R1 sense and R2 antisense;
@@ -248,6 +260,7 @@ min_include : int or float, default 0.9
 
 multi_mapper_how : {"discard", "duplicate"}
     How to process the multi-feature UMIs (reads).
+    
     - "discard": discard the UMI.
     - "duplicate": count the UMI for every mapped gene.
 
