@@ -2,6 +2,51 @@
 ..
    History
    =======
+   
+
+
+Release v0.5.0 (13/05/2025)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This version addresses the issue of multi-gene reads.
+Here, the multi-gene reads are reads that
+
+* (1) map uniquely to single genomic locus where two or more genes overlap.
+* (2) map to multiple genomic loci, with each locus annotated to a different 
+  gene.
+  
+We wrap the pipeline for processing multi-gene reads into ``afc.mfu`` 
+(multi-feature UMI) submodule, and add one option ``multi_mapper_how`` to 
+select which strategy to use.
+
+Specifically, in the ``afc.mfu`` submodule, we merge all ``afc`` output CUMIs 
+(combination of cell and UMI barcodes) from all genes into one file, 
+and define multi-gene UMIs as those shared by different genes or different 
+alleles of the same gene.
+By default, the multi-gene UMIs will be discarded 
+(multi_mapper_how = "discard").
+Furthermore, the allele-specific count matrices will be re-calculated based on
+the updated list of CUMIs.
+
+Additionally, we add two new options ``xf_tag`` and ``gene_tag`` to make full
+use of the optimized read assignment from CellRanger or SpaceRanger, while 
+the two tools consider at least gene structures (intron and exon etc) and 
+the multi-gene reads.
+These two options are useful for making the feature-counting results close to
+the CellRanger or STAR counting, by providing almost-the-same input (reads).
+
+
+Implementation:
+
+* cs: change default ``min_nonzero_num`` from 5 to 1.
+* pp: check duplicates in each input file.
+* rename option ``merge_features_how`` to ``overlap_features_how``;
+  rename its value "none" to "raw" and set as default.
+
+Others:
+
+* afc: reduce number of batches.
+* docs: update manual.
+
 
 
 Release v0.4.1 (16/04/2025)
