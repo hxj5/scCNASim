@@ -10,9 +10,8 @@ Release v0.5.0 (13/05/2025)
 This version addresses the issue of multi-gene reads.
 Here, the multi-gene reads are reads that
 
-* (1) map uniquely to single genomic locus where two or more genes overlap.
-* (2) map to multiple genomic loci, with each locus annotated to a different 
-  gene.
+* map uniquely to single genomic locus where two or more genes overlap.
+* map to multiple genomic loci, with each locus annotated to a different gene.
   
 We wrap the pipeline for processing multi-gene reads into ``afc.mfu`` 
 (multi-feature UMI) submodule, and add one option ``multi_mapper_how`` to 
