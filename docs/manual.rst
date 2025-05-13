@@ -203,7 +203,7 @@ kwargs_fit_rd : dict or None, default None
     :func:`~.marginal.fit_RD_wrapper` for fitting read depth.
     The available arguments are:
     
-    - min_nonzero_num : int, default 3
+    - min_nonzero_num : int, default 1
         The minimum number of cells that have non-zeros for one feature.
         If smaller than the cutoff, then the feature will not be fitted
         (i.e., its mean will be directly treated as 0).
