@@ -47,8 +47,8 @@ class Config:
         self.verbose = False
 
         # snp filtering
-        self.min_count = 20
-        self.min_maf = 0.1
+        self.min_count = self.defaults.MIN_COUNT
+        self.min_maf = self.defaults.MIN_MAF
         
         # read assignment
         self.strandness = self.defaults.STRANDNESS
@@ -155,8 +155,8 @@ class Defaults:
         self.UMI_TAG = "UB"
         self.UMI_TAG_BC = "UB"    # the default umi tag for 10x data.
 
-        self.MIN_COUNT = 20
-        self.MIN_MAF = 0.1
+        self.MIN_COUNT = 1
+        self.MIN_MAF = 0
         
         self.STRANDNESS = "forward"
         self.MIN_INCLUDE = 0.9
