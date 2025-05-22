@@ -5,6 +5,16 @@
    
 
 
+Release v0.5.1 (22/05/2025)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This version produces the same results as v0.5.0, while it has a few minor
+updates, including:
+
+* config: fix typo that default ``min_count = 1`` and ``min_maf = 0``.
+* update some doc files.
+
+
+
 Release v0.5.0 (13/05/2025)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This version addresses the issue of multi-gene reads.
