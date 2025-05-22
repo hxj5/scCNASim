@@ -161,7 +161,8 @@ sample_id_fn : str or None, default None
 overlap_features_how : str, default "raw"
     How to process overlapping features.
     
-    - "raw": Leave all input gene annotations unchanged.
+    - "raw": 
+       Leave all input gene annotations unchanged.
     - "quantile": remove highly overlapping genes.
        Remove genes with number of overlapping genes larger than a given
        value (default is the 0.99 quantile among all genes that have 
