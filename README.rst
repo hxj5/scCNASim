@@ -69,7 +69,10 @@ See `Issue 3 <https://github.com/hxj5/stCNASim/issues/3>`_ for details.
 
 Manual
 ------
-The full manual is at `docs/manual.rst <./docs/manual.rst>`_.
+The full manual of the four core modules (pp, afc, cs, and rs) is at 
+`docs/manual.rst <./docs/manual.rst>`_.
+Example notebooks for the post-processing spatial patterning module are at
+`notebooks/spatial_patterning <./notebooks/spatial_patterning>`_.
 
 
 
